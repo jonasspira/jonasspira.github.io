@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPIIIRA</title>
+<link href="https://fonts.googleapis.com/css2?family=Gasoek+One&family=Archivo+Black&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d0d0c;
+  --bg-2: #161614;
+  --bg-3: #1f1f1c;
+  --line: #2a2a26;
+  --line-bright: #3d3d36;
+  --ink: #ebe2cf;
+  --ink-dim: #8a8270;
+  --ink-faint: #4f483a;
+  --teal: #1E5663;
+  --orange: #FF4A14;
+  --amber: #F28C00;
+  --sand: #D6C2A7;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.wrap {
+  max-width: 600px;
+  width: 100%;
+  padding: 0 20px 60px;
+  position: relative;
+  z-index: 1;
+}
+
+.header {
+  padding: 40px 0 0;
+  margin-bottom: 40px;
+}
+
+.title {
+  font-family: 'Gasoek One', sans-serif;
+  font-size: 32px;
+  color: var(--sand);
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  margin-bottom: 12px;
+}
+
+.accent-strip {
+  height: 6px;
+  background: linear-gradient(90deg, var(--teal) 0% 60%, var(--orange) 60% 75%, var(--amber) 75% 88%, var(--sand) 88% 100%);
+}
+
+.section-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--ink-dim);
+  margin-bottom: 14px;
+}
+
+.tool-card {
+  display: block;
+  background: var(--bg-2);
+  border: 1px solid var(--line-bright);
+  border-left: 3px solid var(--teal);
+  padding: 20px;
+  margin-bottom: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.12s;
+  cursor: pointer;
+}
+
+.tool-card:active {
+  transform: scale(0.98);
+}
+
+.tool-name {
+  font-family: 'Archivo Black', sans-serif;
+  font-size: 16px;
+  color: var(--sand);
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+}
+
+.tool-desc {
+  font-size: 11px;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  line-height: 1.5;
+}
+
+.tool-path {
+  font-size: 10px;
+  color: var(--ink-faint);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-top: 8px;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="title">SPIIIRA</div>
+    <div class="accent-strip"></div>
+  </div>
+
+  <div class="section-label">Tools</div>
+
+  <a class="tool-card" href="/filters/">
+    <div class="tool-name">Gmail Filter Builder</div>
+    <div class="tool-desc">Builds search queries for Gmail filters with correct syntax for OR groups, exclusions, and field operators</div>
+    <div class="tool-path">/filters/</div>
+  </a>
+
+  <a class="tool-card" href="/groton-inventory/">
+    <div class="tool-name">Home Inventory</div>
+    <div class="tool-desc">Field entry and tracking for appliances, systems, and assets at Groton Rd</div>
+    <div class="tool-path">/groton-inventory/</div>
+  </a>
+</div>
+</body>
+</html>
