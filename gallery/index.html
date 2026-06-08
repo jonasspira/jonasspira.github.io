@@ -1,0 +1,333 @@
+---
+# This empty "front matter" block tells GitHub Pages (Jekyll) to process the
+# page so it can auto-list whatever photos live in /gallery/photos/.
+# You never need to edit this file to add photos — just drop files in that folder.
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPIIIRA — Gallery</title>
+<link href="https://fonts.googleapis.com/css2?family=Gasoek+One&family=Archivo+Black&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d0d0c;
+  --bg-2: #161614;
+  --bg-3: #1f1f1c;
+  --line: #2a2a26;
+  --line-bright: #3d3d36;
+  --ink: #ebe2cf;
+  --ink-dim: #8a8270;
+  --ink-faint: #4f483a;
+  --teal: #1E5663;
+  --orange: #FF4A14;
+  --amber: #F28C00;
+  --sand: #D6C2A7;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { overflow-x: hidden; }           /* keeps a popped-out edge tile from adding a scrollbar */
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.wrap {
+  max-width: 1100px;
+  width: 100%;
+  padding: 0 20px 80px;
+  position: relative;
+  z-index: 1;
+}
+
+.header {
+  padding: 40px 0 0;
+  margin-bottom: 32px;
+}
+
+.title {
+  font-family: 'Gasoek One', sans-serif;
+  font-size: 32px;
+  color: var(--sand);
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  margin-bottom: 12px;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.accent-strip {
+  height: 6px;
+  background: linear-gradient(90deg, var(--teal) 0% 60%, var(--orange) 60% 75%, var(--amber) 75% 88%, var(--sand) 88% 100%);
+}
+
+.subhead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 24px 0 18px;
+}
+
+.section-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--ink-dim);
+}
+
+.back-link {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--ink-dim);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+.back-link:hover { color: var(--sand); }
+
+/* --- The gallery grid --- */
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.tile {
+  position: relative;
+  display: block;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  z-index: 1;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.28s ease,
+              border-color 0.28s ease;
+  will-change: transform;
+}
+
+.tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* The whole point: hover lifts a photo above its neighbours and grows it.
+   Only on devices that truly hover (a mouse). Touchscreens skip it — there,
+   tapping a photo opens it full screen instead. */
+@media (hover: hover) {
+  .tile:hover {
+    transform: scale(1.32);
+    z-index: 10;
+    border-color: var(--sand);
+    box-shadow: 0 14px 50px rgba(0, 0, 0, 0.65);
+  }
+}
+.tile { cursor: pointer; }
+
+/* Respect "reduce motion" system settings: no growing, just a gentle brighten. */
+@media (prefers-reduced-motion: reduce) {
+  .tile { transition: border-color 0.2s ease, filter 0.2s ease; }
+  @media (hover: hover) {
+    .tile:hover { transform: none; box-shadow: none; filter: brightness(1.12); border-color: var(--sand); }
+  }
+}
+
+/* Empty state (shown when /gallery/photos/ has no images yet) */
+.empty {
+  border: 1px dashed var(--line-bright);
+  background: var(--bg-2);
+  padding: 48px 28px;
+  text-align: center;
+  color: var(--ink-dim);
+}
+.empty .big {
+  font-family: 'Archivo Black', sans-serif;
+  font-size: 16px;
+  color: var(--sand);
+  margin-bottom: 12px;
+  text-transform: none;
+  letter-spacing: -0.02em;
+}
+.empty code {
+  color: var(--amber);
+  font-size: 12px;
+}
+
+/* --- Fullscreen photo viewer (lightbox) --- */
+.lb {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(8, 8, 7, 0.985);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 16px;
+}
+.lb.open { display: flex; }
+.lb img {
+  max-width: 92vw;
+  max-height: 86vh;
+  object-fit: contain;
+  border: 1px solid var(--line-bright);
+  box-shadow: 0 24px 90px rgba(0, 0, 0, 0.7);
+}
+.lb-btn {
+  position: absolute;
+  background: none;
+  border: none;
+  color: var(--ink-dim);
+  font-family: 'JetBrains Mono', monospace;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.lb-btn:hover { color: var(--sand); }
+.lb-back {
+  top: 22px; left: 24px;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.15em; text-transform: uppercase;
+}
+.lb-count {
+  position: absolute; top: 24px; right: 24px;
+  font-size: 11px; letter-spacing: 0.1em; color: var(--ink-faint);
+}
+.lb-nav {
+  top: 50%; transform: translateY(-50%);
+  font-size: 40px; line-height: 1; padding: 8px 18px;
+}
+.lb-prev { left: 6px; }
+.lb-next { right: 6px; }
+@media (max-width: 600px) {
+  .lb-nav { font-size: 30px; padding: 8px 12px; }
+}
+
+@media (max-width: 600px) {
+  .gallery { grid-template-columns: repeat(2, 1fr); }
+  .title { font-size: 26px; }
+  /* On phones there's no hover; tiles just sit in a tidy 2-up grid. */
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <a class="title" href="/">SPIIIRA</a>
+    <div class="accent-strip"></div>
+  </div>
+
+  <div class="subhead">
+    <div class="section-label">Gallery</div>
+    <a class="back-link" href="/">← Back</a>
+  </div>
+
+  {%- comment -%}
+    Auto-list every image in /gallery/photos/, sorted by filename.
+    Add photos by dropping files in that folder — no edits here needed.
+  {%- endcomment -%}
+  {%- assign count = 0 -%}
+  {%- capture tiles -%}
+    {%- assign files = site.static_files | sort: 'path' -%}
+    {%- for file in files -%}
+      {%- if file.path contains '/gallery/photos/' -%}
+        {%- assign ext = file.extname | downcase -%}
+        {%- if ext == '.jpg' or ext == '.jpeg' or ext == '.png' or ext == '.gif' or ext == '.webp' or ext == '.svg' -%}
+<a class="tile" href="{{ file.path }}" target="_blank" rel="noopener"><img src="{{ file.path }}" loading="lazy" alt="Photo"></a>
+          {%- assign count = count | plus: 1 -%}
+        {%- endif -%}
+      {%- endif -%}
+    {%- endfor -%}
+  {%- endcapture -%}
+
+  {%- if count > 0 -%}
+  <div class="gallery">{{ tiles }}</div>
+  {%- else -%}
+  <div class="empty">
+    <div class="big">No photos yet</div>
+    <div>Drop image files into the <code>gallery/photos/</code> folder on GitHub<br>and they'll appear here automatically.</div>
+  </div>
+  {%- endif -%}
+</div>
+
+<!-- Fullscreen photo viewer. Opens when a photo is clicked; "← Back" returns to the grid. -->
+<div class="lb" id="lb" aria-hidden="true">
+  <button class="lb-btn lb-back" id="lb-back" aria-label="Back to gallery">← Back</button>
+  <button class="lb-btn lb-nav lb-prev" id="lb-prev" aria-label="Previous photo">‹</button>
+  <img id="lb-img" alt="">
+  <button class="lb-btn lb-nav lb-next" id="lb-next" aria-label="Next photo">›</button>
+  <div class="lb-count" id="lb-count"></div>
+</div>
+
+<script>
+(function () {
+  var tiles = [].slice.call(document.querySelectorAll('.gallery .tile'));
+  if (!tiles.length) return;                       // empty gallery -> nothing to wire up
+  var srcs  = tiles.map(function (a) { return a.getAttribute('href'); });
+  var lb    = document.getElementById('lb');
+  var img   = document.getElementById('lb-img');
+  var count = document.getElementById('lb-count');
+  var idx   = 0;
+
+  function show(i) {
+    idx = (i + srcs.length) % srcs.length;         // wrap around at the ends
+    img.src = srcs[idx];
+    count.textContent = (idx + 1) + ' / ' + srcs.length;
+  }
+  function open(i) {
+    show(i);
+    lb.classList.add('open');
+    lb.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';       // freeze the page behind it
+  }
+  function close() {
+    lb.classList.remove('open');
+    lb.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    img.removeAttribute('src');
+  }
+
+  tiles.forEach(function (a, i) {
+    a.addEventListener('click', function (e) { e.preventDefault(); open(i); });
+  });
+  document.getElementById('lb-back').addEventListener('click', close);
+  document.getElementById('lb-prev').addEventListener('click', function () { show(idx - 1); });
+  document.getElementById('lb-next').addEventListener('click', function () { show(idx + 1); });
+  lb.addEventListener('click', function (e) { if (e.target === lb) close(); });  // click backdrop to close
+  document.addEventListener('keydown', function (e) {
+    if (!lb.classList.contains('open')) return;
+    if (e.key === 'Escape') close();
+    else if (e.key === 'ArrowLeft')  show(idx - 1);
+    else if (e.key === 'ArrowRight') show(idx + 1);
+  });
+})();
+</script>
+</body>
+</html>

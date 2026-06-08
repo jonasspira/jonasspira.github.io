@@ -1,0 +1,11 @@
+HOW TO ADD YOUR PHOTOS
+======================
+1. Go to github.com/jonasspira/jonasspira.github.io  ->  gallery/photos/
+2. Click "Add file" -> "Upload files", then drag your photo files in.
+3. Click "Commit changes".
+That's it. The gallery page updates itself within ~1 minute. No code editing.
+
+- Supported: .jpg .jpeg .png .gif .webp  (and .svg)
+- Photos appear in alphabetical order by filename. To control the order,
+  prefix names like 01-beach.jpg, 02-sunset.jpg, 03-...
+- Delete the sample-01.svg ... sample-06.svg files once you've added real photos.
