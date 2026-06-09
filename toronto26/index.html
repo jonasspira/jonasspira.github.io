@@ -1,6 +1,6 @@
 ---
 # This empty "front matter" block tells GitHub Pages (Jekyll) to process the
-# page so it can auto-list whatever photos live in /gallery/photos/.
+# page so it can auto-list whatever photos live in /toronto26/photos/.
 # You never need to edit this file to add photos — just drop files in that folder.
 ---
 <!DOCTYPE html>
@@ -159,7 +159,7 @@ body::before {
   }
 }
 
-/* Empty state (shown when /gallery/photos/ has no images yet) */
+/* Empty state (shown when /toronto26/photos/ has no images yet) */
 .empty {
   border: 1px dashed var(--line-bright);
   background: var(--bg-2);
@@ -250,14 +250,14 @@ body::before {
   </div>
 
   {%- comment -%}
-    Auto-list every image in /gallery/photos/, sorted by filename.
+    Auto-list every image in /toronto26/photos/, sorted by filename.
     Add photos by dropping files in that folder — no edits here needed.
   {%- endcomment -%}
   {%- assign count = 0 -%}
   {%- capture tiles -%}
     {%- assign files = site.static_files | sort: 'path' -%}
     {%- for file in files -%}
-      {%- if file.path contains '/gallery/photos/' -%}
+      {%- if file.path contains '/toronto26/photos/' -%}
         {%- assign ext = file.extname | downcase -%}
         {%- if ext == '.jpg' or ext == '.jpeg' or ext == '.png' or ext == '.gif' or ext == '.webp' or ext == '.svg' -%}
 <a class="tile" href="{{ file.path }}" target="_blank" rel="noopener"><img src="{{ file.path }}" loading="lazy" alt="Photo"></a>
@@ -272,14 +272,14 @@ body::before {
   {%- else -%}
   <div class="empty">
     <div class="big">No photos yet</div>
-    <div>Drop image files into the <code>gallery/photos/</code> folder on GitHub<br>and they'll appear here automatically.</div>
+    <div>Drop image files into the <code>toronto26/photos/</code> folder on GitHub<br>and they'll appear here automatically.</div>
   </div>
   {%- endif -%}
 </div>
 
 <!-- Fullscreen photo viewer. Opens when a photo is clicked; "← Back" returns to the grid. -->
 <div class="lb" id="lb" aria-hidden="true">
-  <button class="lb-btn lb-back" id="lb-back" aria-label="Back to gallery">← Back</button>
+  <button class="lb-btn lb-back" id="lb-back" aria-label="Back to toronto26">← Back</button>
   <button class="lb-btn lb-nav lb-prev" id="lb-prev" aria-label="Previous photo">‹</button>
   <img id="lb-img" alt="">
   <button class="lb-btn lb-nav lb-next" id="lb-next" aria-label="Next photo">›</button>

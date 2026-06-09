@@ -1,6 +1,6 @@
 HOW TO ADD YOUR PHOTOS
 ======================
-1. Go to github.com/jonasspira/jonasspira.github.io  ->  gallery/photos/
+1. Go to github.com/jonasspira/jonasspira.github.io  ->  toronto26/photos/
 2. Click "Add file" -> "Upload files", then drag your photo files in.
 3. Click "Commit changes".
 That's it. The gallery page updates itself within ~1 minute. No code editing.
