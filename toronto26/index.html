@@ -230,6 +230,33 @@ body::before {
   .lb-nav { font-size: 30px; padding: 8px 12px; }
 }
 
+/* Small marker in the grid showing a photo has a caption */
+.cap-dot {
+  position: absolute;
+  bottom: 8px; right: 8px;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--sand);
+  box-shadow: 0 0 0 2px rgba(8, 8, 7, 0.55);
+  pointer-events: none;
+}
+
+/* Caption shown under the photo in the fullscreen viewer (only when one exists) */
+.lb-cap {
+  position: absolute;
+  bottom: 22px; left: 50%;
+  transform: translateX(-50%);
+  max-width: min(82vw, 680px);
+  text-align: center;
+  font-size: 12px; line-height: 1.55;
+  color: var(--ink);
+  background: rgba(8, 8, 7, 0.72);
+  border: 1px solid var(--line);
+  padding: 9px 16px;
+  display: none;
+}
+.lb-cap.show { display: block; }
+
 @media (max-width: 600px) {
   .gallery { grid-template-columns: repeat(2, 1fr); }
   .title { font-size: 26px; }
@@ -260,7 +287,13 @@ body::before {
       {%- if file.path contains '/toronto26/photos/' -%}
         {%- assign ext = file.extname | downcase -%}
         {%- if ext == '.jpg' or ext == '.jpeg' or ext == '.png' or ext == '.gif' or ext == '.webp' or ext == '.svg' -%}
+          {%- assign fname = file.path | split: '/' | last -%}
+          {%- assign cap = site.data.captions[fname] -%}
+          {%- if cap -%}
+<a class="tile has-caption" href="{{ file.path }}" data-caption="{{ cap | escape }}" target="_blank" rel="noopener"><img src="{{ file.path }}" loading="lazy" alt="{{ cap | escape }}"><span class="cap-dot" aria-hidden="true"></span></a>
+          {%- else -%}
 <a class="tile" href="{{ file.path }}" target="_blank" rel="noopener"><img src="{{ file.path }}" loading="lazy" alt="Photo"></a>
+          {%- endif -%}
           {%- assign count = count | plus: 1 -%}
         {%- endif -%}
       {%- endif -%}
@@ -284,6 +317,7 @@ body::before {
   <img id="lb-img" alt="">
   <button class="lb-btn lb-nav lb-next" id="lb-next" aria-label="Next photo">›</button>
   <div class="lb-count" id="lb-count"></div>
+  <div class="lb-cap" id="lb-cap"></div>
 </div>
 
 <script>
@@ -291,15 +325,19 @@ body::before {
   var tiles = [].slice.call(document.querySelectorAll('.gallery .tile'));
   if (!tiles.length) return;                       // empty gallery -> nothing to wire up
   var srcs  = tiles.map(function (a) { return a.getAttribute('href'); });
+  var caps  = tiles.map(function (a) { return a.getAttribute('data-caption') || ''; });
   var lb    = document.getElementById('lb');
   var img   = document.getElementById('lb-img');
   var count = document.getElementById('lb-count');
+  var cap   = document.getElementById('lb-cap');
   var idx   = 0;
 
   function show(i) {
     idx = (i + srcs.length) % srcs.length;         // wrap around at the ends
     img.src = srcs[idx];
     count.textContent = (idx + 1) + ' / ' + srcs.length;
+    cap.textContent = caps[idx];                   // caption text for this photo
+    cap.classList.toggle('show', caps[idx] !== ''); // ...shown only if it has one
   }
   function open(i) {
     show(i);

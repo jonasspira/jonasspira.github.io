@@ -1,0 +1,17 @@
+# ============================================================
+#  CAPTIONS for the Toronto gallery  (spiiira.com/toronto26/)
+# ============================================================
+#  Add a line for any photo you want to caption. Photos you don't
+#  list here simply have no caption — and no dot in the grid.
+#
+#  HOW TO FIND A PHOTO'S NUMBER:
+#  Open the gallery and click a photo. The counter in the top-right
+#  (e.g. "12 / 114") is its number — so that photo is 012.jpg.
+#
+#  FORMAT (keep the quotes and the colon):
+#    "012.jpg": "Your caption text here"
+#
+#  Examples — uncomment (remove the #) and edit, or add your own:
+# "001.jpg": "First morning in the city"
+# "012.jpg": "View from the CN Tower"
+# ============================================================
