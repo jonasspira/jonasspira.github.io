@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Inventory">
+<meta name="theme-color" content="#0d0d0c">
+<title>HOME INVENTORY // GROTON</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Archivo+Black&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0c;
+    --bg-2: #161614;
+    --bg-3: #1f1f1c;
+    --teal: #1E5663;
+    --teal-dim: #133b46;
+    --orange: #FF4A14;
+    --orange-dim: #b3320a;
+    --amber: #F28C00;
+    --sand: #D6C2A7;
+    --sand-dim: #a89878;
+    --line: #2a2a26;
+    --line-bright: #3d3d36;
+    --ink: #ebe2cf;
+    --ink-dim: #8a8270;
+    --ink-faint: #4f483a;
+    --good: #7fb86b;
+    --bad: #d63c3c;
+    --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3CfeColorMatrix values='0 0 0 0 0.92, 0 0 0 0 0.85, 0 0 0 0 0.65, 0 0 0 0.04 0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
+  input, textarea, select { -webkit-user-select: text; user-select: text; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: 'JetBrains Mono', monospace; font-size: 14px; line-height: 1.4; overscroll-behavior: none; min-height: 100vh; }
+  body::before { content: ''; position: fixed; inset: 0; background-image: var(--grain); pointer-events: none; z-index: 1000; opacity: 0.5; mix-blend-mode: overlay; }
+  .app { max-width: 600px; margin: 0 auto; min-height: 100vh; background: var(--bg); position: relative; padding-bottom: 40px; }
+  .hdr { padding: 24px 20px 16px; border-bottom: 2px solid var(--teal); background: var(--bg); position: relative; }
+  .hdr::before { content: ''; position: absolute; inset: auto 0 -2px 0; height: 6px; background: linear-gradient(90deg, var(--teal) 0%, var(--teal) 60%, var(--orange) 60%, var(--orange) 75%, var(--amber) 75%, var(--amber) 88%, var(--sand) 88%, var(--sand) 100%); }
+  .hdr-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+  .hdr-title { font-family: 'Archivo Black', sans-serif; font-size: 22px; line-height: 1; letter-spacing: -0.02em; margin: 0; color: var(--sand); }
+  .hdr-sub { font-size: 10px; color: var(--ink-dim); letter-spacing: 0.15em; text-transform: uppercase; margin-top: 4px; }
+  .hdr-stamp { text-align: right; font-size: 10px; color: var(--ink-dim); letter-spacing: 0.1em; line-height: 1.3; }
+  .hdr-stamp strong { color: var(--orange); font-weight: 800; }
+  .stat-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); margin-top: 12px; }
+  .stat { background: var(--bg-2); padding: 10px 12px; text-align: center; }
+  .stat-num { font-family: 'Archivo Black', sans-serif; font-size: 22px; line-height: 1; color: var(--sand); }
+  .stat-num.warn { color: var(--amber); }
+  .stat-num.accent { color: var(--orange); }
+  .stat-lbl { font-size: 9px; color: var(--ink-dim); letter-spacing: 0.12em; text-transform: uppercase; margin-top: 4px; }
+  .tabs { display: flex; border-bottom: 2px solid var(--line); background: var(--bg); position: sticky; top: 0; z-index: 40; margin-top: 4px; }
+  .tab { flex: 1; padding: 14px 8px; background: var(--bg-2); border: none; border-right: 1px solid var(--line); color: var(--ink-dim); font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; transition: color 0.15s, background 0.15s; position: relative; }
+  .tab:last-child { border-right: none; }
+  .tab.active { background: var(--bg); color: var(--sand); }
+  .tab.active::after { content: ''; position: absolute; inset: auto 0 -2px 0; height: 2px; background: var(--orange); }
+  .tab .badge { display: inline-block; background: var(--orange); color: var(--bg); font-size: 10px; padding: 1px 5px; margin-left: 4px; font-weight: 800; border-radius: 2px; }
+  .panel { display: none; padding: 20px; }
+  .panel.active { display: block; }
+  .step { margin-bottom: 22px; padding-left: 14px; border-left: 2px solid var(--line); transition: border-color 0.2s, opacity 0.2s; }
+  .step.active { border-left-color: var(--teal); }
+  .step.complete { border-left-color: var(--orange); }
+  .step.locked { opacity: 0.35; pointer-events: none; }
+  .step-num { display: inline-block; background: var(--bg-2); color: var(--ink-dim); font-family: 'Archivo Black', sans-serif; font-size: 10px; width: 22px; height: 22px; line-height: 22px; text-align: center; border: 1px solid var(--line-bright); margin-left: -25px; margin-right: 8px; margin-bottom: 6px; }
+  .step.active .step-num { background: var(--teal); color: var(--sand); border-color: var(--teal); }
+  .step.complete .step-num { background: var(--orange); color: var(--bg); border-color: var(--orange); }
+  .step-label { display: inline-flex; align-items: baseline; justify-content: space-between; width: calc(100% - 30px); font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ink-dim); margin-bottom: 8px; font-weight: 700; }
+  .step.active .step-label { color: var(--sand); }
+  .step-label .req { color: var(--orange); }
+  .step-label .opt { color: var(--ink-faint); font-weight: 400; }
+  .step-value { color: var(--orange); font-weight: 700; font-size: 11px; text-transform: none; letter-spacing: 0.02em; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .field-input, .field-select, .field-textarea { width: 100%; background: var(--bg-2); border: 1px solid var(--line-bright); color: var(--ink); font-family: 'JetBrains Mono', monospace; font-size: 16px; padding: 14px 14px; border-radius: 0; -webkit-appearance: none; appearance: none; transition: border-color 0.15s, background 0.15s; }
+  .field-input:focus, .field-select:focus, .field-textarea:focus { outline: none; border-color: var(--orange); background: var(--bg-3); }
+  .field-textarea { resize: none; min-height: 70px; font-size: 14px; }
+  .chip-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .chip-grid.three-col { grid-template-columns: repeat(3, 1fr); }
+  .chip { background: var(--bg-2); border: 1px solid var(--line-bright); color: var(--ink-dim); font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.05em; padding: 11px 8px; text-align: center; cursor: pointer; transition: all 0.12s; text-transform: uppercase; line-height: 1.2; }
+  .chip:active { transform: scale(0.97); }
+  .chip.selected { background: var(--orange); color: var(--bg); border-color: var(--orange); font-weight: 700; }
+  .chip.suggested { border-color: var(--teal); color: var(--sand); }
+  .chip.suggested.selected { background: var(--orange); color: var(--bg); border-color: var(--orange); }
+  .chip.custom-add { background: transparent; border-style: dashed; color: var(--ink-faint); }
+  .chip.custom-add.selected { background: var(--bg-3); border-style: solid; border-color: var(--orange); color: var(--orange); }
+  .custom-input-wrap { margin-top: 8px; display: none; }
+  .custom-input-wrap.show { display: block; }
+  .more-toggle { background: transparent; border: 1px dashed var(--line-bright); color: var(--ink-dim); font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; padding: 12px; cursor: pointer; width: 100%; text-transform: uppercase; margin: 0 0 16px; transition: all 0.15s; }
+  .more-toggle:active { background: var(--bg-2); color: var(--ink); }
+  .more-toggle.open { border-style: solid; color: var(--ink); border-color: var(--teal); }
+  .more-fields { display: none; }
+  .more-fields.show { display: block; }
+  .field-block { margin-bottom: 14px; }
+  .field-label { font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ink-dim); margin-bottom: 6px; font-weight: 700; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .submit-bar { margin-top: 24px; padding-top: 20px; border-top: 1px dashed var(--line-bright); }
+  .btn-submit { width: 100%; background: var(--orange); border: none; color: var(--bg); font-family: 'Archivo Black', sans-serif; font-size: 16px; letter-spacing: 0.1em; padding: 18px; cursor: pointer; transition: background 0.15s, transform 0.1s; text-transform: uppercase; }
+  .btn-submit:active { transform: scale(0.98); background: var(--orange-dim); }
+  .btn-submit:disabled { background: var(--line-bright); color: var(--ink-faint); cursor: not-allowed; }
+  .btn-submit .arrow { margin-left: 8px; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(120px); background: var(--sand); color: var(--bg); padding: 12px 20px; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); z-index: 200; box-shadow: 0 8px 24px rgba(0,0,0,0.5); white-space: nowrap; max-width: 90vw; overflow: hidden; text-overflow: ellipsis; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.success { background: var(--good); color: var(--bg); }
+  .toast.error { background: var(--bad); color: var(--ink); }
+  .warn-banner { background: var(--bg-3); border-left: 3px solid var(--amber); padding: 10px 14px; margin: 0 20px 16px; font-size: 11px; color: var(--amber); line-height: 1.4; }
+  .warn-banner.bad { border-left-color: var(--bad); color: var(--bad); }
+  .list-controls { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; }
+  .search-box { flex: 1; background: var(--bg-2); border: 1px solid var(--line-bright); color: var(--ink); font-family: 'JetBrains Mono', monospace; font-size: 13px; padding: 10px 12px; }
+  .search-box:focus { outline: none; border-color: var(--orange); }
+  .filter-row { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+  .filter-pill { background: var(--bg-2); border: 1px solid var(--line); color: var(--ink-dim); font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.1em; padding: 6px 10px; cursor: pointer; text-transform: uppercase; transition: all 0.15s; }
+  .filter-pill.active { background: var(--teal); color: var(--sand); border-color: var(--teal); }
+  .item-card { background: var(--bg-2); border: 1px solid var(--line); padding: 12px 14px; margin-bottom: 6px; position: relative; transition: border-color 0.15s; border-left: 3px solid var(--teal); }
+  .item-card.synced { opacity: 0.55; border-style: dashed; border-left-style: solid; }
+  .item-card-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .item-name { font-size: 14px; font-weight: 700; color: var(--sand); margin-bottom: 4px; line-height: 1.3; }
+  .item-meta { font-size: 10px; color: var(--ink-dim); letter-spacing: 0.05em; text-transform: uppercase; display: flex; flex-wrap: wrap; align-items: center; }
+  .item-meta span { display: inline-flex; align-items: center; }
+  .item-meta .dot { width: 3px; height: 3px; background: var(--ink-faint); border-radius: 50%; margin: 0 6px; align-self: center; }
+  .item-actions { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+  .icon-btn { background: transparent; border: 1px solid var(--line); color: var(--ink-dim); width: 28px; height: 28px; cursor: pointer; font-family: monospace; font-size: 12px; padding: 0; transition: all 0.15s; }
+  .icon-btn:active { background: var(--line); color: var(--ink); }
+  .icon-btn.del:active { background: var(--bad); color: var(--ink); border-color: var(--bad); }
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--ink-faint); border: 1px dashed var(--line-bright); background: var(--bg-2); }
+  .empty-state .big { font-family: 'Archivo Black', sans-serif; font-size: 18px; color: var(--ink-dim); margin-bottom: 6px; letter-spacing: 0.05em; }
+  .empty-state .small { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .sync-block { background: var(--bg-2); border: 1px solid var(--line); padding: 16px; margin-bottom: 16px; }
+  .sync-block h3 { font-family: 'Archivo Black', sans-serif; font-size: 13px; margin: 0 0 8px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--sand); }
+  .sync-block p { font-size: 12px; color: var(--ink-dim); line-height: 1.5; margin: 0 0 12px; }
+  .btn-secondary { background: var(--bg-3); border: 1px solid var(--line-bright); color: var(--ink); font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; padding: 12px 16px; cursor: pointer; text-transform: uppercase; width: 100%; transition: all 0.15s; }
+  .btn-secondary:active { background: var(--line); }
+  .btn-secondary.primary { border-color: var(--teal); color: var(--sand); }
+  .btn-secondary.primary:active { background: var(--teal); }
+  .btn-secondary.danger { color: var(--bad); border-color: var(--bad); }
+  .btn-secondary.danger:active { background: var(--bad); color: var(--ink); }
+  .export-output { width: 100%; background: var(--bg); border: 1px solid var(--line-bright); color: var(--ink); font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 12px; min-height: 200px; margin-top: 12px; line-height: 1.5; resize: vertical; }
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
+  .modal-bg.show { display: flex; }
+  .modal { background: var(--bg-2); border: 1px solid var(--line-bright); border-top: 3px solid var(--orange); padding: 20px; max-width: 400px; width: 100%; }
+  .modal h3 { font-family: 'Archivo Black', sans-serif; font-size: 14px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--sand); }
+  .modal p { font-size: 12px; color: var(--ink-dim); margin: 0 0 16px; line-height: 1.5; }
+  .modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .foot { padding: 24px 20px; text-align: center; font-size: 9px; color: var(--ink-faint); letter-spacing: 0.2em; text-transform: uppercase; border-top: 1px solid var(--line); margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="hdr">
+    <div class="hdr-top">
+      <div>
+        <h1 class="hdr-title">HOME INVENTORY</h1>
+        <div class="hdr-sub">// GROTON RD — FIELD ENTRY</div>
+      </div>
+      <div class="hdr-stamp">FORM REV. 03<br><strong id="dateStamp">—</strong></div>
+    </div>
+    <div class="stat-row">
+      <div class="stat"><div class="stat-num" id="statTotal">0</div><div class="stat-lbl">Logged</div></div>
+      <div class="stat"><div class="stat-num warn" id="statPending">0</div><div class="stat-lbl">Unsynced</div></div>
+      <div class="stat"><div class="stat-num accent" id="statSession">0</div><div class="stat-lbl">Session</div></div>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-panel="entry">Entry</button>
+    <button class="tab" data-panel="list">List <span class="badge" id="listBadge" style="display:none">0</span></button>
+    <button class="tab" data-panel="sync">Sync</button>
+  </nav>
+
+  <div id="warnContainer"></div>
+
+  <div class="panel active" id="panel-entry">
+
+    <div class="step active" id="step1">
+      <div class="step-num">1</div>
+      <div class="step-label">
+        <span>Location <span class="opt">/ optional</span></span>
+        <span class="step-value" id="step1Value"></span>
+      </div>
+      <div class="chip-grid three-col" id="locationChips"></div>
+      <div class="custom-input-wrap" id="customLocationWrap">
+        <input type="text" class="field-input" id="fCustomLocation" placeholder="Type location" autocomplete="off" autocapitalize="words" style="margin-top:8px;font-size:14px;padding:10px 12px;">
+      </div>
+    </div>
+
+    <div class="step" id="step2">
+      <div class="step-num">2</div>
+      <div class="step-label">
+        <span>Asset Type <span class="req">*</span></span>
+        <span class="step-value" id="step2Value"></span>
+      </div>
+      <div class="chip-grid" id="assetTypeChips"></div>
+    </div>
+
+    <div class="step locked" id="step3">
+      <div class="step-num">3</div>
+      <div class="step-label">
+        <span>Type <span class="req">*</span></span>
+        <span class="step-value" id="step3Value"></span>
+      </div>
+      <div class="chip-grid" id="typeChips"></div>
+    </div>
+
+    <div class="step locked" id="step4">
+      <div class="step-num">4</div>
+      <div class="step-label"><span>Details</span></div>
+
+      <div class="field-block">
+        <div class="field-label">Item Name <span style="color:var(--orange)">*</span></div>
+        <input type="text" class="field-input" id="fItem" placeholder="e.g. 20V Cordless Drill" autocomplete="off" autocapitalize="words">
+      </div>
+
+      <div class="field-block">
+        <div class="field-label">Brand</div>
+        <div class="chip-grid three-col" id="brandChips"></div>
+        <div class="custom-input-wrap" id="customBrandWrap">
+          <input type="text" class="field-input" id="fCustomBrand" placeholder="Type brand name" autocomplete="off" autocapitalize="words" style="margin-top:8px;font-size:14px;padding:10px 12px;">
+        </div>
+      </div>
+
+      <button class="more-toggle" id="moreToggle">+ More fields (Model, Serial, Condition, Acquired, Value, Notes)</button>
+
+      <div class="more-fields" id="moreFields">
+        <div class="field-block">
+          <div class="two-col">
+            <div>
+              <div class="field-label">Model</div>
+              <input type="text" class="field-input" id="fModel" placeholder="Model #" autocomplete="off" style="font-size:14px;padding:10px 12px;">
+            </div>
+            <div>
+              <div class="field-label">Serial</div>
+              <input type="text" class="field-input" id="fSerial" placeholder="Serial #" autocomplete="off" style="font-size:14px;padding:10px 12px;">
+            </div>
+          </div>
+        </div>
+        <div class="field-block">
+          <div class="field-label">Condition</div>
+          <div class="chip-grid three-col" id="conditionChips"></div>
+        </div>
+        <div class="field-block">
+          <div class="two-col">
+            <div>
+              <div class="field-label">Acquired</div>
+              <input type="date" class="field-input" id="fAcquired" autocomplete="off" style="font-size:14px;padding:10px 12px;">
+            </div>
+            <div>
+              <div class="field-label">Value (USD)</div>
+              <input type="number" inputmode="decimal" class="field-input" id="fValue" placeholder="$" autocomplete="off" min="0" step="1" style="font-size:14px;padding:10px 12px;">
+            </div>
+          </div>
+        </div>
+        <div class="field-block">
+          <div class="field-label">Notes</div>
+          <textarea class="field-textarea" id="fNotes" placeholder="Sub-location, quirks, borrowed from..." autocomplete="off"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="submit-bar">
+      <button class="btn-submit" id="btnSubmit">Log &amp; Continue <span class="arrow">→</span></button>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-list">
+    <div class="list-controls"><input type="text" class="search-box" id="searchBox" placeholder="Search logged items..." autocomplete="off"></div>
+    <div class="filter-row" id="filterRow"></div>
+    <div id="itemList"></div>
+  </div>
+
+  <div class="panel" id="panel-sync">
+    <div class="sync-block">
+      <h3>Export for Notion</h3>
+      <p>When you've logged a batch, copy the export below and paste it into a Claude chat. Claude will write each item into the <strong>Home Inventory</strong> database in Notion (under Groton).</p>
+      <button class="btn-secondary primary" id="btnGenerate">Generate Export</button>
+      <textarea class="export-output" id="exportOutput" readonly placeholder="Click 'Generate Export' to create the sync payload..."></textarea>
+      <button class="btn-secondary" id="btnCopy" style="margin-top:8px;">Copy to Clipboard</button>
+    </div>
+    <div class="sync-block">
+      <h3>Mark as Synced</h3>
+      <p>After Claude confirms the items are in Notion, mark them as synced. Synced items stay in the list (greyed out) but won't be re-exported.</p>
+      <button class="btn-secondary" id="btnMarkSynced">Mark Unsynced as Synced</button>
+    </div>
+    <div class="sync-block">
+      <h3>Backup Plain Text</h3>
+      <p>Generate a human-readable backup. Email it to yourself or save to Notes app as an extra safety layer.</p>
+      <button class="btn-secondary" id="btnBackup">Generate Backup Text</button>
+    </div>
+    <div class="sync-block">
+      <h3 style="color:var(--bad)">Danger Zone</h3>
+      <p>Clear all synced items. Unsynced items will not be touched.</p>
+      <button class="btn-secondary danger" id="btnClearSynced">Clear Synced Items</button>
+      <p style="margin-top:16px">Wipe everything. Cannot be undone.</p>
+      <button class="btn-secondary danger" id="btnWipe">Wipe All Data</button>
+    </div>
+  </div>
+
+  <div class="foot">END OF FORM // SAVE OFTEN</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3 id="modalTitle">Confirm</h3>
+    <p id="modalText">Are you sure?</p>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="modalCancel">Cancel</button>
+      <button class="btn-secondary danger" id="modalConfirm">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const STORAGE_KEY = 'home_inventory_v3';
+  const LOCATIONS = ['Garage', 'Basement', 'Kitchen', 'Living Room', 'Dining Room', 'Primary Bedroom'];
+  const ASSET_TYPES = ['Appliance', 'Tool', 'Home Tech', 'Fixture & System', 'Furnishing', 'Vehicle & Outdoor', 'Other'];
+  const TYPE_MAP = {
+    'Appliance': ['Refrigeration', 'Cooking', 'Dishwasher', 'Laundry', 'Small Appliance', 'Vacuum/Floor Care', 'Other'],
+    'Tool': ['Power Tools', 'Hand Tools', 'Yard & Garden', 'Painting', 'Cleaning Supplies', 'Plumbing Tools', 'Electrical Tools', 'Fasteners & Hardware', 'Safety & PPE', 'Measuring & Layout', 'Auto Tools', 'Storage & Organization', 'Consumables', 'Other'],
+    'Home Tech': ['Networking', 'Smart Home', 'Audio/Video', 'Computer/Tablet', 'Apple Device', 'Camera/Security', 'Wearable', 'Gaming', 'Other'],
+    'Fixture & System': ['HVAC', 'Plumbing Fixture', 'Electrical/Wiring', 'Water Heater', 'Sump/Well', 'Lighting (built-in)', 'Other'],
+    'Furnishing': ['Furniture', 'Decor / Art', 'Rug/Textile', 'Lamp (free-standing)', 'Plant', 'Window Treatment', 'Other'],
+    'Vehicle & Outdoor': ['Vehicle', 'Bike', 'Grill/BBQ', 'Patio Furniture', 'Outdoor Structure', 'Yard Equipment', 'Other'],
+    'Other': ['Other']
+  };
+  const LOCATION_ASSET_PRIORITY = {
+    'Garage': ['Tool', 'Vehicle & Outdoor', 'Home Tech', 'Appliance', 'Fixture & System', 'Furnishing', 'Other'],
+    'Basement': ['Fixture & System', 'Tool', 'Home Tech', 'Appliance', 'Furnishing', 'Vehicle & Outdoor', 'Other'],
+    'Kitchen': ['Appliance', 'Furnishing', 'Fixture & System', 'Home Tech', 'Tool', 'Vehicle & Outdoor', 'Other'],
+    'Living Room': ['Furnishing', 'Home Tech', 'Appliance', 'Fixture & System', 'Tool', 'Vehicle & Outdoor', 'Other'],
+    'Dining Room': ['Furnishing', 'Appliance', 'Home Tech', 'Fixture & System', 'Tool', 'Vehicle & Outdoor', 'Other'],
+    'Primary Bedroom': ['Furnishing', 'Home Tech', 'Appliance', 'Fixture & System', 'Tool', 'Vehicle & Outdoor', 'Other']
+  };
+  const BRAND_MAP = {
+    'Appliance': ['GE', 'Whirlpool', 'KitchenAid', 'Bosch', 'Frigidaire', 'Maytag', 'Samsung', 'LG', 'Dyson', 'Shark', 'Vitamix', 'Breville', 'Cuisinart', 'Ninja'],
+    'Tool': ['DeWalt', 'Ryobi', 'Craftsman', 'Stanley', 'Black & Decker', 'Husky', 'Kobalt', 'Ridgid', 'Bosch', 'Skil'],
+    'Home Tech': ['Apple', 'Sonos', 'Eero', 'Nest', 'Ring', 'Philips Hue', 'Logitech', 'Roku', 'Bose', 'Anker'],
+    'Fixture & System': ['Honeywell', 'Ecobee', 'Moen', 'Kohler', 'Delta', 'Trane', 'Carrier', 'Rheem', 'A.O. Smith', 'Bradford White'],
+    'Furnishing': [],
+    'Vehicle & Outdoor': ['Honda', 'Toyota', 'Ford', 'Subaru', 'Weber', 'Traeger', 'Big Green Egg', 'Trek', 'Specialized'],
+    'Other': []
+  };
+  const CONDITIONS = ['Excellent', 'Good', 'Fair', 'Needs Repair', 'Broken'];
+
+  let state = { items: [], sessionCount: 0 };
+  let currentForm = { location: null, customLocation: '', assetType: null, type: null, brand: null, customBrand: '', condition: null };
+  let activeFilter = 'all';
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) state.items = (JSON.parse(raw).items) || [];
+    } catch(e) { console.error(e); showToast('Storage load failed', 'error'); }
+  }
+  function saveState() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ items: state.items })); }
+    catch(e) { console.error(e); showToast('SAVE FAILED — copy export ASAP', 'error'); }
+  }
+
+  function init() {
+    loadState();
+    renderLocationChips();
+    renderAssetTypeChips();
+    renderConditionChips();
+    setupTabs();
+    setupForm();
+    setupSync();
+    updateStats();
+    updateDateStamp();
+    renderList();
+    checkWarnings();
+    updateStepStates();
+  }
+
+  function updateDateStamp() {
+    document.getElementById('dateStamp').textContent = new Date().toISOString().slice(0,10).replace(/-/g, '.');
+  }
+
+  function updateStepStates() {
+    const s1 = document.getElementById('step1');
+    s1.classList.remove('locked');
+    if (currentForm.location) {
+      s1.classList.add('complete'); s1.classList.remove('active');
+      const locName = currentForm.location === '__custom__' ? (currentForm.customLocation || 'Custom') : currentForm.location;
+      document.getElementById('step1Value').textContent = locName;
+    } else {
+      s1.classList.remove('complete'); s1.classList.add('active');
+      document.getElementById('step1Value').textContent = '';
+    }
+
+    const s2 = document.getElementById('step2');
+    s2.classList.remove('locked');
+    if (currentForm.assetType) {
+      s2.classList.add('complete'); s2.classList.remove('active');
+      document.getElementById('step2Value').textContent = currentForm.assetType;
+    } else {
+      s2.classList.remove('complete'); s2.classList.add('active');
+      document.getElementById('step2Value').textContent = '';
+    }
+
+    const s3 = document.getElementById('step3');
+    if (!currentForm.assetType) {
+      s3.classList.add('locked'); s3.classList.remove('active', 'complete');
+      document.getElementById('step3Value').textContent = '';
+    } else if (currentForm.type) {
+      s3.classList.remove('locked', 'active'); s3.classList.add('complete');
+      document.getElementById('step3Value').textContent = currentForm.type;
+    } else {
+      s3.classList.remove('locked', 'complete'); s3.classList.add('active');
+      document.getElementById('step3Value').textContent = '';
+    }
+
+    const s4 = document.getElementById('step4');
+    if (!currentForm.type) {
+      s4.classList.add('locked'); s4.classList.remove('active', 'complete');
+    } else {
+      s4.classList.remove('locked'); s4.classList.add('active');
+    }
+  }
+
+  function renderLocationChips() {
+    const grid = document.getElementById('locationChips');
+    grid.innerHTML = '';
+    LOCATIONS.forEach(loc => {
+      const chip = document.createElement('button');
+      chip.className = 'chip';
+      chip.textContent = loc;
+      if (currentForm.location === loc) chip.classList.add('selected');
+      chip.onclick = () => selectLocation(loc, chip);
+      grid.appendChild(chip);
+    });
+    const custom = document.createElement('button');
+    custom.className = 'chip custom-add';
+    custom.textContent = '+ Other';
+    if (currentForm.location === '__custom__') custom.classList.add('selected');
+    custom.onclick = () => selectLocation('__custom__', custom);
+    grid.appendChild(custom);
+  }
+
+  function selectLocation(loc, el) {
+    document.querySelectorAll('#locationChips .chip').forEach(c => c.classList.remove('selected'));
+    if (currentForm.location === loc) {
+      currentForm.location = null; currentForm.customLocation = '';
+      document.getElementById('customLocationWrap').classList.remove('show');
+      document.getElementById('fCustomLocation').value = '';
+      renderAssetTypeChips(); updateStepStates();
+      return;
+    }
+    el.classList.add('selected');
+    currentForm.location = loc;
+    if (loc === '__custom__') {
+      document.getElementById('customLocationWrap').classList.add('show');
+      setTimeout(() => document.getElementById('fCustomLocation').focus(), 100);
+    } else {
+      document.getElementById('customLocationWrap').classList.remove('show');
+      document.getElementById('fCustomLocation').value = '';
+      currentForm.customLocation = '';
+    }
+    renderAssetTypeChips();
+    updateStepStates();
+  }
+
+  document.getElementById('fCustomLocation').addEventListener('input', e => {
+    currentForm.customLocation = e.target.value;
+    if (currentForm.location === '__custom__') {
+      document.getElementById('step1Value').textContent = e.target.value || 'Custom';
+    }
+  });
+
+  function renderAssetTypeChips() {
+    const grid = document.getElementById('assetTypeChips');
+    grid.innerHTML = '';
+    let ordered = ASSET_TYPES.slice();
+    let suggested = new Set();
+    if (currentForm.location && currentForm.location !== '__custom__' && LOCATION_ASSET_PRIORITY[currentForm.location]) {
+      ordered = LOCATION_ASSET_PRIORITY[currentForm.location].slice();
+      ordered.slice(0, 3).forEach(t => suggested.add(t));
+    }
+    ordered.forEach(at => {
+      const chip = document.createElement('button');
+      chip.className = 'chip' + (suggested.has(at) ? ' suggested' : '');
+      chip.textContent = at;
+      if (currentForm.assetType === at) chip.classList.add('selected');
+      chip.onclick = () => selectAssetType(at, chip);
+      grid.appendChild(chip);
+    });
+  }
+
+  function selectAssetType(at, el) {
+    document.querySelectorAll('#assetTypeChips .chip').forEach(c => c.classList.remove('selected'));
+    if (currentForm.assetType === at) {
+      currentForm.assetType = null; currentForm.type = null; currentForm.brand = null; currentForm.customBrand = '';
+      renderTypeChips(); renderBrandChips(); updateStepStates();
+      return;
+    }
+    el.classList.add('selected');
+    currentForm.assetType = at;
+    if (currentForm.type && !TYPE_MAP[at].includes(currentForm.type)) currentForm.type = null;
+    currentForm.brand = null; currentForm.customBrand = '';
+    document.getElementById('customBrandWrap').classList.remove('show');
+    document.getElementById('fCustomBrand').value = '';
+    renderTypeChips();
+    renderBrandChips();
+    updateStepStates();
+    setTimeout(() => {
+      document.getElementById('step3').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 150);
+  }
+
+  function renderTypeChips() {
+    const grid = document.getElementById('typeChips');
+    grid.innerHTML = '';
+    if (!currentForm.assetType) return;
+    const types = TYPE_MAP[currentForm.assetType] || [];
+    types.forEach(t => {
+      const chip = document.createElement('button');
+      chip.className = 'chip';
+      chip.textContent = t;
+      if (currentForm.type === t) chip.classList.add('selected');
+      chip.onclick = () => selectType(t, chip);
+      grid.appendChild(chip);
+    });
+  }
+
+  function selectType(t, el) {
+    document.querySelectorAll('#typeChips .chip').forEach(c => c.classList.remove('selected'));
+    if (currentForm.type === t) {
+      currentForm.type = null; updateStepStates(); return;
+    }
+    el.classList.add('selected');
+    currentForm.type = t;
+    updateStepStates();
+    setTimeout(() => {
+      document.getElementById('step4').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.getElementById('fItem').focus();
+    }, 200);
+  }
+
+  function renderBrandChips() {
+    const grid = document.getElementById('brandChips');
+    grid.innerHTML = '';
+    if (!currentForm.assetType) return;
+    const brands = BRAND_MAP[currentForm.assetType] || [];
+    brands.forEach(brand => {
+      const chip = document.createElement('button');
+      chip.className = 'chip';
+      chip.textContent = brand;
+      if (currentForm.brand === brand) chip.classList.add('selected');
+      chip.onclick = () => selectBrand(brand, chip);
+      grid.appendChild(chip);
+    });
+    const custom = document.createElement('button');
+    custom.className = 'chip custom-add';
+    custom.textContent = '+ Other';
+    if (currentForm.brand === '__custom__') custom.classList.add('selected');
+    custom.onclick = () => selectBrand('__custom__', custom);
+    grid.appendChild(custom);
+  }
+
+  function selectBrand(brand, el) {
+    document.querySelectorAll('#brandChips .chip').forEach(c => c.classList.remove('selected'));
+    if (currentForm.brand === brand) {
+      currentForm.brand = null; currentForm.customBrand = '';
+      document.getElementById('customBrandWrap').classList.remove('show');
+      document.getElementById('fCustomBrand').value = '';
+      return;
+    }
+    el.classList.add('selected');
+    currentForm.brand = brand;
+    if (brand === '__custom__') {
+      document.getElementById('customBrandWrap').classList.add('show');
+      setTimeout(() => document.getElementById('fCustomBrand').focus(), 100);
+    } else {
+      document.getElementById('customBrandWrap').classList.remove('show');
+      document.getElementById('fCustomBrand').value = '';
+      currentForm.customBrand = '';
+    }
+  }
+
+  document.getElementById('fCustomBrand').addEventListener('input', e => { currentForm.customBrand = e.target.value; });
+
+  function renderConditionChips() {
+    const grid = document.getElementById('conditionChips');
+    grid.innerHTML = '';
+    CONDITIONS.forEach(c => {
+      const chip = document.createElement('button');
+      chip.className = 'chip';
+      chip.textContent = c;
+      chip.onclick = () => selectCondition(c, chip);
+      grid.appendChild(chip);
+    });
+  }
+
+  function selectCondition(c, el) {
+    document.querySelectorAll('#conditionChips .chip').forEach(ch => ch.classList.remove('selected'));
+    if (currentForm.condition === c) { currentForm.condition = null; return; }
+    el.classList.add('selected');
+    currentForm.condition = c;
+  }
+
+  function setupTabs() {
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.onclick = () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
+        if (tab.dataset.panel === 'list') { renderList(); renderFilterRow(); }
+        window.scrollTo(0, 0);
+      };
+    });
+  }
+
+  function setupForm() {
+    document.getElementById('btnSubmit').onclick = submitItem;
+    document.getElementById('moreToggle').onclick = () => {
+      const f = document.getElementById('moreFields');
+      const t = document.getElementById('moreToggle');
+      f.classList.toggle('show');
+      t.classList.toggle('open');
+      t.textContent = f.classList.contains('show') ? '− Hide extra fields' : '+ More fields (Model, Serial, Condition, Acquired, Value, Notes)';
+    };
+  }
+
+  function submitItem() {
+    const item = document.getElementById('fItem').value.trim();
+    const model = document.getElementById('fModel').value.trim();
+    const serial = document.getElementById('fSerial').value.trim();
+    const acquired = document.getElementById('fAcquired').value;
+    const valueStr = document.getElementById('fValue').value.trim();
+    const value = valueStr ? parseFloat(valueStr) : null;
+    const notes = document.getElementById('fNotes').value.trim();
+    let brand = currentForm.brand;
+    if (brand === '__custom__') brand = document.getElementById('fCustomBrand').value.trim() || null;
+    let location = currentForm.location;
+    if (location === '__custom__') location = document.getElementById('fCustomLocation').value.trim() || null;
+
+    if (!currentForm.assetType) {
+      showToast('Pick an Asset Type', 'error');
+      document.getElementById('step2').scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+    if (!currentForm.type) {
+      showToast('Pick a Type', 'error');
+      document.getElementById('step3').scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+    if (!item) {
+      showToast('Item name required', 'error');
+      document.getElementById('fItem').focus();
+      return;
+    }
+
+    const entry = {
+      id: 'i_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+      item, assetType: currentForm.assetType, type: currentForm.type,
+      location: location || null, brand: brand || null,
+      model: model || null, serial: serial || null,
+      condition: currentForm.condition || null,
+      acquired: acquired || null,
+      value: (value !== null && !isNaN(value)) ? value : null,
+      notes: notes || null,
+      logged_at: new Date().toISOString(), synced: false
+    };
+    state.items.unshift(entry);
+    state.sessionCount++;
+    saveState();
+    updateStats();
+    checkWarnings();
+    showToast('LOGGED → ' + item.toUpperCase().slice(0, 28), 'success');
+    resetForm();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function resetForm() {
+    document.getElementById('fItem').value = '';
+    document.getElementById('fModel').value = '';
+    document.getElementById('fSerial').value = '';
+    document.getElementById('fAcquired').value = '';
+    document.getElementById('fValue').value = '';
+    document.getElementById('fNotes').value = '';
+    document.getElementById('fCustomBrand').value = '';
+    const keepLocation = currentForm.location;
+    const keepCustomLocation = currentForm.customLocation;
+    currentForm = { location: keepLocation, customLocation: keepCustomLocation, assetType: null, type: null, brand: null, customBrand: '', condition: null };
+    document.querySelectorAll('#assetTypeChips .chip.selected, #typeChips .chip.selected, #brandChips .chip.selected, #conditionChips .chip.selected').forEach(c => c.classList.remove('selected'));
+    document.getElementById('customBrandWrap').classList.remove('show');
+    renderAssetTypeChips();
+    renderTypeChips();
+    renderBrandChips();
+    updateStepStates();
+  }
+
+  function updateStats() {
+    const total = state.items.length;
+    const pending = state.items.filter(i => !i.synced).length;
+    document.getElementById('statTotal').textContent = total;
+    document.getElementById('statPending').textContent = pending;
+    document.getElementById('statSession').textContent = state.sessionCount;
+    const badge = document.getElementById('listBadge');
+    if (total > 0) { badge.textContent = total; badge.style.display = 'inline-block'; }
+    else { badge.style.display = 'none'; }
+  }
+
+  function checkWarnings() {
+    const container = document.getElementById('warnContainer');
+    container.innerHTML = '';
+    const pending = state.items.filter(i => !i.synced).length;
+    if (pending >= 25) {
+      const banner = document.createElement('div');
+      banner.className = 'warn-banner ' + (pending >= 50 ? 'bad' : '');
+      banner.innerHTML = '<strong>' + pending + ' UNSYNCED ITEMS</strong> — time to push to Notion. Open the Sync tab.';
+      container.appendChild(banner);
+    }
+  }
+
+  function renderFilterRow() {
+    const row = document.getElementById('filterRow');
+    if (state.items.length === 0) { row.innerHTML = ''; return; }
+    const usedAssetTypes = [...new Set(state.items.map(i => i.assetType).filter(Boolean))].sort();
+    const buttons = [{ key: 'all', label: 'All (' + state.items.length + ')' }];
+    usedAssetTypes.forEach(at => {
+      const count = state.items.filter(i => i.assetType === at).length;
+      buttons.push({ key: 'a:' + at, label: at + ' (' + count + ')' });
+    });
+    row.innerHTML = buttons.map(b =>
+      '<button class="filter-pill ' + (activeFilter === b.key ? 'active' : '') + '" data-filter="' + escapeHtml(b.key) + '">' +
+        escapeHtml(b.label) + '</button>'
+    ).join('');
+    row.querySelectorAll('.filter-pill').forEach(btn => {
+      btn.onclick = () => { activeFilter = btn.dataset.filter; renderFilterRow(); renderList(); };
+    });
+  }
+
+  function renderList() {
+    const wrap = document.getElementById('itemList');
+    const search = document.getElementById('searchBox').value.toLowerCase().trim();
+    let items = state.items;
+    if (activeFilter !== 'all' && activeFilter.startsWith('a:')) {
+      const at = activeFilter.slice(2);
+      items = items.filter(i => i.assetType === at);
+    }
+    if (search) {
+      items = items.filter(i =>
+        (i.item || '').toLowerCase().includes(search) ||
+        (i.brand || '').toLowerCase().includes(search) ||
+        (i.type || '').toLowerCase().includes(search) ||
+        (i.assetType || '').toLowerCase().includes(search) ||
+        (i.location || '').toLowerCase().includes(search) ||
+        (i.notes || '').toLowerCase().includes(search) ||
+        (i.model || '').toLowerCase().includes(search)
+      );
+    }
+    if (items.length === 0) {
+      wrap.innerHTML = '<div class="empty-state"><div class="big">' +
+        (state.items.length === 0 ? 'NO ITEMS YET' : 'NO MATCHES') + '</div>' +
+        '<div class="small">' +
+        (state.items.length === 0 ? 'Switch to Entry tab to start logging' : 'Try a different search') +
+        '</div></div>';
+      return;
+    }
+    wrap.innerHTML = items.map(i => {
+      const meta = [];
+      if (i.type) meta.push(i.type);
+      if (i.location) meta.push(i.location);
+      if (i.brand) meta.push(i.brand);
+      if (i.model) meta.push('M: ' + i.model);
+      if (i.condition) meta.push(i.condition);
+      if (i.serial) meta.push('SN: ' + i.serial);
+      if (i.value !== null && i.value !== undefined) meta.push('$' + i.value);
+      return '<div class="item-card ' + (i.synced ? 'synced' : '') + '">' +
+        '<div class="item-card-row">' +
+          '<div style="flex:1;min-width:0">' +
+            '<div class="item-name">' + escapeHtml(i.item) + (i.synced ? ' <span style="color:var(--good);font-size:9px;letter-spacing:0.1em">✓ SYNCED</span>' : '') + '</div>' +
+            '<div class="item-meta">' + meta.map(m => '<span>' + escapeHtml(m) + '</span>').join('<span class="dot"></span>') + '</div>' +
+            (i.notes ? '<div style="font-size:11px;color:var(--ink-faint);margin-top:6px;font-style:italic">' + escapeHtml(i.notes) + '</div>' : '') +
+          '</div>' +
+          '<div class="item-actions"><button class="icon-btn del" onclick="deleteItem(\'' + i.id + '\')" title="Delete">×</button></div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+  document.getElementById('searchBox').addEventListener('input', renderList);
+
+  window.deleteItem = function(id) {
+    confirmModal('Delete Item?', 'This cannot be undone.', () => {
+      state.items = state.items.filter(i => i.id !== id);
+      saveState(); updateStats(); checkWarnings(); renderList(); renderFilterRow();
+      showToast('Deleted', 'success');
+    });
+  };
+
+  function escapeHtml(s) {
+    if (s === null || s === undefined) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function setupSync() {
+    document.getElementById('btnGenerate').onclick = generateExport;
+    document.getElementById('btnCopy').onclick = copyExport;
+    document.getElementById('btnMarkSynced').onclick = markSynced;
+    document.getElementById('btnBackup').onclick = generateBackup;
+    document.getElementById('btnClearSynced').onclick = clearSynced;
+    document.getElementById('btnWipe').onclick = wipeAll;
+  }
+
+  function generateExport() {
+    const pending = state.items.filter(i => !i.synced);
+    if (pending.length === 0) { showToast('No unsynced items', 'error'); return; }
+    const payload = {
+      export_type: 'home_inventory_batch',
+      target_database: 'Home Inventory (Groton)',
+      generated_at: new Date().toISOString(),
+      item_count: pending.length,
+      items: pending.map(i => ({
+        item: i.item, asset_type: i.assetType, type: i.type, location: i.location,
+        brand: i.brand, model: i.model, serial: i.serial, condition: i.condition,
+        acquired: i.acquired, value: i.value, notes: i.notes, logged_at: i.logged_at
+      }))
+    };
+    const text = 'HOME INVENTORY SYNC PAYLOAD\n' +
+      '============================\n' +
+      'Hey Claude — please push these ' + pending.length + ' items to the Home Inventory database in Notion (under Groton).\n' +
+      'Map "asset_type" → "Asset Type" field, "type" → "Type" field. Then tell me how many were successfully logged.\n\n' +
+      '```json\n' + JSON.stringify(payload, null, 2) + '\n```';
+    document.getElementById('exportOutput').value = text;
+    showToast('Export ready', 'success');
+  }
+
+  async function copyExport() {
+    const txt = document.getElementById('exportOutput').value;
+    if (!txt) { showToast('Generate export first', 'error'); return; }
+    try { await navigator.clipboard.writeText(txt); showToast('Copied to clipboard', 'success'); }
+    catch(e) {
+      const ta = document.getElementById('exportOutput'); ta.select();
+      try { document.execCommand('copy'); showToast('Copied to clipboard', 'success'); }
+      catch(e2) { showToast('Copy failed — select & copy manually', 'error'); }
+    }
+  }
+
+  function markSynced() {
+    const pending = state.items.filter(i => !i.synced).length;
+    if (pending === 0) { showToast('Nothing to mark', 'error'); return; }
+    confirmModal('Mark ' + pending + ' Items Synced?', 'Only do this AFTER Claude confirms they are in Notion.', () => {
+      state.items.forEach(i => { if (!i.synced) i.synced = true; });
+      saveState(); updateStats(); checkWarnings(); renderList();
+      showToast(pending + ' items marked synced', 'success');
+    });
+  }
+
+  function generateBackup() {
+    if (state.items.length === 0) { showToast('Nothing to back up', 'error'); return; }
+    const lines = ['HOME INVENTORY BACKUP — ' + new Date().toISOString().slice(0,10)];
+    lines.push('Total: ' + state.items.length + ' items');
+    lines.push('='.repeat(50)); lines.push('');
+    state.items.forEach((i, idx) => {
+      lines.push((idx + 1) + '. ' + i.item + (i.synced ? ' [SYNCED]' : ''));
+      if (i.assetType) lines.push('   Asset Type: ' + i.assetType);
+      if (i.type) lines.push('   Type: ' + i.type);
+      if (i.location) lines.push('   Location: ' + i.location);
+      if (i.brand) lines.push('   Brand: ' + i.brand);
+      if (i.model) lines.push('   Model: ' + i.model);
+      if (i.serial) lines.push('   Serial: ' + i.serial);
+      if (i.condition) lines.push('   Condition: ' + i.condition);
+      if (i.acquired) lines.push('   Acquired: ' + i.acquired);
+      if (i.value !== null && i.value !== undefined) lines.push('   Value: $' + i.value);
+      if (i.notes) lines.push('   Notes: ' + i.notes);
+      lines.push('   Logged: ' + i.logged_at.slice(0,16).replace('T',' '));
+      lines.push('');
+    });
+    document.getElementById('exportOutput').value = lines.join('\n');
+    showToast('Backup ready', 'success');
+  }
+
+  function clearSynced() {
+    const synced = state.items.filter(i => i.synced).length;
+    if (synced === 0) { showToast('No synced items', 'error'); return; }
+    confirmModal('Clear ' + synced + ' Synced Items?', 'They remain in Notion. This cannot be undone.', () => {
+      state.items = state.items.filter(i => !i.synced);
+      saveState(); updateStats(); checkWarnings(); renderList(); renderFilterRow();
+      showToast(synced + ' items cleared', 'success');
+    });
+  }
+
+  function wipeAll() {
+    if (state.items.length === 0) { showToast('Already empty', 'error'); return; }
+    confirmModal('WIPE ALL DATA?', 'Deletes all ' + state.items.length + ' items from this app. Cannot be undone.', () => {
+      state.items = []; state.sessionCount = 0;
+      saveState(); updateStats(); checkWarnings(); renderList(); renderFilterRow();
+      document.getElementById('exportOutput').value = '';
+      showToast('All data wiped', 'success');
+    });
+  }
+
+  let toastTimer = null;
+  function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show ' + (type || '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.classList.remove('show'); }, 2200);
+  }
+
+  let modalOnConfirm = null;
+  function confirmModal(title, text, onConfirm) {
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalText').textContent = text;
+    document.getElementById('modalBg').classList.add('show');
+    modalOnConfirm = onConfirm;
+  }
+  document.getElementById('modalCancel').onclick = () => {
+    document.getElementById('modalBg').classList.remove('show'); modalOnConfirm = null;
+  };
+  document.getElementById('modalConfirm').onclick = () => {
+    document.getElementById('modalBg').classList.remove('show');
+    if (modalOnConfirm) modalOnConfirm();
+    modalOnConfirm = null;
+  };
+  document.getElementById('modalBg').onclick = (e) => {
+    if (e.target.id === 'modalBg') {
+      document.getElementById('modalBg').classList.remove('show'); modalOnConfirm = null;
+    }
+  };
+
+  init();
+</script>
+</body>
+</html>

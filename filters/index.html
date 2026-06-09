@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gmail Filter Triage</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d0d0c;
+  --bg-2: #161614;
+  --bg-3: #1f1f1c;
+  --line: #2a2a26;
+  --line-bright: #3d3d36;
+  --ink: #ebe2cf;
+  --ink-dim: #8a8270;
+  --ink-faint: #4f483a;
+  --teal: #1E5663;
+  --orange: #FF4A14;
+  --amber: #F28C00;
+  --sand: #D6C2A7;
+  --good: #7fb86b;
+  --bad: #d63c3c;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  min-height: 100vh;
+}
+@media (max-width: 599px) {
+  .tab-row-scroll { overflow-x: auto; white-space: nowrap; }
+  .tab-row-scroll button { display: inline-block; }
+}
+@media (min-width: 900px) {
+  body { font-size: 14px; }
+}
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 9999;
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="module">
+import React, { useState, useMemo, useRef, useEffect } from "https://esm.sh/react@18.3.1";
+import { createRoot } from "https://esm.sh/react-dom@18.3.1/client";
+const h = React.createElement;
+
+const CLIENT_ID = "994773724656-dht15sn4cq190nr2v9sgmn0ki5nqj86p.apps.googleusercontent.com";
+const SCOPES = "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email";
+
+const quoteIfNeeded = (val) => {
+  const t = (val || "").trim();
+  if (!t) return "";
+  if (/\s/.test(t) && !(t.startsWith('"') && t.endsWith('"'))) return `"${t}"`;
+  return t;
+};
+const splitList = (val) => val.split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+const now = new Date();
+const revDate = `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
+
+// Extract root domain from a from-field string (e.g. "no-reply@accounts.google.com" -> "google.com")
+const extractDomain = (fromStr) => {
+  if (!fromStr) return null;
+  const atMatches = fromStr.match(/@([\w.-]+\.[a-z]{2,})/gi);
+  if (atMatches && atMatches.length) {
+    const raw = atMatches[0].replace('@', '').toLowerCase();
+    const parts = raw.split('.');
+    return parts.length >= 2 ? parts.slice(-2).join('.') : raw;
+  }
+  const bareMatches = fromStr.match(/\b([\w-]+\.[a-z]{2,})\b/gi);
+  if (bareMatches && bareMatches.length) {
+    const raw = bareMatches[0].toLowerCase();
+    const parts = raw.split('.');
+    return parts.length >= 2 ? parts.slice(-2).join('.') : raw;
+  }
+  return null;
+};
+
+// Suggest a human label from a domain ("atlassian.net" -> "Atlassian", "loom.com" -> "Loom")
+const domainToLabel = (domain) => {
+  if (!domain) return domain;
+  const name = domain.split('.')[0];
+  return name.charAt(0).toUpperCase() + name.slice(1);
+};
+
+function useViewport() {
+  const [width, setWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handler = () => setWidth(window.innerWidth);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  const isMobile = width < 600;
+  const isWide = width >= 900;
+  return { width, isMobile, isWide };
+}
+
+const S = {
+  wrap: (wide) => ({ maxWidth: wide ? 1100 : 600, margin: '0 auto', padding: wide ? '0 40px 60px' : '0 20px 60px', position: 'relative', zIndex: 1 }),
+  header: { padding: '20px 0 0', marginBottom: 0 },
+  headerTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
+  title: (wide) => ({ fontFamily: "'Archivo Black', sans-serif", fontSize: wide ? 28 : 20, color: 'var(--sand)', letterSpacing: '-0.02em', lineHeight: 1.2 }),
+  subtitle: { fontSize: 10, color: 'var(--ink-dim)', textTransform: 'uppercase', letterSpacing: '0.15em', marginTop: 4 },
+  meta: { textAlign: 'right', fontSize: 9, color: 'var(--ink-faint)', textTransform: 'uppercase', letterSpacing: '0.15em', lineHeight: 1.6 },
+  accentStrip: { height: 6, background: 'linear-gradient(90deg, var(--teal) 0% 60%, var(--orange) 60% 75%, var(--amber) 75% 88%, var(--sand) 88% 100%)' },
+  authBar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-2)', borderBottom: '1px solid var(--line)', marginBottom: 0 },
+  authStatus: (ok) => ({ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: ok ? 'var(--good)' : 'var(--ink-dim)' }),
+  authMeta: { fontSize: 9, color: 'var(--ink-faint)', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 2 },
+  tabRow: { display: 'flex', borderBottom: '1px solid var(--line)', marginBottom: 20 },
+  tab: (active) => ({
+    padding: '10px 16px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em',
+    color: active ? 'var(--ink)' : 'var(--ink-dim)',
+    background: active ? 'var(--bg-2)' : 'transparent',
+    borderBottom: active ? '2px solid var(--orange)' : '2px solid transparent',
+    border: 'none', cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace", marginBottom: -1,
+  }),
+  statRow: { display: 'flex', borderBottom: '1px solid var(--line)', marginBottom: 20 },
+  statCell: { flex: 1, padding: '12px 0', textAlign: 'center' },
+  statDivider: { width: 1, background: 'var(--line)', margin: '8px 0' },
+  statNum: { fontFamily: "'Archivo Black', sans-serif", fontSize: 22, color: 'var(--ink)', lineHeight: 1 },
+  statLabel: { fontSize: 9, color: 'var(--ink-dim)', textTransform: 'uppercase', letterSpacing: '0.15em', marginTop: 4 },
+  stepBlock: (state) => ({
+    position: 'relative',
+    borderLeft: `2px solid ${state === 'active' ? 'var(--teal)' : state === 'complete' ? 'var(--orange)' : 'var(--line)'}`,
+    padding: '16px 20px 20px', marginBottom: 14,
+    opacity: state === 'locked' ? 0.35 : 1,
+    background: state === 'active' ? 'var(--bg-2)' : 'transparent',
+    transition: 'opacity 0.15s',
+    cursor: state === 'complete' ? 'pointer' : 'default',
+  }),
+  stepBadge: (state) => ({
+    position: 'absolute', left: -13, top: 14,
+    width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: 10, fontWeight: 700,
+    background: state === 'active' ? 'var(--teal)' : state === 'complete' ? 'var(--orange)' : 'var(--bg-3)',
+    color: state === 'locked' ? 'var(--ink-faint)' : 'var(--bg)',
+  }),
+  stepLabel: { fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--sand)', fontWeight: 700, marginBottom: 12 },
+  stepSummary: { fontSize: 11, color: 'var(--ink-dim)', textTransform: 'uppercase', letterSpacing: '0.1em' },
+  chipGrid: (wide) => ({ display: 'grid', gridTemplateColumns: wide ? '1fr 1fr 1fr 1fr' : '1fr 1fr', gap: 6 }),
+  chip: (active) => ({
+    padding: '12px 10px', border: `1px solid ${active ? 'var(--orange)' : 'var(--line-bright)'}`,
+    background: active ? 'var(--orange)' : 'var(--bg-2)', cursor: 'pointer', textAlign: 'left',
+    fontFamily: "'JetBrains Mono', monospace", transition: 'transform 0.12s',
+  }),
+  chipLabel: (active) => ({ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: active ? 'var(--bg)' : 'var(--ink-dim)', marginBottom: 2 }),
+  chipHint: (active) => ({ fontSize: 9, color: active ? 'rgba(13,13,12,0.6)' : 'var(--ink-faint)', textTransform: 'uppercase', letterSpacing: '0.1em' }),
+  fieldBlock: { marginBottom: 14 },
+  fieldLabel: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--sand)', marginBottom: 8 },
+  input: { width: '100%', padding: 14, border: '1px solid var(--line-bright)', background: 'var(--bg-3)', color: 'var(--ink)', fontFamily: "'JetBrains Mono', monospace", fontSize: 13, outline: 'none' },
+  textarea: { width: '100%', padding: 14, border: '1px solid var(--line-bright)', background: 'var(--bg-3)', color: 'var(--ink)', fontFamily: "'JetBrains Mono', monospace", fontSize: 13, outline: 'none', resize: 'vertical' },
+  hint: { fontSize: 10, color: 'var(--ink-faint)', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 6 },
+  modeWrap: { display: 'inline-flex', border: '1px solid var(--line-bright)' },
+  modeBtn: (active) => ({
+    padding: '4px 10px', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em',
+    background: active ? 'var(--teal)' : 'var(--bg-3)', color: active ? 'var(--ink)' : 'var(--ink-dim)',
+    border: 'none', cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace",
+  }),
+  btnPrimary: { width: '100%', padding: '14px 20px', background: 'var(--orange)', color: 'var(--bg)', fontFamily: "'Archivo Black', sans-serif", fontSize: 14, letterSpacing: '-0.02em', border: 'none', cursor: 'pointer', textTransform: 'uppercase', marginTop: 16 },
+  btnPrimaryDisabled: { width: '100%', padding: '14px 20px', background: 'var(--bg-3)', color: 'var(--ink-faint)', fontFamily: "'Archivo Black', sans-serif", fontSize: 14, border: 'none', cursor: 'not-allowed', textTransform: 'uppercase', marginTop: 16 },
+  btnSecondary: { padding: '10px 16px', background: 'var(--bg-3)', color: 'var(--ink-dim)', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', border: '1px solid var(--line-bright)', cursor: 'pointer' },
+  btnTeal: { padding: '10px 16px', background: 'var(--bg-3)', color: 'var(--sand)', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', border: '1px solid var(--teal)', cursor: 'pointer' },
+  btnRow: { display: 'flex', gap: 8, marginTop: 16 },
+  outputBox: { background: 'var(--bg-3)', border: '1px solid var(--line-bright)', padding: 16, fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: 'var(--good)', wordBreak: 'break-all', lineHeight: 1.5, minHeight: 44 },
+  diagBox: { background: 'var(--bg-3)', border: '1px solid var(--line-bright)', padding: 16, fontSize: 12, lineHeight: 1.8, whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: 'var(--ink)' },
+  instrBlock: { borderLeft: '2px solid var(--teal)', padding: '14px 20px', marginBottom: 20, background: 'var(--bg-2)' },
+  instrTitle: { fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--sand)', marginBottom: 10 },
+  instrList: { listStyle: 'none', padding: 0, margin: 0 },
+  instrItem: { fontSize: 12, color: 'var(--ink-dim)', lineHeight: 1.6, padding: '4px 0', borderBottom: '1px solid var(--line)' },
+  instrNum: { color: 'var(--ink-faint)', fontWeight: 700, marginRight: 8 },
+  warningBox: { background: 'var(--bg-2)', border: '1px solid var(--amber)', padding: '12px 16px', marginBottom: 16, fontSize: 11, color: 'var(--amber)', textTransform: 'uppercase', letterSpacing: '0.1em', lineHeight: 1.6 },
+  toast: (show) => ({
+    position: 'fixed', bottom: show ? 20 : -60, left: '50%', transform: 'translateX(-50%)',
+    background: 'var(--sand)', color: 'var(--bg)', padding: '10px 20px',
+    fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700,
+    textTransform: 'uppercase', letterSpacing: '0.1em', zIndex: 10000,
+    transition: 'bottom 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)', whiteSpace: 'nowrap',
+  }),
+};
+
+// ── OAUTH ─────────────────────────────────────────────────────────────────────
+function useGoogleAuth() {
+  const [token, setToken] = useState(null);
+  const [userEmail, setUserEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [filterCount, setFilterCount] = useState(0);
+  const [filtersRaw, setFiltersRaw] = useState(null);
+  const clientRef = useRef(null);
+
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.onload = () => {
+      clientRef.current = window.google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        callback: async (resp) => {
+          if (resp.error) { setLoading(false); return; }
+          setToken(resp.access_token);
+          setLoading(false);
+          try {
+            const r = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+              headers: { Authorization: `Bearer ${resp.access_token}` }
+            });
+            const d = await r.json();
+            setUserEmail(d.email || "");
+          } catch {}
+          await fetchFilters(resp.access_token);
+        },
+      });
+    };
+    document.head.appendChild(script);
+  }, []);
+
+  const fetchFilters = async (tok) => {
+    try {
+      const r = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/settings/filters', {
+        headers: { Authorization: `Bearer ${tok}` }
+      });
+      const d = await r.json();
+      const filters = d.filter || [];
+      setFilterCount(filters.length);
+      setFiltersRaw(filters);
+    } catch (e) {
+      console.error('Filter fetch error:', e);
+    }
+  };
+
+  const signIn = () => { setLoading(true); clientRef.current?.requestAccessToken(); };
+  const signOut = () => {
+    if (token) window.google?.accounts.oauth2.revoke(token);
+    setToken(null); setUserEmail(""); setFilterCount(0); setFiltersRaw(null);
+  };
+  const refresh = async () => { if (token) await fetchFilters(token); };
+
+  return { token, userEmail, loading, filterCount, filtersRaw, signIn, signOut, refresh };
+}
+
+// ── BUILD TAB ─────────────────────────────────────────────────────────────────
+const FIELDS = [
+  { id: "from", label: "From", hint: "Sender email or domain" },
+  { id: "subject", label: "Subject", hint: "Words in subject line" },
+  { id: "to", label: "To / Cc", hint: "Recipient address" },
+  { id: "hasWords", label: "Has words", hint: "Free-form text in message" },
+  { id: "doesntHave", label: "Exclude", hint: "Words to exclude" },
+  { id: "hasAttachment", label: "Attachment", hint: "Only with files attached" },
+  { id: "list", label: "Mailing list", hint: "List-ID for newsletters" },
+  { id: "size", label: "Size", hint: "Larger or smaller than" },
+];
+
+function BuildTab({ isMobile, isWide }) {
+  const [step, setStep] = useState(1);
+  const [selected, setSelected] = useState([]);
+  const [vals, setVals] = useState({});
+  const [modes, setModes] = useState({ from: "OR", subject: "OR", to: "OR" });
+  const [copied, setCopied] = useState(false);
+  const [toast, setToast] = useState("");
+  const step2Ref = useRef(null);
+  const step3Ref = useRef(null);
+
+  const toggleField = (id) => setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
+  const setVal = (id, v) => setVals(o => ({ ...o, [id]: v }));
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 1800); };
+
+  const query = useMemo(() => {
+    const parts = [];
+    const build = (op, raw, mode) => {
+      const list = splitList(raw || "");
+      if (!list.length) return "";
+      if (mode === "OR" && list.length > 1) return `{${list.map(i => `${op}:${quoteIfNeeded(i)}`).join(" ")}}`;
+      return list.map(i => `${op}:${quoteIfNeeded(i)}`).join(" ");
+    };
+    if (selected.includes("from")) { const v = build("from", vals.from, modes.from); if (v) parts.push(v); }
+    if (selected.includes("subject")) { const v = build("subject", vals.subject, modes.subject); if (v) parts.push(v); }
+    if (selected.includes("to")) { const v = build("to", vals.to, modes.to); if (v) parts.push(v); }
+    if (selected.includes("hasWords") && (vals.hasWords||"").trim()) parts.push(`(${vals.hasWords.trim()})`);
+    if (selected.includes("doesntHave") && (vals.doesntHave||"").trim()) vals.doesntHave.trim().split(/\s+/).forEach(t => parts.push(`-${quoteIfNeeded(t)}`));
+    if (selected.includes("hasAttachment")) parts.push("has:attachment");
+    if (selected.includes("list") && (vals.list||"").trim()) parts.push(`list:${quoteIfNeeded(vals.list.trim())}`);
+    if (selected.includes("size") && vals.sizeOp && vals.sizeVal) parts.push(`${vals.sizeOp}:${vals.sizeVal}${vals.sizeUnit||"M"}`);
+    return parts.join(" ");
+  }, [selected, vals, modes]);
+
+  const copy = () => { navigator.clipboard.writeText(query); setCopied(true); showToast("Copied"); setTimeout(() => setCopied(false), 1800); };
+  const reset = () => { setStep(1); setSelected([]); setVals({}); setModes({ from: "OR", subject: "OR", to: "OR" }); };
+  const goStep = (n, ref) => { setStep(n); setTimeout(() => ref?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); };
+  const stepState = (n) => n === step ? 'active' : n < step ? 'complete' : 'locked';
+  const ModeToggle = ({ field }) => h("span", { style: S.modeWrap },
+    h("button", { style: S.modeBtn(modes[field] === "OR"), onClick: () => setModes(m => ({ ...m, [field]: "OR" })) }, "Any"),
+    h("button", { style: S.modeBtn(modes[field] === "AND"), onClick: () => setModes(m => ({ ...m, [field]: "AND" })) }, "All"),
+  );
+
+  return h("div", null,
+    h("div", { style: S.statRow },
+      h("div", { style: S.statCell }, h("div", { style: S.statNum }, selected.length), h("div", { style: S.statLabel }, "Fields")),
+      h("div", { style: S.statDivider }),
+      h("div", { style: S.statCell }, h("div", { style: S.statNum }, query.length), h("div", { style: S.statLabel }, "Chars")),
+      h("div", { style: S.statDivider }),
+      h("div", { style: S.statCell }, h("div", { style: S.statNum }, step), h("div", { style: S.statLabel }, "Step")),
+    ),
+    h("div", { style: S.stepBlock(stepState(1)), onClick: () => step > 1 && setStep(1) },
+      h("div", { style: S.stepBadge(stepState(1)) }, "1"),
+      h("div", { style: S.stepLabel }, "Select fields"),
+      stepState(1) === 'complete' && h("div", { style: S.stepSummary }, `${selected.length} field${selected.length !== 1 ? 's' : ''} selected`),
+      stepState(1) === 'active' && h("div", null,
+        h("div", { style: S.chipGrid(isWide) },
+          ...FIELDS.map(f => h("button", {
+            key: f.id, style: S.chip(selected.includes(f.id)),
+            onClick: () => toggleField(f.id),
+            onMouseDown: e => e.currentTarget.style.transform = 'scale(0.97)',
+            onMouseUp: e => e.currentTarget.style.transform = 'scale(1)',
+            onMouseLeave: e => e.currentTarget.style.transform = 'scale(1)',
+          },
+            h("div", { style: S.chipLabel(selected.includes(f.id)) }, f.label),
+            h("div", { style: S.chipHint(selected.includes(f.id)) }, f.hint),
+          ))
+        ),
+        h("button", { style: selected.length ? S.btnPrimary : S.btnPrimaryDisabled, onClick: () => selected.length && goStep(2, step2Ref), disabled: !selected.length }, "Next"),
+      ),
+    ),
+    h("div", { ref: step2Ref, style: S.stepBlock(stepState(2)), onClick: () => step === 3 && setStep(2) },
+      h("div", { style: S.stepBadge(stepState(2)) }, "2"),
+      h("div", { style: S.stepLabel }, "Enter values"),
+      stepState(2) === 'complete' && h("div", { style: S.stepSummary }, query.length ? `${query.length} char query` : "—"),
+      stepState(2) === 'active' && h("div", null,
+        selected.includes("from") && h("div", { style: S.fieldBlock },
+          h("div", { style: S.fieldLabel }, h("span", null, "From"), h(ModeToggle, { field: "from" })),
+          h("textarea", { style: { ...S.textarea, minHeight: 50 }, value: vals.from||"", onChange: e => setVal("from", e.target.value), placeholder: "newsletter@example.com, *@atlassian.com" }),
+          h("div", { style: S.hint }, "Comma or newline separated"),
+        ),
+        selected.includes("subject") && h("div", { style: S.fieldBlock },
+          h("div", { style: S.fieldLabel }, h("span", null, "Subject"), h(ModeToggle, { field: "subject" })),
+          h("textarea", { style: { ...S.textarea, minHeight: 50 }, value: vals.subject||"", onChange: e => setVal("subject", e.target.value), placeholder: "invoice, receipt, order confirmation" }),
+          h("div", { style: S.hint }, "Multi-word phrases auto-quoted"),
+        ),
+        selected.includes("to") && h("div", { style: S.fieldBlock },
+          h("div", { style: S.fieldLabel }, h("span", null, "To / Cc"), h(ModeToggle, { field: "to" })),
+          h("input", { style: S.input, value: vals.to||"", onChange: e => setVal("to", e.target.value), placeholder: "me@gmail.com, alias@gmail.com" }),
+        ),
+        selected.includes("hasWords") && h("div", { style: S.fieldBlock },
+          h("div", { style: S.fieldLabel }, "Has words"),
+          h("input", { style: S.input, value: vals.hasWords||"", onChange: e => setVal("hasWords", e.target.value), placeholder: 'unsubscribe OR "view in browser"' }),
+          h("div", { style: S.hint }, "Use OR (uppercase) for alternatives"),
+        ),
+        selected.includes("doesntHave") && h("div", { style: S.fieldBlock },
+          h("div", { style: S.fieldLabel }, "Exclude"),
+          h("input", { style: S.input, value: vals.doesntHave||"", onChange: e => setVal("doesntHave", e.target.value), placeholder: "spam promo" }),
+          h("div", { style: S.hint }, "Each word becomes a -word exclusion"),
+        ),
+        selected.includes("hasAttachment") && h("div", { style: S.fieldBlock },
+          h("div", { style: S.fieldLabel }, "Attachment — enabled"),
+          h("div", { style: S.hint }, "No input needed"),
+        ),
+        selected.includes("list") && h("div", { style: S.fieldBlock },
+          h("div", { style: S.fieldLabel }, "Mailing list ID"),
+          h("input", { style: S.input, value: vals.list||"", onChange: e => setVal("list", e.target.value), placeholder: "list.example.com" }),
+          h("div", { style: S.hint }, "From List-Unsubscribe header"),
+        ),
+        selected.includes("size") && h("div", { style: S.fieldBlock },
+          h("div", { style: S.fieldLabel }, "Size"),
+          h("div", { style: { display: 'flex', gap: 6 } },
+            h("select", { style: { ...S.input, flex: '0 0 140px' }, value: vals.sizeOp||"", onChange: e => setVal("sizeOp", e.target.value) },
+              h("option", { value: "" }, "choose..."),
+              h("option", { value: "larger" }, "larger than"),
+              h("option", { value: "smaller" }, "smaller than"),
+            ),
+            h("input", { style: { ...S.input, flex: 1 }, type: "number", value: vals.sizeVal||"", onChange: e => setVal("sizeVal", e.target.value), placeholder: "10" }),
+            h("select", { style: { ...S.input, flex: '0 0 70px' }, value: vals.sizeUnit||"M", onChange: e => setVal("sizeUnit", e.target.value) },
+              h("option", { value: "K" }, "KB"),
+              h("option", { value: "M" }, "MB"),
+            ),
+          ),
+        ),
+        h("div", { style: S.btnRow }, h("button", { style: S.btnSecondary, onClick: () => setStep(1) }, "Back")),
+        h("button", { style: S.btnPrimary, onClick: () => goStep(3, step3Ref) }, "Build filter"),
+      ),
+    ),
+    h("div", { ref: step3Ref, style: S.stepBlock(stepState(3)) },
+      h("div", { style: S.stepBadge(stepState(3)) }, "3"),
+      h("div", { style: S.stepLabel }, "Output"),
+      stepState(3) === 'active' && h("div", null,
+        h("div", { style: S.outputBox }, query || "(empty)"),
+        h("div", { style: S.btnRow },
+          h("button", { style: S.btnTeal, onClick: copy, disabled: !query }, copied ? "Copied" : "Copy"),
+          h("button", { style: S.btnSecondary, onClick: () => setStep(2) }, "Edit"),
+          h("button", { style: S.btnSecondary, onClick: reset }, "Reset"),
+        ),
+        h("div", { style: { ...S.instrBlock, marginTop: 20 } },
+          h("div", { style: S.instrTitle }, "Apply in Gmail"),
+          h("ol", { style: S.instrList },
+            ["Paste into Gmail search bar. Press Enter. Verify matches.", "Click the filter icon (sliders) at the right of the search bar.", "Click Create filter at the bottom.", "Choose actions (label, skip inbox, mark read, etc). Click Create filter again."]
+            .map((txt, i) => h("li", { key: i, style: S.instrItem }, h("span", { style: S.instrNum }, `0${i+1}`), txt))
+          ),
+        ),
+      ),
+    ),
+    h("div", { style: S.toast(!!toast) }, toast),
+  );
+}
+
+// ── DIAGNOSE TAB ──────────────────────────────────────────────────────────────
+function DiagnoseTab({ filtersRaw, filterCount, token, refresh }) {
+  const [step, setStep] = useState(1);
+  const [emailFrom, setEmailFrom] = useState("");
+  const [emailTo, setEmailTo] = useState("");
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
+  const [emailExtra, setEmailExtra] = useState("");
+  const [diagnosis, setDiagnosis] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const step2Ref = useRef(null);
+
+  const stepState = (n) => n === step ? 'active' : n < step ? 'complete' : 'locked';
+  const goStep = (n, ref) => { setStep(n); setTimeout(() => ref?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); };
+  const emailReady = emailFrom.trim() || emailSubject.trim();
+
+  const handleRefresh = async () => { setRefreshing(true); await refresh(); setRefreshing(false); };
+
+  const formatFilters = (filters) => {
+    if (!filters || filters.length === 0) return "No filters found.";
+    return filters.map((f, i) => {
+      const c = f.criteria || {};
+      const a = f.action || {};
+      const criteria = [
+        c.from && `from: ${c.from}`,
+        c.to && `to: ${c.to}`,
+        c.subject && `subject: ${c.subject}`,
+        c.query && `hasTheWords: ${c.query}`,
+        c.negatedQuery && `doesNotHave: ${c.negatedQuery}`,
+        c.hasAttachment && `hasAttachment: true`,
+        c.size && `size: ${c.sizeComparison || ""} ${c.size}`,
+      ].filter(Boolean).join(" | ");
+      const actions = [
+        a.addLabelIds?.length && `addLabel: ${a.addLabelIds.join(", ")}`,
+        a.removeLabelIds?.includes("INBOX") && `skipInbox`,
+        a.removeLabelIds?.includes("UNREAD") && `markRead`,
+        a.forward && `forward: ${a.forward}`,
+      ].filter(Boolean).join(" | ");
+      return `Filter ${i+1}: [${criteria || "no criteria"}] => [${actions || "no actions"}]`;
+    }).join("\n");
+  };
+
+  const runDiagnosis = async () => {
+    setLoading(true);
+    setDiagnosis("");
+    goStep(2, step2Ref);
+
+    const prompt = `You are a Gmail filter diagnostics expert. An email landed in the user's inbox that they expected one of their existing filters to catch.
+
+Your tasks:
+1. Review all ${filterCount} existing filters below and test each against the email details.
+2. Identify which filter(s) were most likely intended to catch this email.
+3. Explain specifically why each candidate filter failed — wrong field, missing wildcard, partial domain vs full address, typo, syntax error, etc.
+4. If no existing filter is a plausible match, say so clearly and explain why.
+5. End with a RECOMMENDED ACTION section containing either:
+   a) The exact corrected query for an existing filter (ready to paste into Gmail search bar), or
+   b) A new filter query to create if no existing filter is close enough.
+
+Be specific. Reference exact field values from both the filters and the email. No vague answers. Plain text only, no markdown.
+
+EXISTING FILTERS (${filterCount} total):
+${formatFilters(filtersRaw)}
+
+MISSED EMAIL:
+From: ${emailFrom || "(not provided)"}
+To: ${emailTo || "(not provided)"}
+Subject: ${emailSubject || "(not provided)"}
+${emailBody ? `Body: ${emailBody}` : ""}
+${emailExtra ? `Extra info: ${emailExtra}` : ""}`;
+
+    try {
+      const response = await fetch("https://spiiira-claude-proxy.jonas-spira.workers.dev/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-5",
+          max_tokens: 1500,
+          messages: [{ role: "user", content: prompt }],
+        }),
+      });
+      const data = await response.json();
+      const text = data.content?.map(b => b.text || "").join("") || "No response.";
+      setDiagnosis(text);
+    } catch {
+      setDiagnosis("Error reaching the API. Check your connection and try again.");
+    }
+    setLoading(false);
+  };
+
+  const reset = () => { setStep(1); setEmailFrom(""); setEmailTo(""); setEmailSubject(""); setEmailBody(""); setEmailExtra(""); setDiagnosis(""); };
+
+  if (!token) return h("div", { style: S.warningBox }, "Sign in with Google to load your filters.");
+  if (!filtersRaw) return h("div", { style: S.warningBox }, "Loading your filters...");
+
+  return h("div", null,
+    h("div", { style: S.statRow },
+      h("div", { style: S.statCell }, h("div", { style: S.statNum }, filterCount), h("div", { style: S.statLabel }, "Filters loaded")),
+      h("div", { style: S.statDivider }),
+      h("div", { style: { ...S.statCell, display: 'flex', alignItems: 'center', justifyContent: 'center' } },
+        h("button", { style: S.btnSecondary, onClick: handleRefresh }, refreshing ? "Refreshing..." : "Refresh filters"),
+      ),
+    ),
+    h("div", { style: S.stepBlock(stepState(1)), onClick: () => step > 1 && setStep(1) },
+      h("div", { style: S.stepBadge(stepState(1)) }, "1"),
+      h("div", { style: S.stepLabel }, "Describe the missed email"),
+      stepState(1) === 'complete' && h("div", { style: S.stepSummary }, emailSubject ? `Subject: ${emailSubject.slice(0, 40)}` : "Details entered"),
+      stepState(1) === 'active' && h("div", null,
+        h("div", { style: S.fieldBlock },
+          h("div", { style: S.fieldLabel }, "From"),
+          h("input", { style: S.input, value: emailFrom, onChange: e => setEmailFrom(e.target.value), placeholder: "sender@example.com" }),
+        ),
+        h("div", { style: S.fieldBlock },
+          h("div", { style: S.fieldLabel }, "To"),
+          h("input", { style: S.input, value: emailTo, onChange: e => setEmailTo(e.target.value), placeholder: "your@gmail.com" }),
+        ),
+        h("div", { style: S.fieldBlock },
+          h("div", { style: S.fieldLabel }, "Subject"),
+          h("input", { style: S.input, value: emailSubject, onChange: e => setEmailSubject(e.target.value), placeholder: "Exact subject line" }),
+        ),
+        h("div", { style: S.fieldBlock },
+          h("div", { style: S.fieldLabel }, "Body snippet (optional)"),
+          h("textarea", { style: { ...S.textarea, minHeight: 60 }, value: emailBody, onChange: e => setEmailBody(e.target.value), placeholder: "Paste a relevant excerpt if useful" }),
+        ),
+        h("div", { style: S.fieldBlock },
+          h("div", { style: S.fieldLabel }, "Other info (optional)"),
+          h("textarea", { style: { ...S.textarea, minHeight: 50 }, value: emailExtra, onChange: e => setEmailExtra(e.target.value), placeholder: "List-Unsubscribe header, mailing list ID, anything else" }),
+        ),
+        h("div", { style: S.hint }, "At minimum provide From or Subject"),
+        h("button", { style: emailReady ? S.btnPrimary : S.btnPrimaryDisabled, onClick: () => emailReady && runDiagnosis(), disabled: !emailReady || loading }, "Run diagnosis"),
+      ),
+    ),
+    h("div", { ref: step2Ref, style: S.stepBlock(stepState(2)) },
+      h("div", { style: S.stepBadge(stepState(2)) }, "2"),
+      h("div", { style: S.stepLabel }, "Diagnosis"),
+      stepState(2) === 'active' && h("div", null,
+        loading
+          ? h("div", { style: { ...S.diagBox, color: 'var(--ink-dim)', fontStyle: 'italic' } }, `Analyzing ${filterCount} filters...`)
+          : h("div", { style: S.diagBox }, diagnosis || "(no output yet)"),
+        !loading && diagnosis && h("div", { style: S.btnRow },
+          h("button", { style: S.btnSecondary, onClick: () => setStep(1) }, "Edit details"),
+          h("button", { style: S.btnSecondary, onClick: reset }, "New diagnosis"),
+        ),
+      ),
+    ),
+  );
+}
+
+// ── XML TAB ───────────────────────────────────────────────────────────────────
+function parseXmlFilters(xmlString) {
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xmlString, "application/xml");
+    const parseErr = doc.querySelector("parsererror");
+    if (parseErr) return { filters: [], count: 0, error: "XML parse error — make sure you copied the full file." };
+    const entries = Array.from(doc.getElementsByTagName("entry"));
+    const filters = [];
+    entries.forEach((entry, i) => {
+      const props = Array.from(entry.childNodes).filter(n => n.nodeType === 1 && n.localName === "property");
+      const getVal = (name) => {
+        const el = props.find(p => p.getAttribute("name") === name);
+        return el ? el.getAttribute("value") : null;
+      };
+      const criteria = [
+        getVal("from") && `from: ${getVal("from")}`,
+        getVal("to") && `to: ${getVal("to")}`,
+        getVal("subject") && `subject: ${getVal("subject")}`,
+        getVal("hasTheWord") && `hasTheWords: ${getVal("hasTheWord")}`,
+        getVal("doesNotHaveTheWord") && `doesNotHave: ${getVal("doesNotHaveTheWord")}`,
+        getVal("hasAttachment") === "true" && `hasAttachment: true`,
+      ].filter(Boolean).join(" | ");
+      const actions = [
+        getVal("label") && `addLabel: ${getVal("label")}`,
+        getVal("shouldArchive") === "true" && "skipInbox",
+        getVal("shouldMarkAsRead") === "true" && "markRead",
+        getVal("shouldTrash") === "true" && "delete",
+        getVal("shouldStar") === "true" && "star",
+        getVal("forwardTo") && `forward: ${getVal("forwardTo")}`,
+        getVal("shouldNeverSpam") === "true" && "neverSpam",
+        getVal("shouldAlwaysMarkAsImportant") === "true" && "markImportant",
+        getVal("shouldNeverMarkAsImportant") === "true" && "neverImportant",
+      ].filter(Boolean).join(" | ");
+      if (criteria || actions) {
+        filters.push(`Filter ${i+1}: [${criteria || "no criteria"}] => [${actions || "no actions"}]`);
+      }
+    });
+    return { filters, count: filters.length, error: null };
+  } catch (e) {
+    return { filters: [], count: 0, error: "Could not parse XML. Make sure you pasted the full exported file." };
+  }
+}
+
+function XmlTab() {
+  const [step, setStep] = useState(1);
+  const [xmlInput, setXmlInput] = useState("");
+  const [parsedFilters, setParsedFilters] = useState(null);
+  const [parseError, setParseError] = useState("");
+  const [emailFrom, setEmailFrom] = useState("");
+  const [emailTo, setEmailTo] = useState("");
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
+  const [emailExtra, setEmailExtra] = useState("");
+  const [diagnosis, setDiagnosis] = useState("");
+  const [loading, setLoading] = useState(false);
+  const step2Ref = useRef(null);
+  const step3Ref = useRef(null);
+
+  const stepState = (n) => n === step ? "active" : n < step ? "complete" : "locked";
+  const goStep = (n, ref) => { setStep(n); setTimeout(() => ref?.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setXmlInput(ev.target.result);
+    reader.readAsText(file);
+  };
+
+  const parseAndAdvance = () => {
+    const result = parseXmlFilters(xmlInput);
+    if (result.error) { setParseError(result.error); return; }
+    if (result.count === 0) { setParseError("No filters found in the XML. Check the file contents."); return; }
+    setParseError("");
+    setParsedFilters(result);
+    goStep(2, step2Ref);
+  };
+
+  const emailReady = emailFrom.trim() || emailSubject.trim();
+
+  const runDiagnosis = async () => {
+    setLoading(true);
+    setDiagnosis("");
+    goStep(3, step3Ref);
+    const prompt = `You are a Gmail filter diagnostics expert. An email landed in the user's inbox that they expected one of their existing filters to catch.\n\nYour tasks:\n1. Review all ${parsedFilters.count} existing filters and test each against the email details.\n2. Identify which filter(s) were most likely intended to catch this email.\n3. Explain specifically why each candidate filter failed — wrong field, missing wildcard, partial domain vs full address, typo, syntax error, etc.\n4. If no existing filter is a plausible match, say so clearly.\n5. End with a RECOMMENDED ACTION section: either the corrected query for an existing filter, or a new filter query to create. Ready to paste into Gmail search bar.\n\nBe specific. Reference exact values. Plain text only, no markdown.\n\nEXISTING FILTERS (${parsedFilters.count} total):\n${parsedFilters.filters.join("\n")}\n\nMISSED EMAIL:\nFrom: ${emailFrom || "(not provided)"}\nTo: ${emailTo || "(not provided)"}\nSubject: ${emailSubject || "(not provided)"}\n${emailBody ? "Body: " + emailBody : ""}\n${emailExtra ? "Extra info: " + emailExtra : ""}`;
+    try {
+      const response = await fetch("https://spiiira-claude-proxy.jonas-spira.workers.dev/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 1500, messages: [{ role: "user", content: prompt }] }),
+      });
+      const data = await response.json();
+      setDiagnosis(data.content?.map(b => b.text || "").join("") || "No response.");
+    } catch {
+      setDiagnosis("Error reaching the API. Check your connection and try again.");
+    }
+    setLoading(false);
+  };
+
+  const reset = () => {
+    setStep(1); setXmlInput(""); setParsedFilters(null); setParseError("");
+    setEmailFrom(""); setEmailTo(""); setEmailSubject(""); setEmailBody(""); setEmailExtra(""); setDiagnosis("");
+  };
+
+  return h("div", null,
+    step === 1 && h("div", { style: { ...S.instrBlock, marginBottom: 20 } },
+      h("div", { style: S.instrTitle }, "How to export your filters"),
+      h("ol", { style: S.instrList },
+        ["Open Gmail -> Settings (gear icon) -> See all settings.", "Click the Filters and Blocked Addresses tab.", "Scroll to the bottom, click Export.", "Upload or paste the downloaded .xml file below."]
+        .map((txt, i) => h("li", { key: i, style: S.instrItem }, h("span", { style: S.instrNum }, "0" + (i+1)), txt))
+      ),
+    ),
+    h("div", { style: S.stepBlock(stepState(1)), onClick: () => step > 1 && setStep(1) },
+      h("div", { style: S.stepBadge(stepState(1)) }, "1"),
+      h("div", { style: S.stepLabel }, "Load filter XML"),
+      stepState(1) === "complete" && h("div", { style: S.stepSummary }, parsedFilters?.count + " filters parsed"),
+      stepState(1) === "active" && h("div", null,
+        h("div", { style: S.fieldBlock },
+          h("div", { style: S.fieldLabel }, "Upload file"),
+          h("input", { type: "file", accept: ".xml,text/xml", style: { ...S.input, padding: "10px 14px", cursor: "pointer", color: "var(--ink-dim)", fontSize: 11 }, onChange: handleFileUpload }),
+        ),
+        h("div", { style: { ...S.hint, marginBottom: 12, textAlign: "center" } }, "— or paste directly —"),
+        h("div", { style: S.fieldBlock },
+          h("div", { style: S.fieldLabel }, "Paste XML"),
+          h("textarea", { style: { ...S.textarea, minHeight: 120, fontSize: 11 }, value: xmlInput, onChange: e => setXmlInput(e.target.value), placeholder: "<?xml version='1.0' encoding='UTF-8'?>\n<feed xmlns='http://www.w3.org/2005/Atom'...>" }),
+        ),
+        parseError && h("div", { style: { ...S.warningBox, marginTop: 8 } }, parseError),
+        h("button", { style: xmlInput.trim() ? S.btnPrimary : S.btnPrimaryDisabled, onClick: () => xmlInput.trim() && parseAndAdvance(), disabled: !xmlInput.trim() }, "Parse filters"),
+      ),
+    ),
+    h("div", { ref: step2Ref, style: S.stepBlock(stepState(2)), onClick: () => step === 3 && setStep(2) },
+      h("div", { style: S.stepBadge(stepState(2)) }, "2"),
+      h("div", { style: S.stepLabel }, "Describe the missed email"),
+      stepState(2) === "complete" && h("div", { style: S.stepSummary }, emailSubject ? "Subject: " + emailSubject.slice(0, 40) : "Details entered"),
+      stepState(2) === "active" && h("div", null,
+        h("div", { style: S.fieldBlock }, h("div", { style: S.fieldLabel }, "From"), h("input", { style: S.input, value: emailFrom, onChange: e => setEmailFrom(e.target.value), placeholder: "sender@example.com" })),
+        h("div", { style: S.fieldBlock }, h("div", { style: S.fieldLabel }, "To"), h("input", { style: S.input, value: emailTo, onChange: e => setEmailTo(e.target.value), placeholder: "your@gmail.com" })),
+        h("div", { style: S.fieldBlock }, h("div", { style: S.fieldLabel }, "Subject"), h("input", { style: S.input, value: emailSubject, onChange: e => setEmailSubject(e.target.value), placeholder: "Exact subject line" })),
+        h("div", { style: S.fieldBlock }, h("div", { style: S.fieldLabel }, "Body snippet (optional)"), h("textarea", { style: { ...S.textarea, minHeight: 60 }, value: emailBody, onChange: e => setEmailBody(e.target.value), placeholder: "Paste a relevant excerpt if useful" })),
+        h("div", { style: S.fieldBlock }, h("div", { style: S.fieldLabel }, "Other info (optional)"), h("textarea", { style: { ...S.textarea, minHeight: 50 }, value: emailExtra, onChange: e => setEmailExtra(e.target.value), placeholder: "List-Unsubscribe header, mailing list ID, anything else" })),
+        h("div", { style: S.hint }, "At minimum provide From or Subject"),
+        h("div", { style: S.btnRow }, h("button", { style: S.btnSecondary, onClick: () => setStep(1) }, "Back")),
+        h("button", { style: emailReady ? S.btnPrimary : S.btnPrimaryDisabled, onClick: () => emailReady && runDiagnosis(), disabled: !emailReady || loading }, "Run diagnosis"),
+      ),
+    ),
+    h("div", { ref: step3Ref, style: S.stepBlock(stepState(3)) },
+      h("div", { style: S.stepBadge(stepState(3)) }, "3"),
+      h("div", { style: S.stepLabel }, "Diagnosis"),
+      stepState(3) === "active" && h("div", null,
+        loading
+          ? h("div", { style: { ...S.diagBox, color: "var(--ink-dim)", fontStyle: "italic" } }, "Analyzing " + parsedFilters?.count + " filters...")
+          : h("div", { style: S.diagBox }, diagnosis || "(no output yet)"),
+        !loading && diagnosis && h("div", { style: S.btnRow },
+          h("button", { style: S.btnSecondary, onClick: () => setStep(2) }, "Edit details"),
+          h("button", { style: S.btnSecondary, onClick: reset }, "Start over"),
+        ),
+      ),
+    ),
+  );
+}
+
+// ── MAP TAB ───────────────────────────────────────────────────────────────────
+const LABEL_RECOMMENDATIONS = {
+  "Receipts":    { actions: { skipInbox: true, markRead: true, star: false, trash: false, markImportant: false, neverImportant: true, neverSpam: false }, rationale: "Receipts are reference material, not action items. Archive and mark read. Dropped star/important from some filters." },
+  "Shipped":     { actions: { skipInbox: true, markRead: false, star: false, trash: false, markImportant: false, neverImportant: false, neverSpam: false }, rationale: "Archive only. Removed broken label:inbox from hasTheWord criteria — that does nothing in Gmail." },
+  "SpiraOS":     { actions: { skipInbox: true, markRead: false, star: true, trash: false, markImportant: true, neverImportant: false, neverSpam: false }, rationale: "Health and work signals — all high-priority. Normalized to archive + star + markImportant across all SpiraOS filters." },
+  "Bills":       { actions: { skipInbox: true, markRead: false, star: true, trash: false, markImportant: true, neverImportant: false, neverSpam: false }, rationale: "Bills require action. Normalized to archive + star + markImportant. Dropped markRead from #9." },
+  "Money":       { actions: { skipInbox: true, markRead: false, star: true, trash: false, markImportant: true, neverImportant: false, neverSpam: false }, rationale: "Financial signals are worth surfacing. Normalized to archive + star + markImportant." },
+  "Logins":      { actions: { skipInbox: true, markRead: false, star: true, trash: false, markImportant: true, neverImportant: false, neverSpam: false }, rationale: "Security events should be high-signal. Normalized to archive + star + markImportant." },
+};
+
+const ACTION_LABELS = { skipInbox: "archive", markRead: "mark read", star: "star", trash: "trash", markImportant: "mark important", neverImportant: "never important", neverSpam: "never spam" };
+
+function ConsolidationGroup({ group, buildConsolidatedQuery }) {
+  const [queryCopied, setQueryCopied] = useState(false);
+  const rec = LABEL_RECOMMENDATIONS[group.label];
+  const normalizedActions = rec ? rec.actions : group.normalizedActions;
+  const query = buildConsolidatedQuery(group);
+
+  const currentActionKeys = Object.keys(ACTION_LABELS).filter(k => group.filters.some(f => f[k]));
+  const normalizedActionKeys = Object.entries(normalizedActions || {}).filter(([,v]) => v).map(([k]) => k);
+  const actionsChanged = JSON.stringify(currentActionKeys.sort()) !== JSON.stringify(normalizedActionKeys.sort());
+
+  const doCopy = () => { navigator.clipboard.writeText(query); setQueryCopied(true); setTimeout(() => setQueryCopied(false), 1500); };
+  const labelColor = rec ? "var(--orange)" : "var(--teal)";
+
+  return h("div", { style: { marginBottom: 24, borderLeft: `2px solid ${labelColor}`, paddingLeft: 16, paddingBottom: 4 } },
+    h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 } },
+      h("div", null,
+        h("div", { style: { fontSize: 13, fontWeight: 700, color: "var(--sand)", fontFamily: "'Archivo Black', sans-serif", letterSpacing: "-0.02em", marginBottom: 4 } },
+          group.label || "(no label)",
+          h("span", { style: { fontSize: 10, color: "var(--ink-faint)", fontWeight: 400, fontFamily: "'JetBrains Mono', monospace", marginLeft: 10, letterSpacing: 0 } },
+            `${group.filters.length} filters → 1`
+          )
+        ),
+      ),
+    ),
+    h("div", { style: { display: "flex", gap: 16, marginBottom: 12, flexWrap: "wrap" } },
+      h("div", { style: { flex: 1, minWidth: 160 } },
+        h("div", { style: { fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", color: "var(--ink-faint)", marginBottom: 5 } }, "Current (across filters)"),
+        h("div", { style: { display: "flex", gap: 4, flexWrap: "wrap" } },
+          currentActionKeys.map(k =>
+            h("span", { key: k, style: { fontSize: 10, padding: "2px 7px", background: "var(--bg-3)", border: "1px solid var(--line-bright)", color: "var(--ink-dim)" } }, ACTION_LABELS[k])
+          )
+        ),
+      ),
+      h("div", { style: { flex: 1, minWidth: 160 } },
+        h("div", { style: { fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", color: actionsChanged ? "var(--orange)" : "var(--good)", marginBottom: 5 } },
+          actionsChanged ? "Recommended (normalized)" : "Actions unchanged"
+        ),
+        h("div", { style: { display: "flex", gap: 4, flexWrap: "wrap" } },
+          normalizedActionKeys.map(k =>
+            h("span", { key: k, style: { fontSize: 10, padding: "2px 7px", background: actionsChanged ? "var(--orange)" : "var(--bg-3)", border: `1px solid ${actionsChanged ? "var(--orange)" : "var(--line-bright)"}`, color: actionsChanged ? "var(--bg)" : "var(--ink-dim)", fontWeight: actionsChanged ? 700 : 400 } }, ACTION_LABELS[k])
+          )
+        ),
+      ),
+    ),
+    rec && h("div", { style: { fontSize: 11, color: "var(--ink-dim)", lineHeight: 1.6, marginBottom: 12, borderLeft: "2px solid var(--line-bright)", paddingLeft: 10 } }, rec.rationale),
+    h("div", { style: { marginBottom: 10 } },
+      h("div", { style: { fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", color: "var(--ink-faint)", marginBottom: 6 } }, "Filters being merged"),
+      ...group.filters.map(f =>
+        h("div", { key: f.id, style: { fontSize: 11, color: "var(--ink-dim)", padding: "4px 0", borderBottom: "1px solid var(--line)", lineHeight: 1.6 } },
+          h("span", { style: { color: "var(--ink-faint)", fontWeight: 700, marginRight: 8, fontFamily: "monospace" } }, `#${f.id}`),
+          f.from && h("span", { style: { color: "var(--teal)" } }, `from: ${f.from.slice(0, 55)}${f.from.length > 55 ? "…" : ""}  `),
+          f.subject && h("span", { style: { color: "var(--orange)" } }, `subject: ${f.subject.slice(0, 55)}${f.subject.length > 55 ? "…" : ""}  `),
+          f.hasTheWord && h("span", { style: { color: "var(--amber)" } }, `has: ${f.hasTheWord.slice(0, 55)}${f.hasTheWord.length > 55 ? "…" : ""}`),
+        )
+      ),
+    ),
+    query && h("div", null,
+      h("div", { style: { fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", color: "var(--sand)", marginBottom: 6 } }, "Consolidated criteria query"),
+      h("div", { style: { background: "var(--bg-3)", border: "1px solid var(--line-bright)", padding: "10px 12px", fontSize: 11, fontFamily: "monospace", color: "var(--good)", wordBreak: "break-all", lineHeight: 1.6, marginBottom: 8 } }, query),
+      h("div", { style: { fontSize: 10, color: "var(--ink-faint)", marginBottom: 8, lineHeight: 1.5 } },
+        "Paste into Gmail search bar → click filter icon → Create filter → apply the recommended actions above → Create filter. Then delete the " + group.filters.length + " old filters."
+      ),
+      h("button", { style: { ...S.btnTeal, padding: "6px 14px", fontSize: 10 }, onClick: doCopy }, queryCopied ? "Copied" : "Copy query"),
+    ),
+  );
+}
+
+// Unlabeled filters grouped by shared sender domain
+function UnlabeledCluster({ domain, filters, buildConsolidatedQuery }) {
+  const [queryCopied, setQueryCopied] = useState(false);
+  const suggestedLabel = domainToLabel(domain);
+  const query = buildConsolidatedQuery({ filters });
+  const doCopy = () => { navigator.clipboard.writeText(query); setQueryCopied(true); setTimeout(() => setQueryCopied(false), 1500); };
+
+  return h("div", { style: { marginBottom: 20, borderLeft: "2px solid var(--line-bright)", paddingLeft: 16, paddingBottom: 4 } },
+    h("div", { style: { display: "flex", alignItems: "baseline", gap: 10, marginBottom: 8 } },
+      h("div", { style: { fontSize: 12, fontWeight: 700, color: "var(--ink-dim)", fontFamily: "'Archivo Black', sans-serif" } }, domain),
+      h("span", { style: { fontSize: 9, color: "var(--ink-faint)", textTransform: "uppercase", letterSpacing: "0.1em" } },
+        `${filters.length} filters · suggested label: `
+      ),
+      h("span", { style: { fontSize: 9, color: "var(--amber)", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700 } }, suggestedLabel),
+    ),
+    ...filters.map(f =>
+      h("div", { key: f.id, style: { fontSize: 11, color: "var(--ink-dim)", padding: "4px 0", borderBottom: "1px solid var(--line)", lineHeight: 1.6 } },
+        h("span", { style: { color: "var(--ink-faint)", fontWeight: 700, marginRight: 8, fontFamily: "monospace" } }, `#${f.id}`),
+        f.from && h("span", { style: { color: "var(--teal)" } }, `from: ${f.from.slice(0, 55)}${f.from.length > 55 ? "…" : ""}  `),
+        f.subject && h("span", { style: { color: "var(--orange)" } }, `subject: ${f.subject.slice(0, 55)}${f.subject.length > 55 ? "…" : ""}  `),
+        f.hasTheWord && h("span", { style: { color: "var(--amber)" } }, `has: ${f.hasTheWord.slice(0, 55)}${f.hasTheWord.length > 55 ? "…" : ""}`),
+      )
+    ),
+    query && h("div", { style: { marginTop: 10 } },
+      h("div", { style: { fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", color: "var(--sand)", marginBottom: 6 } }, "Combined query"),
+      h("div", { style: { background: "var(--bg-3)", border: "1px solid var(--line-bright)", padding: "10px 12px", fontSize: 11, fontFamily: "monospace", color: "var(--good)", wordBreak: "break-all", lineHeight: 1.6, marginBottom: 8 } }, query),
+      h("div", { style: { fontSize: 10, color: "var(--ink-faint)", marginBottom: 8, lineHeight: 1.5 } },
+        `Create a new "${suggestedLabel}" label → paste query into Gmail search bar → Create filter → apply your preferred actions.`
+      ),
+      h("button", { style: { ...S.btnTeal, padding: "6px 14px", fontSize: 10 }, onClick: doCopy }, queryCopied ? "Copied" : "Copy query"),
+    ),
+  );
+}
+
+function MapTab({ filtersRaw, isMobile, isWide }) {
+  const [xmlInput, setXmlInput] = useState("");
+  const [parsedXml, setParsedXml] = useState(null);
+  const [parseError, setParseError] = useState("");
+  const [view, setView] = useState("coverage");
+
+  const filters = useMemo(() => {
+    if (filtersRaw && filtersRaw.length > 0) {
+      return filtersRaw.map((f, i) => {
+        const c = f.criteria || {};
+        const a = f.action || {};
+        return {
+          id: i + 1,
+          from: c.from || null,
+          to: c.to || null,
+          subject: c.subject || null,
+          hasTheWord: c.query || null,
+          doesNotHave: c.negatedQuery || null,
+          hasAttachment: c.hasAttachment || false,
+          label: a.addLabelIds?.filter(l => !["INBOX","UNREAD","STARRED","IMPORTANT"].includes(l)).join(", ") || null,
+          skipInbox: a.removeLabelIds?.includes("INBOX") || false,
+          markRead: a.removeLabelIds?.includes("UNREAD") || false,
+          star: a.addLabelIds?.includes("STARRED") || false,
+          trash: a.addLabelIds?.includes("TRASH") || false,
+          markImportant: a.addLabelIds?.includes("IMPORTANT") || false,
+          neverImportant: a.removeLabelIds?.includes("IMPORTANT") || false,
+          neverSpam: a.addLabelIds?.includes("SPAM") === false && (f.action?.neverSpam || false),
+        };
+      });
+    }
+    return parsedXml ? parsedXml.raw : [];
+  }, [filtersRaw, parsedXml]);
+
+  const source = filtersRaw?.length > 0 ? "live" : parsedXml ? "xml" : null;
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => parseAndSet(ev.target.result);
+    reader.readAsText(file);
+  };
+
+  const parseAndSet = (xmlString) => {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(xmlString, "application/xml");
+      if (doc.querySelector("parsererror")) { setParseError("XML parse error."); return; }
+      const entries = Array.from(doc.getElementsByTagName("entry"));
+      const raw = entries.map((entry, i) => {
+        const props = Array.from(entry.childNodes).filter(n => n.nodeType === 1 && n.localName === "property");
+        const getVal = (name) => { const el = props.find(p => p.getAttribute("name") === name); return el ? el.getAttribute("value") : null; };
+        return {
+          id: i + 1,
+          from: getVal("from"),
+          to: getVal("to"),
+          subject: getVal("subject"),
+          hasTheWord: getVal("hasTheWord"),
+          doesNotHave: getVal("doesNotHaveTheWord"),
+          hasAttachment: getVal("hasAttachment") === "true",
+          label: getVal("label"),
+          skipInbox: getVal("shouldArchive") === "true",
+          markRead: getVal("shouldMarkAsRead") === "true",
+          star: getVal("shouldStar") === "true",
+          trash: getVal("shouldTrash") === "true",
+          markImportant: getVal("shouldAlwaysMarkAsImportant") === "true",
+          neverImportant: getVal("shouldNeverMarkAsImportant") === "true",
+          neverSpam: getVal("shouldNeverSpam") === "true",
+        };
+      }).filter(f => f.from || f.to || f.subject || f.hasTheWord);
+      if (!raw.length) { setParseError("No filters found."); return; }
+      setParseError("");
+      setParsedXml({ raw, count: raw.length });
+    } catch { setParseError("Could not parse XML."); }
+  };
+
+  const labelMap = useMemo(() => {
+    const m = {};
+    filters.forEach(f => {
+      const lbl = f.label || "(no label)";
+      if (!m[lbl]) m[lbl] = [];
+      m[lbl].push(f);
+    });
+    return m;
+  }, [filters]);
+
+  const actionCounts = useMemo(() => {
+    const c = { skipInbox: 0, markRead: 0, star: 0, trash: 0, markImportant: 0, neverSpam: 0, neverImportant: 0 };
+    filters.forEach(f => { Object.keys(c).forEach(k => { if (f[k]) c[k]++; }); });
+    return c;
+  }, [filters]);
+
+  const criteriaTypes = useMemo(() => {
+    const c = { from: 0, subject: 0, hasTheWord: 0, to: 0, hasAttachment: 0 };
+    filters.forEach(f => { Object.keys(c).forEach(k => { if (f[k]) c[k]++; }); });
+    return c;
+  }, [filters]);
+
+  const overlaps = useMemo(() => {
+    const domainMap = {};
+    filters.forEach(f => {
+      if (!f.from) return;
+      const domains = f.from.match(/[\w.-]+\.[\w]{2,}/g) || [];
+      domains.forEach(d => {
+        if (!domainMap[d]) domainMap[d] = [];
+        domainMap[d].push(f.id);
+      });
+    });
+    return Object.entries(domainMap).filter(([, ids]) => ids.length > 1);
+  }, [filters]);
+
+  // Only consolidate filters that have a label — unlabeled filters don't share intent
+  const consolidations = useMemo(() => {
+    const groups = {};
+    filters.forEach(f => {
+      if (!f.label) return; // skip unlabeled
+      const key = f.label;
+      if (!groups[key]) {
+        const rec = LABEL_RECOMMENDATIONS[f.label];
+        groups[key] = {
+          filters: [],
+          label: f.label,
+          normalizedActions: rec ? rec.actions : { skipInbox: false, markRead: false, star: false, trash: false, markImportant: false, neverImportant: false, neverSpam: false },
+        };
+      }
+      groups[key].filters.push(f);
+      if (!LABEL_RECOMMENDATIONS[f.label]) {
+        const a = groups[key].normalizedActions;
+        if (f.skipInbox) a.skipInbox = true;
+        if (f.markRead) a.markRead = true;
+        if (f.star) a.star = true;
+        if (f.trash) a.trash = true;
+        if (f.markImportant) a.markImportant = true;
+        if (f.neverImportant) a.neverImportant = true;
+        if (f.neverSpam) a.neverSpam = true;
+      }
+    });
+    return Object.values(groups).filter(g => g.filters.length > 1).sort((a, b) => {
+      const aRec = LABEL_RECOMMENDATIONS[a.label] ? 1 : 0;
+      const bRec = LABEL_RECOMMENDATIONS[b.label] ? 1 : 0;
+      if (bRec !== aRec) return bRec - aRec;
+      return b.filters.length - a.filters.length;
+    });
+  }, [filters]);
+
+  // Group unlabeled filters by shared root sender domain
+  const unlabeledClusters = useMemo(() => {
+    const unlabeled = filters.filter(f => !f.label);
+    const domainMap = {};
+    unlabeled.forEach(f => {
+      const domain = extractDomain(f.from);
+      if (!domain) return;
+      if (!domainMap[domain]) domainMap[domain] = [];
+      domainMap[domain].push(f);
+    });
+    return Object.entries(domainMap)
+      .filter(([, fs]) => fs.length > 1)
+      .sort((a, b) => b[1].length - a[1].length);
+  }, [filters]);
+
+  const buildConsolidatedQuery = (group) => {
+    const parts = [];
+    const fs = group.filters;
+    const froms = fs.flatMap(f => f.from ? [f.from] : []);
+    const subjects = fs.flatMap(f => f.subject ? [f.subject] : []);
+    const hasWords = fs.flatMap(f => f.hasTheWord ? [f.hasTheWord] : []);
+    if (froms.length === 1) parts.push("from:(" + froms[0] + ")");
+    else if (froms.length > 1) parts.push("{" + froms.map(v => "from:(" + v + ")").join(" ") + "}");
+    if (subjects.length === 1) parts.push("subject:(" + subjects[0] + ")");
+    else if (subjects.length > 1) parts.push("{" + subjects.map(v => "subject:(" + v + ")").join(" ") + "}");
+    if (hasWords.length === 1) parts.push("(" + hasWords[0] + ")");
+    else if (hasWords.length > 1) parts.push("{" + hasWords.map(v => "(" + v + ")").join(" ") + "}");
+    if (parts.length > 1) return "(" + parts.join(" OR ") + ")";
+    return parts[0] || "";
+  };
+
+  const CRITERIA_COLS = ["from","subject","hasTheWord","to","hasAttachment"];
+  const ACTION_COLS = ["label","skipInbox","markRead","star","trash","markImportant"];
+
+  const cellStyle = (filled, color) => ({
+    padding: "6px 8px", fontSize: 10, textAlign: "center", borderBottom: "1px solid var(--line)",
+    borderRight: "1px solid var(--line)", background: filled ? color : "transparent",
+    color: filled ? "var(--bg)" : "var(--ink-faint)", fontWeight: filled ? 700 : 400,
+    maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+  });
+
+  const thStyle = { padding: "6px 8px", fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--ink-dim)", borderBottom: "1px solid var(--line-bright)", borderRight: "1px solid var(--line)", textAlign: "center", background: "var(--bg-3)" };
+  const trStyle = (i) => ({ background: i % 2 === 0 ? "var(--bg-2)" : "var(--bg-3)" });
+
+  const CRITERION_COLORS = { from: "#1E5663", subject: "#FF4A14", hasTheWord: "#F28C00", to: "#4a6340", hasAttachment: "#6b5a3e" };
+  const ACTION_COLORS = { label: "#1E5663", skipInbox: "#FF4A14", markRead: "#8a8270", star: "#F28C00", trash: "#d63c3c", markImportant: "#7fb86b" };
+
+  const truncate = (s, n=28) => s ? (s.length > n ? s.slice(0, n) + "…" : s) : "";
+
+  if (!source) {
+    return h("div", null,
+      h("div", { style: { ...S.warningBox, borderColor: "var(--teal)", color: "var(--ink-dim)", marginBottom: 20 } },
+        "Sign in with Google for live filters, or upload your exported XML below to visualize your filter setup."
+      ),
+      h("div", { style: S.fieldBlock },
+        h("div", { style: S.fieldLabel }, "Upload filter XML"),
+        h("input", { type: "file", accept: ".xml,text/xml", style: { ...S.input, padding: "10px 14px", cursor: "pointer", color: "var(--ink-dim)", fontSize: 11 }, onChange: handleFileUpload }),
+      ),
+      h("div", { style: { ...S.hint, marginBottom: 12, textAlign: "center" } }, "— or paste directly —"),
+      h("textarea", { style: { ...S.textarea, minHeight: 100, fontSize: 11 }, value: xmlInput, onChange: e => setXmlInput(e.target.value), placeholder: "Paste exported XML here" }),
+      parseError && h("div", { style: { ...S.warningBox, marginTop: 8 } }, parseError),
+      h("button", { style: xmlInput.trim() ? S.btnPrimary : S.btnPrimaryDisabled, onClick: () => xmlInput.trim() && parseAndSet(xmlInput), disabled: !xmlInput.trim() }, "Load filters"),
+    );
+  }
+
+  const unlabeledCount = filters.filter(f => !f.label).length;
+
+  return h("div", null,
+    h("div", { style: S.statRow },
+      h("div", { style: S.statCell }, h("div", { style: S.statNum }, filters.length), h("div", { style: S.statLabel }, "Filters")),
+      h("div", { style: S.statDivider }),
+      h("div", { style: S.statCell }, h("div", { style: S.statNum }, Object.keys(labelMap).length), h("div", { style: S.statLabel }, "Labels")),
+      h("div", { style: S.statDivider }),
+      h("div", { style: S.statCell }, h("div", { style: S.statNum }, consolidations.length), h("div", { style: S.statLabel }, "Can merge")),
+      h("div", { style: S.statDivider }),
+      h("div", { style: S.statCell }, h("div", { style: S.statNum }, source === "live" ? "Live" : "XML"), h("div", { style: S.statLabel }, "Source")),
+    ),
+
+    h("div", { style: { display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" } },
+      ["coverage","labels","actions","overlaps","consolidate"].map(v =>
+        h("button", { key: v, style: view === v ? { ...S.btnTeal, borderColor: "var(--orange)", color: "var(--orange)" } : S.btnSecondary, onClick: () => setView(v) },
+          v === "coverage" ? "Coverage matrix" : v === "labels" ? "Label map" : v === "actions" ? "Action breakdown" : v === "overlaps" ? "Overlaps" : "Consolidations"
+        )
+      )
+    ),
+
+    // ── COVERAGE MATRIX ──
+    view === "coverage" && h("div", null,
+      h("div", { style: { ...S.instrTitle, marginBottom: 12 } }, "Coverage matrix — criteria vs actions per filter"),
+      h("div", { style: { overflowX: "auto" } },
+        h("table", { style: { borderCollapse: "collapse", width: "100%", fontSize: 11 } },
+          h("thead", null,
+            h("tr", null,
+              h("th", { style: { ...thStyle, textAlign: "left", minWidth: 40 } }, "#"),
+              ...CRITERIA_COLS.map(c => h("th", { key: c, style: thStyle }, c === "hasTheWord" ? "has words" : c === "hasAttachment" ? "attach" : c)),
+              h("th", { style: { ...thStyle, background: "var(--bg-2)" } }, ""),
+              ...ACTION_COLS.map(a => h("th", { key: a, style: { ...thStyle, background: "var(--bg-2)" } }, a === "skipInbox" ? "archive" : a === "markRead" ? "read" : a === "markImportant" ? "important" : a)),
+            )
+          ),
+          h("tbody", null,
+            filters.map((f, i) =>
+              h("tr", { key: f.id, style: trStyle(i) },
+                h("td", { style: { ...cellStyle(false), textAlign: "left", color: "var(--ink-dim)", fontWeight: 700, minWidth: 30 } }, f.id),
+                ...CRITERIA_COLS.map(c => {
+                  const val = f[c];
+                  const filled = c === "hasAttachment" ? val : !!val;
+                  return h("td", { key: c, style: cellStyle(filled, CRITERION_COLORS[c] || "var(--teal)"), title: typeof val === "string" ? val : "" },
+                    filled ? (c === "hasAttachment" ? "✓" : truncate(val, 18)) : "·"
+                  );
+                }),
+                h("td", { style: { ...cellStyle(false), borderLeft: "2px solid var(--line-bright)" } }, ""),
+                ...ACTION_COLS.map(a => {
+                  const val = f[a];
+                  const filled = a === "label" ? !!val : !!val;
+                  return h("td", { key: a, style: cellStyle(filled, ACTION_COLORS[a] || "var(--orange)"), title: typeof val === "string" ? val : "" },
+                    filled ? (a === "label" ? truncate(val, 14) : "✓") : "·"
+                  );
+                }),
+              )
+            )
+          )
+        )
+      ),
+      h("div", { style: { ...S.hint, marginTop: 10 } }, "Teal = from / subject / has words. Orange = archive / trash. Hover cells to see full values."),
+    ),
+
+    // ── LABEL MAP ──
+    view === "labels" && h("div", null,
+      h("div", { style: { ...S.instrTitle, marginBottom: 12 } }, "Filters grouped by destination label"),
+      Object.entries(labelMap).sort((a,b) => b[1].length - a[1].length).map(([label, lfilters]) =>
+        h("div", { key: label, style: { ...S.fieldBlock, borderLeft: "2px solid var(--teal)", paddingLeft: 14, marginBottom: 16 } },
+          h("div", { style: { ...S.fieldLabel, marginBottom: 6 } },
+            h("span", { style: { color: "var(--sand)" } }, label),
+            h("span", { style: { fontSize: 10, color: "var(--ink-faint)", fontWeight: 400 } }, ` ${lfilters.length} filter${lfilters.length !== 1 ? "s" : ""}`),
+          ),
+          ...lfilters.map(f =>
+            h("div", { key: f.id, style: { fontSize: 11, color: "var(--ink-dim)", padding: "4px 0", borderBottom: "1px solid var(--line)", lineHeight: 1.5 } },
+              h("span", { style: { color: "var(--ink-faint)", marginRight: 8, fontWeight: 700 } }, `#${f.id}`),
+              f.from && h("span", null, `from: ${truncate(f.from, 40)}  `),
+              f.subject && h("span", null, `subject: ${truncate(f.subject, 40)}  `),
+              f.hasTheWord && h("span", null, `has: ${truncate(f.hasTheWord, 40)}`),
+            )
+          )
+        )
+      )
+    ),
+
+    // ── ACTION BREAKDOWN ──
+    view === "actions" && h("div", null,
+      h("div", { style: { ...S.instrTitle, marginBottom: 12 } }, "How many filters trigger each action"),
+      h("div", { style: { marginBottom: 20 } },
+        Object.entries(actionCounts).map(([action, count]) => {
+          const pct = Math.round((count / filters.length) * 100);
+          const color = ACTION_COLORS[action] || "var(--teal)";
+          return h("div", { key: action, style: { marginBottom: 12 } },
+            h("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 4 } },
+              h("span", { style: { fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--ink-dim)" } }, action),
+              h("span", { style: { fontSize: 11, color: "var(--ink-faint)" } }, `${count} / ${filters.length}`),
+            ),
+            h("div", { style: { height: 8, background: "var(--bg-3)", border: "1px solid var(--line-bright)" } },
+              h("div", { style: { height: "100%", width: `${pct}%`, background: color, transition: "width 0.3s" } })
+            ),
+          );
+        })
+      ),
+      h("div", { style: { ...S.instrTitle, marginBottom: 12 } }, "Criteria type breakdown"),
+      Object.entries(criteriaTypes).map(([crit, count]) => {
+        const pct = Math.round((count / filters.length) * 100);
+        const color = CRITERION_COLORS[crit] || "var(--teal)";
+        return h("div", { key: crit, style: { marginBottom: 12 } },
+          h("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 4 } },
+            h("span", { style: { fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--ink-dim)" } }, crit),
+            h("span", { style: { fontSize: 11, color: "var(--ink-faint)" } }, `${count} / ${filters.length}`),
+          ),
+          h("div", { style: { height: 8, background: "var(--bg-3)", border: "1px solid var(--line-bright)" } },
+            h("div", { style: { height: "100%", width: `${pct}%`, background: color, transition: "width 0.3s" } })
+          ),
+        );
+      })
+    ),
+
+    // ── OVERLAPS ──
+    view === "overlaps" && h("div", null,
+      h("div", { style: { ...S.instrTitle, marginBottom: 12 } }, `${overlaps.length} domain${overlaps.length !== 1 ? "s" : ""} matched by multiple filters`),
+      overlaps.length === 0
+        ? h("div", { style: { color: "var(--ink-dim)", fontSize: 12, padding: "12px 0" } }, "No domain overlaps detected.")
+        : overlaps.map(([domain, ids]) =>
+            h("div", { key: domain, style: { marginBottom: 12, borderLeft: "2px solid var(--amber)", paddingLeft: 14 } },
+              h("div", { style: { fontSize: 12, fontWeight: 700, color: "var(--amber)", marginBottom: 4 } }, domain),
+              h("div", { style: { fontSize: 11, color: "var(--ink-dim)" } }, `Matched by filter${ids.length !== 1 ? "s" : ""}: ${ids.join(", ")}`),
+              ...ids.map(id => {
+                const f = filters.find(x => x.id === id);
+                if (!f) return null;
+                return h("div", { key: id, style: { fontSize: 10, color: "var(--ink-faint)", marginTop: 4, paddingLeft: 8 } },
+                  `#${id}: `,
+                  f.label && `label→${f.label}  `,
+                  f.skipInbox && "archive  ",
+                  f.trash && "trash  ",
+                  f.markRead && "markRead",
+                );
+              })
+            )
+          )
+    ),
+
+    // ── CONSOLIDATIONS ──
+    view === "consolidate" && h("div", null,
+
+      // Labeled consolidations
+      h("div", { style: { ...S.instrTitle, marginBottom: 4 } },
+        `${consolidations.length} labeled consolidation${consolidations.length !== 1 ? "s" : ""}`
+      ),
+      h("div", { style: { ...S.hint, marginBottom: consolidations.length ? 20 : 8 } },
+        "Groups of filters sharing the same label that can each be collapsed into one filter."
+      ),
+      consolidations.length === 0
+        ? h("div", { style: { color: "var(--ink-dim)", fontSize: 12, padding: "8px 0 20px" } }, "No labeled consolidation opportunities.")
+        : consolidations.map((group, gi) =>
+            h(ConsolidationGroup, { key: gi, group, buildConsolidatedQuery })
+          ),
+
+      // Divider
+      h("div", { style: { borderTop: "1px solid var(--line-bright)", margin: "24px 0 20px" } }),
+
+      // Unlabeled domain clusters
+      h("div", { style: { ...S.instrTitle, marginBottom: 4 } },
+        `${unlabeledClusters.length} unlabeled cluster${unlabeledClusters.length !== 1 ? "s" : ""} by sender domain`
+      ),
+      unlabeledCount > 0 && h("div", { style: { ...S.hint, marginBottom: 16 } },
+        `${unlabeledCount} of your filters have no label. The groups below share a sender domain — consider creating a label for each and consolidating.`
+      ),
+      unlabeledClusters.length === 0
+        ? h("div", { style: { color: "var(--ink-dim)", fontSize: 12, padding: "8px 0" } },
+            unlabeledCount === 0
+              ? "All filters have labels — nothing to cluster."
+              : "No unlabeled filters share a sender domain."
+          )
+        : unlabeledClusters.map(([domain, clusterFilters]) =>
+            h(UnlabeledCluster, { key: domain, domain, filters: clusterFilters, buildConsolidatedQuery })
+          ),
+    ),
+  );
+}
+
+// ── APP ───────────────────────────────────────────────────────────────────────
+function App() {
+  const [tab, setTab] = useState("build");
+  const auth = useGoogleAuth();
+  const { isMobile, isWide } = useViewport();
+
+  return h("div", { style: S.wrap(isWide) },
+    h("div", { style: S.header },
+      h("div", { style: S.headerTop },
+        h("div", null,
+          h("div", { style: S.title(isWide) }, "GMAIL FILTER TRIAGE"),
+          h("div", { style: S.subtitle }, "// SEARCH QUERY CONSTRUCTOR"),
+        ),
+        h("div", { style: S.meta },
+          h("div", null, "FORM REV. 10"),
+          h("div", null, revDate),
+        ),
+      ),
+      h("div", { style: S.accentStrip }),
+    ),
+    h("div", { style: S.authBar },
+      h("div", null,
+        h("div", { style: S.authStatus(!!auth.token) }, auth.token ? "Connected" : "Not signed in"),
+        auth.userEmail && h("div", { style: S.authMeta }, auth.userEmail),
+        auth.token && h("div", { style: S.authMeta }, auth.filterCount + " filters loaded"),
+      ),
+      auth.token
+        ? h("button", { style: S.btnSecondary, onClick: auth.signOut }, "Sign out")
+        : h("button", { style: { ...S.btnTeal, marginTop: 0 }, onClick: auth.signIn, disabled: auth.loading }, auth.loading ? "Signing in..." : "Sign in with Google"),
+    ),
+    h("div", { style: { ...S.tabRow, overflowX: isMobile ? 'auto' : 'visible' }, className: 'tab-row-scroll' },
+      h("button", { style: S.tab(tab === "build"), onClick: () => setTab("build") }, "Build filter"),
+      h("button", { style: S.tab(tab === "diagnose"), onClick: () => setTab("diagnose") }, "Diagnose (live)"),
+      h("button", { style: S.tab(tab === "xml"), onClick: () => setTab("xml") }, "Diagnose (XML)"),
+      h("button", { style: S.tab(tab === "map"), onClick: () => setTab("map") }, "Filter map"),
+    ),
+    tab === "build" && h(BuildTab, { isMobile, isWide }),
+    tab === "diagnose" && h(DiagnoseTab, { filtersRaw: auth.filtersRaw, filterCount: auth.filterCount, token: auth.token, refresh: auth.refresh, isMobile }),
+    tab === "xml" && h(XmlTab, { isMobile }),
+    tab === "map" && h(MapTab, { filtersRaw: auth.filtersRaw, isMobile, isWide }),
+  );
+}
+
+createRoot(document.getElementById("root")).render(h(App));
+</script>
+</body>
+</html>
