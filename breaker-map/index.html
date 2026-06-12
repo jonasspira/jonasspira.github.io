@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
 <title>Breaker Map — spiiira.com</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -450,6 +451,34 @@
     border: 1px solid;
   }
 
+  /* ── TIP BAR ── */
+  .tip-bar {
+    width: 100%;
+    max-width: 900px;
+    margin-bottom: 16px;
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .tip-bar span {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.04em;
+  }
+
+  .tip-bar strong {
+    color: var(--amber);
+    font-weight: 500;
+  }
+
+  .tip-sep {
+    color: var(--border) !important;
+    user-select: none;
+  }
+
   /* ── FOOTER ── */
   .page-footer {
     width: 100%;
@@ -521,7 +550,7 @@
       display: block;
     }
 
-    .page-header, .header-actions, .grid-footer, .page-footer, .ctx { display: none !important; }
+    .page-header, .header-actions, .tip-bar, .grid-footer, .page-footer, .ctx { display: none !important; }
 
     .panel {
       border: none;
@@ -587,6 +616,15 @@
     <button class="btn btn-ghost" onclick="clearAll()">Clear</button>
     <button class="btn btn-print" onclick="window.print()">Export PDF</button>
   </div>
+</div>
+
+<!-- TIP BAR -->
+<div class="tip-bar">
+  <span>Fill in your panel info and circuits, then hit <strong>Export PDF</strong>.</span>
+  <span class="tip-sep">·</span>
+  <span>Click a <strong>type badge</strong> (STD / 2P / GFCI / AFCI) to cycle it.</span>
+  <span class="tip-sep">·</span>
+  <span><strong>Right-click</strong> any row to flag, clear, or delete it.</span>
 </div>
 
 <!-- PANEL -->
@@ -674,7 +712,6 @@
 
 <!-- PAGE FOOTER -->
 <div class="page-footer">
-  <span class="footer-note">Fill in your circuits, then hit Export PDF.</span>
   <a class="footer-link" href="https://spiiira.com">spiiira.com</a>
 </div>
 
