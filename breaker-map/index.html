@@ -550,10 +550,10 @@
     .tip-bar { flex-direction: column; gap: 4px; margin-bottom: 12px; }
     .tip-sep { display: none; }
 
-    /* Info bar: single column */
-    .info-bar { grid-template-columns: 1fr; }
-    .info-fields { gap: 14px; }
-    .field-input.wide { min-width: 0; width: 100%; }
+    /* Info bar: stacked fields left, compact main-breaker pinned right */
+    .info-bar { grid-template-columns: 1fr auto; align-items: start; padding: 14px 16px; }
+    .info-fields { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    .field-input, .field-input.wide { min-width: 0; }
 
     /* Column headers don't translate to stacked layout */
     .col-headers { display: none; }
