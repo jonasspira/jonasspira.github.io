@@ -320,9 +320,13 @@
     transition: color 0.12s, border-color 0.12s;
   }
   .type-chip:hover { color: var(--text-mid); border-color: #555; }
-  .type-chip[data-type="2P"]   { color: var(--amber);  border-color: var(--amber-dim); background: var(--amber-bg); }
-  .type-chip[data-type="GFCI"] { color: #6BA4A4;       border-color: #2D5555;          background: #0A1818; }
-  .type-chip[data-type="AFCI"] { color: #8A6BB4;       border-color: #3D2D66;          background: #100A1A; }
+  .type-chip[data-type="2P"]    { color: var(--amber);  border-color: var(--amber-dim); background: var(--amber-bg); }
+  .type-chip[data-type="GFCI"]  { color: #6BA4A4;       border-color: #2D5555;          background: #0A1818; }
+  .type-chip[data-type="AFCI"]  { color: #8A6BB4;       border-color: #3D2D66;          background: #100A1A; }
+  .type-chip[data-type="SPARE"] { color: var(--text-dim); border-color: var(--border-soft); background: transparent; }
+
+  .label-card.spare { opacity: 0.3; pointer-events: none; }
+  .label-card.spare .type-chip { pointer-events: auto; }
 
   .amps-input {
     font-family: var(--mono);
@@ -692,6 +696,10 @@
         <input class="field-input" placeholder="Square D / Eaton…" type="text" id="f-brand">
       </div>
       <div class="info-field">
+        <span class="field-label">Year installed</span>
+        <input class="field-input" placeholder="1998" type="text" id="f-year" style="min-width:60px;">
+      </div>
+      <div class="info-field">
         <span class="field-label">Voltage</span>
         <input class="field-input" placeholder="120/240V" type="text" id="f-voltage" style="min-width:70px;">
       </div>
@@ -751,6 +759,10 @@
       <span class="legend-chip" style="color:#8A6BB4;border-color:#3D2D66;background:#100A1A;">AFCI</span>
       Arc-fault protected
     </span>
+    <span class="legend-item">
+      <span class="legend-chip" style="color:var(--text-dim);border-color:var(--border-soft);background:transparent;">SPARE</span>
+      Unused slot
+    </span>
     <span class="legend-item" style="margin-left:auto;font-size:9px;">Click the type chip to cycle · right-click a row for options</span>
   </div>
 
@@ -769,7 +781,7 @@
 </div>
 
 <script>
-  const TYPES = ['STD','2P','GFCI','AFCI'];
+  const TYPES = ['STD','2P','GFCI','AFCI','SPARE'];
   let rowCount = 0;
   let ctxRow = null;
 
@@ -833,6 +845,8 @@
     const next = nextType(chip.dataset.type);
     chip.dataset.type = next;
     chip.textContent  = next;
+    const card = chip.closest('.label-card');
+    if (card) card.classList.toggle('spare', next === 'SPARE');
   }
 
   function ctxDo(action) {
@@ -871,7 +885,7 @@
     if (!confirm('Clear everything and start fresh?')) return;
     document.getElementById('rows').innerHTML = '';
     rowCount = 0;
-    ['f-location','f-address','f-brand','f-voltage','f-date','f-main','f-notes'].forEach(id => {
+    ['f-location','f-address','f-brand','f-year','f-voltage','f-date','f-main','f-notes'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
