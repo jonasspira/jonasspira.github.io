@@ -539,6 +539,50 @@
   .ctx-item:hover { background: var(--surface); }
   .ctx-item.red { color: #e07070; }
 
+  /* ── MOBILE ── */
+  @media (max-width: 600px) {
+    body { padding: 20px 12px 60px; }
+
+    .wordmark-title { font-size: 18px; }
+    .page-header { margin-bottom: 12px; }
+
+    /* Tip bar: stack lines, hide separators */
+    .tip-bar { flex-direction: column; gap: 4px; margin-bottom: 12px; }
+    .tip-sep { display: none; }
+
+    /* Info bar: single column */
+    .info-bar { grid-template-columns: 1fr; }
+    .info-fields { gap: 14px; }
+    .field-input.wide { min-width: 0; width: 100%; }
+
+    /* Column headers don't translate to stacked layout */
+    .col-headers { display: none; }
+
+    /* Circuit rows: stack left + right banks as two sub-rows */
+    .circuit-row {
+      display: grid;
+      grid-template-columns: 32px 1fr;
+      grid-template-rows: auto auto;
+      grid-template-areas: "nl cl" "nr cr";
+      gap: 4px 6px;
+      min-height: unset;
+    }
+    .circuit-row > div:nth-child(1) { grid-area: nl; }
+    .circuit-row > div:nth-child(2) { grid-area: cl; }
+    .circuit-row > div:nth-child(3) { display: none; }
+    .circuit-row > div:nth-child(4) { grid-area: cr; }
+    .circuit-row > div:nth-child(5) { grid-area: nr; }
+
+    /* Right card: normalize RTL text alignment for vertical stacking */
+    .circuit-row > div:nth-child(4) .card-top { flex-direction: row; }
+    .circuit-row > div:nth-child(4) .label-input,
+    .circuit-row > div:nth-child(4) .detail-input { text-align: left; }
+
+    .notes-section { padding: 12px 16px 16px; }
+    .legend { padding: 10px 16px; gap: 10px; }
+    .legend-item:last-child { display: none; } /* hide "click to cycle" hint — already in tip bar */
+  }
+
   /* ── PRINT ── */
   @media print {
     @page { margin: 14mm 12mm; }
