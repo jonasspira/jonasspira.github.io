@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Breaker Map — spiiira.com</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:          #111113;
+    --surface:     #1C1C20;
+    --surface-2:   #26262C;
+    --border:      #333338;
+    --border-soft: #2A2A30;
+    --amber:       #D4900A;
+    --amber-dim:   #7A5206;
+    --amber-bg:    #1E1608;
+    --amber-tape:  #C8850A;
+    --text:        #EEECEA;
+    --text-mid:    #888890;
+    --text-dim:    #555560;
+    --card:        #1E1E23;
+    --card-border: #2C2C34;
+    --chip-border: #3A3A44;
+    --mono: 'DM Mono', monospace;
+    --sans: 'Inter', sans-serif;
+    --radius: 5px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { color-scheme: dark; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 16px 80px;
+  }
+
+  /* ── PAGE HEADER ── */
+  .page-header {
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 32px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .wordmark {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .wordmark-sub {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    color: var(--amber);
+    text-transform: uppercase;
+  }
+
+  .wordmark-title {
+    font-family: var(--mono);
+    font-size: 22px;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  /* ── BUTTONS ── */
+  .btn {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 20px;
+    border-radius: var(--radius);
+    border: none;
+    cursor: pointer;
+    letter-spacing: 0.01em;
+    transition: opacity 0.15s, transform 0.1s;
+    white-space: nowrap;
+  }
+  .btn:active { transform: scale(0.97); }
+
+  .btn-print {
+    background: var(--amber);
+    color: #0E0900;
+  }
+  .btn-print:hover { opacity: 0.87; }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-mid);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { border-color: var(--text-dim); color: var(--text); }
+
+  /* ── PANEL SHELL ── */
+  .panel {
+    width: 100%;
+    max-width: 900px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  /* ── PANEL INFO BAR ── */
+  .info-bar {
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 24px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 20px;
+    align-items: end;
+  }
+
+  .info-fields {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    align-items: end;
+  }
+
+  .info-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .field-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  .field-input {
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--text);
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    outline: none;
+    padding-bottom: 3px;
+    min-width: 90px;
+    transition: border-color 0.15s;
+  }
+  .field-input:focus { border-bottom-color: var(--amber); }
+  .field-input::placeholder { color: var(--text-dim); }
+
+  .field-input.wide { min-width: 200px; }
+
+  /* Main breaker */
+  .main-breaker {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: var(--amber-bg);
+    border: 1px solid var(--amber-dim);
+    border-radius: 7px;
+    padding: 10px 18px;
+    gap: 5px;
+    flex-shrink: 0;
+  }
+
+  .mb-eyebrow {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    color: var(--amber-dim);
+    text-transform: uppercase;
+  }
+
+  .mb-row {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+  }
+
+  .mb-input {
+    font-family: var(--mono);
+    font-size: 28px;
+    color: var(--amber);
+    background: transparent;
+    border: none;
+    outline: none;
+    width: 64px;
+    text-align: right;
+  }
+  .mb-input::placeholder { color: var(--amber-dim); }
+
+  .mb-unit {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--amber-dim);
+  }
+
+  /* ── COLUMN HEADERS ── */
+  .col-headers {
+    display: grid;
+    grid-template-columns: 36px 1fr 20px 1fr 36px;
+    gap: 6px;
+    padding: 12px 16px 6px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .col-head {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+  .col-head.r { text-align: right; }
+
+  /* ── CIRCUIT ROWS ── */
+  .circuit-rows {
+    display: flex;
+    flex-direction: column;
+    padding: 10px 12px 16px;
+    gap: 5px;
+  }
+
+  .circuit-row {
+    display: grid;
+    grid-template-columns: 36px 1fr 20px 1fr 36px;
+    gap: 6px;
+    align-items: stretch;
+    min-height: 54px;
+  }
+
+  /* Number badge — the amber tape signature element */
+  .circ-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--amber-bg);
+    border: 1px solid var(--amber-dim);
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--amber);
+    user-select: none;
+    flex-shrink: 0;
+  }
+
+  /* Label card */
+  .label-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    padding: 7px 11px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    transition: border-color 0.15s;
+  }
+  .label-card:focus-within { border-color: #444450; }
+  .label-card.flagged { background: #1A1700; border-color: var(--amber-dim); }
+
+  .card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .card-top.r { flex-direction: row-reverse; }
+
+  .label-input {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    background: transparent;
+    border: none;
+    outline: none;
+    flex: 1;
+    min-width: 0;
+  }
+  .label-input::placeholder { color: var(--text-dim); font-weight: 400; }
+  .label-input.r { text-align: right; }
+
+  .type-chip {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    border: 1px solid var(--chip-border);
+    border-radius: 3px;
+    padding: 2px 5px;
+    background: var(--surface-2);
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    user-select: none;
+    transition: color 0.12s, border-color 0.12s;
+  }
+  .type-chip:hover { color: var(--text-mid); border-color: #555; }
+  .type-chip[data-type="2P"]   { color: var(--amber);  border-color: var(--amber-dim); background: var(--amber-bg); }
+  .type-chip[data-type="GFCI"] { color: #6BA4A4;       border-color: #2D5555;          background: #0A1818; }
+  .type-chip[data-type="AFCI"] { color: #8A6BB4;       border-color: #3D2D66;          background: #100A1A; }
+
+  .amps-input {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    background: transparent;
+    border: none;
+    outline: none;
+    width: 32px;
+    text-align: right;
+    cursor: pointer;
+  }
+  .amps-input.r { text-align: left; }
+  .amps-input::placeholder { color: var(--text-dim); }
+
+  .detail-input {
+    font-family: var(--sans);
+    font-size: 11px;
+    color: var(--text-mid);
+    background: transparent;
+    border: none;
+    outline: none;
+    width: 100%;
+  }
+  .detail-input::placeholder { color: #3A3A44; }
+  .detail-input.r { text-align: right; }
+
+  /* Center divider */
+  .center-div {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .center-div::after {
+    content: '';
+    display: block;
+    width: 1px;
+    height: 100%;
+    background: var(--border-soft);
+  }
+
+  /* Row flagged state */
+  .circuit-row.flagged .label-card { background: #1A1700; border-color: var(--amber-dim); }
+
+  /* ── TOOLBAR BELOW GRID ── */
+  .grid-footer {
+    padding: 4px 12px 12px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .add-btn {
+    font-family: var(--sans);
+    font-size: 12px;
+    color: var(--text-dim);
+    background: transparent;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+    letter-spacing: 0.02em;
+  }
+  .add-btn:hover { color: var(--text-mid); border-color: var(--text-dim); }
+
+  /* ── NOTES ── */
+  .notes-section {
+    border-top: 1px solid var(--border-soft);
+    padding: 14px 24px 20px;
+    background: var(--surface-2);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .notes-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  .notes-input {
+    font-family: var(--sans);
+    font-size: 12px;
+    color: var(--text-mid);
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border-soft);
+    outline: none;
+    width: 100%;
+    resize: none;
+    line-height: 1.7;
+    padding-bottom: 4px;
+  }
+  .notes-input::placeholder { color: var(--text-dim); }
+  .notes-input:focus { border-bottom-color: var(--border); }
+
+  /* ── LEGEND ── */
+  .legend {
+    border-top: 1px solid var(--border-soft);
+    padding: 12px 24px;
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    align-items: center;
+    background: var(--surface-2);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+
+  .legend-chip {
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    border: 1px solid;
+  }
+
+  /* ── FOOTER ── */
+  .page-footer {
+    width: 100%;
+    max-width: 900px;
+    margin-top: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .footer-note {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.04em;
+  }
+
+  .footer-link {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--amber-dim);
+    text-decoration: none;
+    letter-spacing: 0.04em;
+  }
+  .footer-link:hover { color: var(--amber); }
+
+  /* ── CONTEXT MENU ── */
+  .ctx {
+    position: fixed;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 5px;
+    display: none;
+    flex-direction: column;
+    gap: 1px;
+    z-index: 999;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    min-width: 160px;
+  }
+  .ctx.open { display: flex; }
+
+  .ctx-item {
+    font-family: var(--sans);
+    font-size: 12px;
+    color: var(--text);
+    padding: 7px 11px;
+    border-radius: 5px;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    text-align: left;
+    width: 100%;
+    letter-spacing: 0.01em;
+  }
+  .ctx-item:hover { background: var(--surface); }
+  .ctx-item.red { color: #e07070; }
+
+  /* ── PRINT ── */
+  @media print {
+    @page { margin: 14mm 12mm; }
+
+    body {
+      background: #fff;
+      color: #111;
+      padding: 0;
+      display: block;
+    }
+
+    .page-header, .header-actions, .grid-footer, .page-footer, .ctx { display: none !important; }
+
+    .panel {
+      border: none;
+      border-radius: 0;
+      max-width: 100%;
+      box-shadow: none;
+    }
+
+    .info-bar { background: #f5f5f5; border-bottom: 1px solid #ccc; padding: 12px 16px; }
+    .main-breaker { background: #ffe; border: 1px solid #c8a; }
+    .mb-eyebrow, .mb-unit { color: #996600; }
+    .mb-input { color: #664400; font-size: 22px; }
+
+    .field-label { color: #888; }
+    .field-input { color: #111; border-bottom-color: #ccc; font-size: 13px; }
+
+    .notes-section, .legend { background: #f9f9f9; border-top: 1px solid #ddd; }
+    .notes-label, .legend-item { color: #888; }
+    .notes-input { color: #333; border-bottom-color: #ccc; }
+
+    .col-head { color: #aaa; }
+    .circuit-rows { padding: 8px 10px 12px; gap: 4px; }
+
+    .circuit-row { min-height: 44px; }
+
+    .circ-num {
+      background: #FFF8E0;
+      border: 1px solid #C8A400;
+      color: #7A5500;
+      font-size: 11px;
+    }
+
+    .label-card {
+      background: #fff;
+      border: 1px solid #ddd;
+    }
+    .label-card.flagged { background: #FFFAE0; border-color: #C8A000; }
+
+    .label-input { color: #111; }
+    .detail-input { color: #555; }
+    .amps-input { color: #888; }
+
+    .type-chip { color: #666; border-color: #ccc; background: #f5f5f5; }
+    .type-chip[data-type="2P"]   { color: #7A5500; border-color: #C8A000; background: #FFFAE0; }
+    .type-chip[data-type="GFCI"] { color: #2A7070; border-color: #4A9090; background: #EAF5F5; }
+    .type-chip[data-type="AFCI"] { color: #5A3A8A; border-color: #8A6AB4; background: #F0EAF8; }
+
+    .center-div::after { background: #ddd; }
+
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+  <div class="wordmark">
+    <span class="wordmark-sub">spiiira.com</span>
+    <span class="wordmark-title">Breaker Map</span>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-ghost" onclick="clearAll()">Clear</button>
+    <button class="btn btn-print" onclick="window.print()">Export PDF</button>
+  </div>
+</div>
+
+<!-- PANEL -->
+<div class="panel">
+
+  <!-- INFO BAR -->
+  <div class="info-bar">
+    <div class="info-fields">
+      <div class="info-field">
+        <span class="field-label">Panel location</span>
+        <input class="field-input wide" placeholder="e.g. Main panel · garage" type="text" id="f-location">
+      </div>
+      <div class="info-field">
+        <span class="field-label">Address</span>
+        <input class="field-input" placeholder="123 Main St" type="text" id="f-address">
+      </div>
+      <div class="info-field">
+        <span class="field-label">Brand</span>
+        <input class="field-input" placeholder="Square D / Eaton…" type="text" id="f-brand">
+      </div>
+      <div class="info-field">
+        <span class="field-label">Voltage</span>
+        <input class="field-input" placeholder="120/240V" type="text" id="f-voltage" style="min-width:70px;">
+      </div>
+      <div class="info-field">
+        <span class="field-label">Date mapped</span>
+        <input class="field-input" placeholder="2025-06" type="text" id="f-date" style="min-width:70px;">
+      </div>
+    </div>
+    <div class="main-breaker">
+      <span class="mb-eyebrow">Main Breaker</span>
+      <div class="mb-row">
+        <input class="mb-input" placeholder="200" type="text" maxlength="4" id="f-main">
+        <span class="mb-unit">A</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- COLUMN HEADERS -->
+  <div class="col-headers">
+    <span class="col-head">#</span>
+    <span class="col-head">Left bank</span>
+    <span></span>
+    <span class="col-head r">Right bank</span>
+    <span class="col-head r">#</span>
+  </div>
+
+  <!-- ROWS -->
+  <div class="circuit-rows" id="rows"></div>
+
+  <!-- ADD ROW -->
+  <div class="grid-footer">
+    <button class="add-btn" onclick="addRow()">+ Add breaker pair</button>
+  </div>
+
+  <!-- NOTES -->
+  <div class="notes-section">
+    <span class="notes-label">Notes</span>
+    <textarea class="notes-input" id="f-notes" rows="2"
+      placeholder="e.g. AFCI breakers installed in bedrooms · outdoor outlets are GFCI-protected from circuit 11 · sub-panel in garage fed by circuits 17/19"></textarea>
+  </div>
+
+  <!-- LEGEND -->
+  <div class="legend">
+    <span class="legend-item">
+      <span class="legend-chip" style="color:var(--text-dim);border-color:var(--chip-border);background:var(--surface-2);">STD</span>
+      Standard
+    </span>
+    <span class="legend-item">
+      <span class="legend-chip" style="color:var(--amber);border-color:var(--amber-dim);background:var(--amber-bg);">2P</span>
+      Double-pole (240V)
+    </span>
+    <span class="legend-item">
+      <span class="legend-chip" style="color:#6BA4A4;border-color:#2D5555;background:#0A1818;">GFCI</span>
+      GFCI protected
+    </span>
+    <span class="legend-item">
+      <span class="legend-chip" style="color:#8A6BB4;border-color:#3D2D66;background:#100A1A;">AFCI</span>
+      Arc-fault protected
+    </span>
+    <span class="legend-item" style="margin-left:auto;font-size:9px;">Click the type chip to cycle · right-click a row for options</span>
+  </div>
+
+</div>
+
+<!-- PAGE FOOTER -->
+<div class="page-footer">
+  <span class="footer-note">Fill in your circuits, then hit Export PDF.</span>
+  <a class="footer-link" href="https://spiiira.com">spiiira.com</a>
+</div>
+
+<!-- CONTEXT MENU -->
+<div class="ctx" id="ctx">
+  <button class="ctx-item" onclick="ctxDo('flag')">Toggle Flag</button>
+  <button class="ctx-item" onclick="ctxDo('clear-row')">Clear This Row</button>
+  <button class="ctx-item red" onclick="ctxDo('delete')">Delete Row</button>
+</div>
+
+<script>
+  const TYPES = ['STD','2P','GFCI','AFCI'];
+  let rowCount = 0;
+  let ctxRow = null;
+
+  function nextType(current) {
+    const i = TYPES.indexOf(current);
+    return TYPES[(i + 1) % TYPES.length];
+  }
+
+  function makeChip(type) {
+    return `<span class="type-chip" data-type="${type}" onclick="cycleType(this)" title="Click to change type">${type}</span>`;
+  }
+
+  function addRow(data) {
+    rowCount++;
+    const ln = rowCount * 2 - 1;
+    const rn = rowCount * 2;
+    const d = data || {};
+
+    const row = document.createElement('div');
+    row.className = 'circuit-row' + (d.flagged ? ' flagged' : '');
+
+    row.innerHTML = `
+      <div class="circ-num">${ln}</div>
+
+      <div class="label-card${d.lflagged?' flagged':''}">
+        <div class="card-top">
+          <input class="label-input"  placeholder="Label this circuit…" value="${esc(d.lLabel||'')}">
+          ${makeChip(d.lType||'STD')}
+          <input class="amps-input r" placeholder="15A" value="${esc(d.lAmps||'')}" title="Amperage">
+        </div>
+        <input class="detail-input" placeholder="Room / location / what's on it…" value="${esc(d.lDetail||'')}">
+      </div>
+
+      <div class="center-div"></div>
+
+      <div class="label-card${d.rflagged?' flagged':''}">
+        <div class="card-top r">
+          <input class="label-input r" placeholder="Label this circuit…" value="${esc(d.rLabel||'')}">
+          ${makeChip(d.rType||'STD')}
+          <input class="amps-input"   placeholder="15A" value="${esc(d.rAmps||'')}" title="Amperage">
+        </div>
+        <input class="detail-input r" placeholder="Room / location / what's on it…" value="${esc(d.rDetail||'')}">
+      </div>
+
+      <div class="circ-num">${rn}</div>
+    `;
+
+    row.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      ctxRow = row;
+      const m = document.getElementById('ctx');
+      m.classList.add('open');
+      m.style.left = Math.min(e.clientX, window.innerWidth  - 170) + 'px';
+      m.style.top  = Math.min(e.clientY, window.innerHeight - 130) + 'px';
+    });
+
+    document.getElementById('rows').appendChild(row);
+  }
+
+  function cycleType(chip) {
+    const next = nextType(chip.dataset.type);
+    chip.dataset.type = next;
+    chip.textContent  = next;
+  }
+
+  function ctxDo(action) {
+    if (!ctxRow) return;
+    if (action === 'flag') {
+      ctxRow.classList.toggle('flagged');
+      ctxRow.querySelectorAll('.label-card').forEach(c => c.classList.toggle('flagged'));
+    }
+    if (action === 'clear-row') {
+      ctxRow.querySelectorAll('input').forEach(i => i.value = '');
+      ctxRow.querySelectorAll('.type-chip').forEach(c => { c.dataset.type='STD'; c.textContent='STD'; });
+      ctxRow.classList.remove('flagged');
+      ctxRow.querySelectorAll('.label-card').forEach(c => c.classList.remove('flagged'));
+    }
+    if (action === 'delete') {
+      if (confirm('Remove this breaker pair?')) { ctxRow.remove(); renumber(); }
+    }
+    document.getElementById('ctx').classList.remove('open');
+  }
+
+  function renumber() {
+    rowCount = 0;
+    document.querySelectorAll('.circuit-row').forEach(row => {
+      rowCount++;
+      const nums = row.querySelectorAll('.circ-num');
+      nums[0].textContent = rowCount * 2 - 1;
+      nums[1].textContent = rowCount * 2;
+    });
+  }
+
+  function esc(s) {
+    return String(s).replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function clearAll() {
+    if (!confirm('Clear everything and start fresh?')) return;
+    document.getElementById('rows').innerHTML = '';
+    rowCount = 0;
+    ['f-location','f-address','f-brand','f-voltage','f-date','f-main','f-notes'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    for (let i = 0; i < 15; i++) addRow();
+  }
+
+  document.addEventListener('click', () => document.getElementById('ctx').classList.remove('open'));
+  document.addEventListener('keydown', e => { if (e.key==='Escape') document.getElementById('ctx').classList.remove('open'); });
+
+  // Boot with 15 blank pairs
+  for (let i = 0; i < 15; i++) addRow();
+</script>
+</body>
+</html>
