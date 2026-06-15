@@ -1,0 +1,239 @@
+---
+# This empty "front matter" block tells GitHub Pages (Jekyll) to process the
+# page so it can auto-list whatever images live in /plates/images/.
+# You never need to edit this file to add plates — just drop JPGs in that folder.
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Mitten Plates</title>
+
+<!-- Link-preview card (Open Graph) -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="SPIIIRA">
+<meta property="og:title" content="Mitten Plates">
+<meta property="og:description" content="A random Michigan vanity plate, every time.">
+<meta property="og:url" content="https://www.spiiira.com/plates/">
+<meta name="twitter:card" content="summary_large_image">
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: #0d0d0c;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  body {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  /* The stage fills the whole viewport. Two stacked "slides" crossfade between
+     plates so there's never a flash of empty background. */
+  .stage {
+    position: fixed;
+    inset: 0;
+    background: #0d0d0c;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.55s ease, transform 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+                filter 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    transform: scale(1.06);
+    filter: blur(14px);
+    will-change: opacity, transform, filter;
+  }
+
+  /* The active plate: fully visible, settled, sharp. */
+  .slide.active {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+
+  /* A blurred, zoomed copy of the same photo fills any letterbox gaps so the
+     image always covers the full viewport while the real plate stays uncropped. */
+  .slide .bg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: blur(34px) brightness(0.55) saturate(1.1);
+    transform: scale(1.18);
+  }
+
+  .slide .fg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  /* The "Next" button, overlaid bottom-center. */
+  .next {
+    position: fixed;
+    left: 50%;
+    bottom: max(28px, env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    z-index: 10;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #0d0d0c;
+    background: #ebe2cf;
+    padding: 15px 34px;
+    border-radius: 999px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+    transition: transform 0.12s ease, background 0.2s ease, box-shadow 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .next:hover { background: #fff; box-shadow: 0 10px 38px rgba(0, 0, 0, 0.6); }
+  .next:active { transform: translateX(-50%) scale(0.94); }
+  .next:disabled { opacity: 0.45; cursor: default; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .slide { transition: opacity 0.3s ease; transform: none; filter: none; }
+    .slide .bg { transform: scale(1.18); }
+  }
+
+  /* Empty state — shown when /plates/images/ has no photos yet. */
+  .empty {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 32px;
+    color: #8a8270;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .empty b { display: block; color: #ebe2cf; font-size: 18px; margin-bottom: 12px; }
+  .empty code { color: #F28C00; }
+</style>
+</head>
+<body>
+
+  <div class="stage" id="stage"></div>
+
+  <button class="next" id="next" type="button">Next</button>
+
+  {%- comment -%}
+    Build a JS array of every image in /plates/images/, sorted by filename.
+    Jekyll fills this in at build time — no manifest file to maintain.
+  {%- endcomment -%}
+  <script>
+    window.PLATES = [
+      {%- assign files = site.static_files | sort: 'path' -%}
+      {%- for file in files -%}
+        {%- if file.path contains '/plates/images/' -%}
+          {%- assign ext = file.extname | downcase -%}
+          {%- if ext == '.jpg' or ext == '.jpeg' or ext == '.png' or ext == '.webp' -%}
+      {{ file.path | jsonify }},
+          {%- endif -%}
+        {%- endif -%}
+      {%- endfor -%}
+    ];
+  </script>
+
+  <script>
+  (function () {
+    var stage  = document.getElementById('stage');
+    var btn    = document.getElementById('next');
+    var plates = (window.PLATES || []).slice();
+
+    if (!plates.length) {
+      btn.remove();
+      var e = document.createElement('div');
+      e.className = 'empty';
+      e.innerHTML = '<b>No plates yet</b>Drop JPGs into <code>/plates/images/</code><br>and they\'ll show up here automatically.';
+      document.body.appendChild(e);
+      return;
+    }
+
+    // Fisher–Yates shuffle: a session plays through every plate once, in a
+    // random order, before any repeats. When the deck runs out we reshuffle
+    // (avoiding an immediate back-to-back repeat across the seam).
+    function shuffle(a) {
+      for (var i = a.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = a[i]; a[i] = a[j]; a[j] = t;
+      }
+      return a;
+    }
+
+    var deck = shuffle(plates.slice());
+    var pos  = 0;
+    var last = null;
+
+    function nextSrc() {
+      if (pos >= deck.length) {
+        deck = shuffle(plates.slice());
+        if (deck.length > 1 && deck[0] === last) {           // dodge a seam repeat
+          deck.push(deck.shift());
+        }
+        pos = 0;
+      }
+      last = deck[pos++];
+      return last;
+    }
+
+    // Two slides we crossfade between, so swapping never flashes the backdrop.
+    function makeSlide() {
+      var s = document.createElement('div');
+      s.className = 'slide';
+      var bg = document.createElement('img'); bg.className = 'bg'; bg.setAttribute('aria-hidden', 'true'); bg.alt = '';
+      var fg = document.createElement('img'); fg.className = 'fg'; fg.alt = 'Michigan vanity license plate';
+      s.appendChild(bg); s.appendChild(fg);
+      stage.appendChild(s);
+      return { el: s, bg: bg, fg: fg };
+    }
+
+    var slideA = makeSlide();
+    var slideB = makeSlide();
+    var front  = slideA;
+    var back    = slideB;
+
+    function show(src) {
+      btn.disabled = true;
+      var img = new Image();
+      img.onload = img.onerror = function () {
+        back.bg.src = src;
+        back.fg.src = src;
+        back.el.classList.add('active');
+        front.el.classList.remove('active');
+        var tmp = front; front = back; back = tmp;     // swap roles
+        btn.disabled = false;
+      };
+      img.src = src;
+    }
+
+    btn.addEventListener('click', function () { if (!btn.disabled) show(nextSrc()); });
+    document.addEventListener('keydown', function (e) {
+      if ((e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') && !btn.disabled) {
+        e.preventDefault(); show(nextSrc());
+      }
+    });
+
+    show(nextSrc());   // first plate on load
+  })();
+  </script>
+</body>
+</html>
