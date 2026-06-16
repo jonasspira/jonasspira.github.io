@@ -9,6 +9,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Mitten Plates</title>
+<link href="https://fonts.googleapis.com/css2?family=Gasoek+One&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 
 <!-- Link-preview card (Open Graph) -->
 <meta property="og:type" content="website">
@@ -19,11 +20,22 @@
 <meta name="twitter:card" content="summary_large_image">
 
 <style>
+  :root {
+    --bg: #0d0d0c;
+    --ink: #ebe2cf;
+    --ink-body: #c9bfa9;
+    --ink-dim: #8a8270;
+    --teal: #1E5663;
+    --orange: #FF4A14;
+    --amber: #F28C00;
+    --sand: #D6C2A7;
+  }
+
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   html, body {
     height: 100%;
-    background: #0d0d0c;
+    background: var(--bg);
     overflow: hidden;
     overscroll-behavior: none;
   }
@@ -39,7 +51,7 @@
   .stage {
     position: fixed;
     inset: 0;
-    background: #0d0d0c;
+    background: var(--bg);
   }
 
   .slide {
@@ -94,8 +106,8 @@
     font-weight: 700;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: #0d0d0c;
-    background: #ebe2cf;
+    color: var(--bg);
+    background: var(--ink);
     padding: 15px 34px;
     border-radius: 999px;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
@@ -106,9 +118,76 @@
   .next:active { transform: translateX(-50%) scale(0.94); }
   .next:disabled { opacity: 0.45; cursor: default; }
 
+  /* --- Intro / landing screen (shown first; fades out on "Begin") --- */
+  .intro {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 28px;
+    overflow-y: auto;
+    transition: opacity 0.55s ease;
+  }
+  .intro.hide { opacity: 0; pointer-events: none; }
+
+  .intro-inner {
+    max-width: 540px;
+    text-align: center;
+    margin: auto;
+  }
+
+  .intro .accent-strip {
+    height: 6px;
+    width: 116px;
+    margin: 0 auto 30px;
+    background: linear-gradient(90deg, var(--teal) 0% 60%, var(--orange) 60% 75%, var(--amber) 75% 88%, var(--sand) 88% 100%);
+  }
+
+  .intro h1 {
+    font-family: 'Gasoek One', sans-serif;
+    font-size: clamp(34px, 9vw, 56px);
+    line-height: 1.02;
+    color: var(--sand);
+    letter-spacing: 0.01em;
+    margin-bottom: 26px;
+  }
+
+  .intro p {
+    color: var(--ink-body);
+    font-size: 14px;
+    line-height: 1.75;
+    margin-bottom: 16px;
+  }
+  .intro p .em { color: var(--ink); }
+  .intro p.note { color: var(--ink-dim); font-size: 12.5px; }
+
+  .begin {
+    margin-top: 26px;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--bg);
+    background: var(--ink);
+    padding: 16px 44px;
+    border-radius: 999px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+    transition: transform 0.12s ease, background 0.2s ease, box-shadow 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .begin:hover { background: #fff; box-shadow: 0 10px 38px rgba(0, 0, 0, 0.6); }
+  .begin:active { transform: scale(0.95); }
+
   @media (prefers-reduced-motion: reduce) {
     .slide { transition: opacity 0.3s ease; transform: none; filter: none; }
     .slide .bg { transform: scale(1.18); }
+    .intro { transition: opacity 0.3s ease; }
   }
 
   /* Empty state — shown when /plates/images/ has no photos yet. */
@@ -121,12 +200,12 @@
     justify-content: center;
     text-align: center;
     padding: 32px;
-    color: #8a8270;
+    color: var(--ink-dim);
     font-size: 13px;
     line-height: 1.6;
   }
-  .empty b { display: block; color: #ebe2cf; font-size: 18px; margin-bottom: 12px; }
-  .empty code { color: #F28C00; }
+  .empty b { display: block; color: var(--ink); font-size: 18px; margin-bottom: 12px; }
+  .empty code { color: var(--amber); }
 </style>
 </head>
 <body>
@@ -134,6 +213,22 @@
   <div class="stage" id="stage"></div>
 
   <button class="next" id="next" type="button">Next</button>
+
+  <div class="intro" id="intro">
+    <div class="intro-inner">
+      <div class="accent-strip"></div>
+      <h1>Mitten<br>Plates</h1>
+      <p>Compared to everywhere else I've lived, Michigan seems to have the most
+         custom vanity plates <span class="em">per capita</span> — and it isn't close.</p>
+      <p>My theory as to why: Michigan's Secretary of State form has a line for
+         personalizing your plate right there on the page — a prompt, not a request
+         you have to go chase down. Plenty of states offer vanity plates (Texas,
+         California, Louisiana…), but when you have to ask for them, fewer people do.</p>
+      <p class="note">A growing collection spotted around the state, June 2024 to
+         today — about 200 plates so far, with more added all the time.</p>
+      <button class="begin" id="begin" type="button">Begin</button>
+    </div>
+  </div>
 
   {%- comment -%}
     Build a JS array of every image in /plates/images/, sorted by filename.
@@ -157,6 +252,8 @@
   (function () {
     var stage  = document.getElementById('stage');
     var btn    = document.getElementById('next');
+    var intro  = document.getElementById('intro');
+    var begin  = document.getElementById('begin');
     var plates = (window.PLATES || []).slice();
 
     if (!plates.length) {
@@ -164,7 +261,8 @@
       var e = document.createElement('div');
       e.className = 'empty';
       e.innerHTML = '<b>No plates yet</b>Drop JPGs into <code>/plates/images/</code><br>and they\'ll show up here automatically.';
-      document.body.appendChild(e);
+      stage.appendChild(e);
+      begin.addEventListener('click', function () { intro.classList.add('hide'); });
       return;
     }
 
@@ -209,7 +307,7 @@
     var slideA = makeSlide();
     var slideB = makeSlide();
     var front  = slideA;
-    var back    = slideB;
+    var back   = slideB;
 
     function show(src) {
       btn.disabled = true;
@@ -227,12 +325,21 @@
 
     btn.addEventListener('click', function () { if (!btn.disabled) show(nextSrc()); });
     document.addEventListener('keydown', function (e) {
-      if ((e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') && !btn.disabled) {
+      if (intro.classList.contains('hide') &&
+          (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') && !btn.disabled) {
         e.preventDefault(); show(nextSrc());
       }
     });
 
-    show(nextSrc());   // first plate on load
+    // Quietly preload the first plate behind the intro so it's instant on "Begin".
+    var firstSrc = nextSrc();
+    new Image().src = firstSrc;
+
+    function start() {
+      intro.classList.add('hide');
+      show(firstSrc);
+    }
+    begin.addEventListener('click', start);
   })();
   </script>
 </body>
