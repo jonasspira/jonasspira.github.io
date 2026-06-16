@@ -126,6 +126,32 @@
   .next:active { transform: translateX(-50%) scale(0.94); }
   .next:disabled { opacity: 0.45; cursor: default; }
 
+  /* Persistent "Home" button — returns to the intro/explainer. Sits behind the
+     intro overlay, so it's only visible once you're in the gallery. */
+  .home {
+    position: fixed;
+    top: max(20px, env(safe-area-inset-top));
+    left: max(20px, env(safe-area-inset-left));
+    z-index: 10;
+    border: 1px solid rgba(235, 226, 207, 0.35);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: rgba(13, 12, 12, 0.5);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    padding: 9px 16px;
+    border-radius: 999px;
+    transition: transform 0.12s ease, background 0.2s ease, border-color 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .home:hover { background: rgba(13, 12, 12, 0.8); border-color: rgba(235, 226, 207, 0.7); }
+  .home:active { transform: scale(0.94); }
+
   /* --- Intro / landing screen (shown first; fades out on "Begin") --- */
   .intro {
     position: fixed;
@@ -220,6 +246,7 @@
 
   <div class="stage" id="stage"></div>
 
+  <button class="home" id="home" type="button">← Home</button>
   <button class="next" id="next" type="button">Next</button>
 
   <div class="intro" id="intro">
@@ -264,7 +291,11 @@
     var btn    = document.getElementById('next');
     var intro  = document.getElementById('intro');
     var begin  = document.getElementById('begin');
+    var home   = document.getElementById('home');
     var plates = (window.PLATES || []).slice();
+
+    // "Home" re-shows the intro/explainer over the current plate.
+    home.addEventListener('click', function () { intro.classList.remove('hide'); });
 
     if (!plates.length) {
       btn.remove();
@@ -345,9 +376,11 @@
     var firstSrc = nextSrc();
     new Image().src = firstSrc;
 
+    var started = false;
     function start() {
       intro.classList.add('hide');
-      show(firstSrc);
+      show(started ? nextSrc() : firstSrc);   // first entry shows the preloaded plate; later ones advance
+      started = true;
     }
     begin.addEventListener('click', start);
   })();
