@@ -97,6 +97,13 @@
   .btn-submit:active { transform: scale(0.98); background: var(--orange-dim); }
   .btn-submit:disabled { background: var(--line-bright); color: var(--ink-faint); cursor: not-allowed; }
   .btn-submit .arrow { margin-left: 8px; }
+  .photo-block { margin-bottom: 22px; }
+  .btn-photo { width: 100%; background: var(--teal); border: none; color: var(--sand); font-family: 'Archivo Black', sans-serif; font-size: 14px; letter-spacing: 0.08em; padding: 16px; cursor: pointer; text-transform: uppercase; transition: background 0.15s, transform 0.1s; }
+  .btn-photo:active { transform: scale(0.98); background: var(--teal-dim); }
+  .btn-photo:disabled { background: var(--line-bright); color: var(--ink-faint); cursor: wait; }
+  .photo-status { font-size: 10px; color: var(--ink-dim); letter-spacing: 0.12em; text-transform: uppercase; margin-top: 8px; text-align: center; min-height: 14px; }
+  .photo-status.scanning { color: var(--amber); animation: blink 1s linear infinite; }
+  @keyframes blink { 50% { opacity: 0.4; } }
   .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(120px); background: var(--sand); color: var(--bg); padding: 12px 20px; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); z-index: 200; box-shadow: 0 8px 24px rgba(0,0,0,0.5); white-space: nowrap; max-width: 90vw; overflow: hidden; text-overflow: ellipsis; }
   .toast.show { transform: translateX(-50%) translateY(0); }
   .toast.success { background: var(--good); color: var(--bg); }
@@ -168,6 +175,12 @@
   <div id="warnContainer"></div>
 
   <div class="panel active" id="panel-entry">
+
+    <div class="photo-block">
+      <button class="btn-photo" id="btnPhoto">&#128247; Identify from Photo</button>
+      <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none">
+      <div class="photo-status" id="photoStatus"></div>
+    </div>
 
     <div class="step active" id="step1">
       <div class="step-num">1</div>
@@ -267,8 +280,14 @@
 
   <div class="panel" id="panel-sync">
     <div class="sync-block">
-      <h3>Export for Notion</h3>
-      <p>When you've logged a batch, copy the export below and paste it into a Claude chat. Claude will write each item into the <strong>Home Inventory</strong> database in Notion (under Groton).</p>
+      <h3>Sync to Notion</h3>
+      <p>Push all unsynced items straight into the <strong>Home Inventory</strong> database in Notion (under Groton). One tap — no copy-paste.</p>
+      <button class="btn-secondary primary" id="btnSyncNotion">Sync to Notion</button>
+      <div class="photo-status" id="syncStatus" style="text-align:left;"></div>
+    </div>
+    <div class="sync-block">
+      <h3>Manual Export (Fallback)</h3>
+      <p>If direct sync is down: copy the export below and paste it into a Claude chat. Claude will write each item into the <strong>Home Inventory</strong> database in Notion.</p>
       <button class="btn-secondary primary" id="btnGenerate">Generate Export</button>
       <textarea class="export-output" id="exportOutput" readonly placeholder="Click 'Generate Export' to create the sync payload..."></textarea>
       <button class="btn-secondary" id="btnCopy" style="margin-top:8px;">Copy to Clipboard</button>
@@ -310,8 +329,11 @@
 
 <script>
   const STORAGE_KEY = 'home_inventory_v3';
-  const LOCATIONS = ['Garage', 'Basement', 'Kitchen', 'Living Room', 'Dining Room', 'Primary Bedroom'];
-  const ASSET_TYPES = ['Appliance', 'Tool', 'Home Tech', 'Fixture & System', 'Furnishing', 'Vehicle & Outdoor', 'Other'];
+  // Paste your deployed Cloudflare Worker URL here (see worker.js for deploy steps).
+  // Powers both "Identify from Photo" and one-tap "Sync to Notion".
+  const WORKER_URL = 'https://groton-vision.jonas-spira.workers.dev';
+  const LOCATIONS = ['Garage', 'Basement', 'Kitchen', 'Living Room', 'Dining Room', 'Primary Bedroom', 'J Office', 'Outdoor Shed', 'Mudroom'];
+  const ASSET_TYPES = ['Appliance', 'Tool', 'Home Tech', 'Fixture & System', 'Furnishing', 'Vehicle & Outdoor', 'Hobby & Maker', 'Other'];
   const TYPE_MAP = {
     'Appliance': ['Refrigeration', 'Cooking', 'Dishwasher', 'Laundry', 'Small Appliance', 'Vacuum/Floor Care', 'Other'],
     'Tool': ['Power Tools', 'Hand Tools', 'Yard & Garden', 'Painting', 'Cleaning Supplies', 'Plumbing Tools', 'Electrical Tools', 'Fasteners & Hardware', 'Safety & PPE', 'Measuring & Layout', 'Auto Tools', 'Storage & Organization', 'Consumables', 'Other'],
@@ -319,15 +341,19 @@
     'Fixture & System': ['HVAC', 'Plumbing Fixture', 'Electrical/Wiring', 'Water Heater', 'Sump/Well', 'Lighting (built-in)', 'Other'],
     'Furnishing': ['Furniture', 'Decor / Art', 'Rug/Textile', 'Lamp (free-standing)', 'Plant', 'Window Treatment', 'Other'],
     'Vehicle & Outdoor': ['Vehicle', 'Bike', 'Grill/BBQ', 'Patio Furniture', 'Outdoor Structure', 'Yard Equipment', 'Other'],
+    'Hobby & Maker': ['Crafting/Maker', '3D Printing', 'Office Equipment', 'Hobby Electronics', 'Other'],
     'Other': ['Other']
   };
   const LOCATION_ASSET_PRIORITY = {
-    'Garage': ['Tool', 'Vehicle & Outdoor', 'Home Tech', 'Appliance', 'Fixture & System', 'Furnishing', 'Other'],
-    'Basement': ['Fixture & System', 'Tool', 'Home Tech', 'Appliance', 'Furnishing', 'Vehicle & Outdoor', 'Other'],
-    'Kitchen': ['Appliance', 'Furnishing', 'Fixture & System', 'Home Tech', 'Tool', 'Vehicle & Outdoor', 'Other'],
-    'Living Room': ['Furnishing', 'Home Tech', 'Appliance', 'Fixture & System', 'Tool', 'Vehicle & Outdoor', 'Other'],
-    'Dining Room': ['Furnishing', 'Appliance', 'Home Tech', 'Fixture & System', 'Tool', 'Vehicle & Outdoor', 'Other'],
-    'Primary Bedroom': ['Furnishing', 'Home Tech', 'Appliance', 'Fixture & System', 'Tool', 'Vehicle & Outdoor', 'Other']
+    'Garage': ['Tool', 'Vehicle & Outdoor', 'Home Tech', 'Appliance', 'Hobby & Maker', 'Fixture & System', 'Furnishing', 'Other'],
+    'Basement': ['Fixture & System', 'Tool', 'Home Tech', 'Appliance', 'Hobby & Maker', 'Furnishing', 'Vehicle & Outdoor', 'Other'],
+    'Kitchen': ['Appliance', 'Furnishing', 'Fixture & System', 'Home Tech', 'Tool', 'Hobby & Maker', 'Vehicle & Outdoor', 'Other'],
+    'Living Room': ['Furnishing', 'Home Tech', 'Appliance', 'Fixture & System', 'Tool', 'Hobby & Maker', 'Vehicle & Outdoor', 'Other'],
+    'Dining Room': ['Furnishing', 'Appliance', 'Home Tech', 'Fixture & System', 'Tool', 'Hobby & Maker', 'Vehicle & Outdoor', 'Other'],
+    'Primary Bedroom': ['Furnishing', 'Home Tech', 'Appliance', 'Fixture & System', 'Tool', 'Hobby & Maker', 'Vehicle & Outdoor', 'Other'],
+    'J Office': ['Home Tech', 'Hobby & Maker', 'Furnishing', 'Appliance', 'Tool', 'Fixture & System', 'Vehicle & Outdoor', 'Other'],
+    'Outdoor Shed': ['Vehicle & Outdoor', 'Tool', 'Fixture & System', 'Appliance', 'Home Tech', 'Hobby & Maker', 'Furnishing', 'Other'],
+    'Mudroom': ['Furnishing', 'Tool', 'Appliance', 'Home Tech', 'Fixture & System', 'Hobby & Maker', 'Vehicle & Outdoor', 'Other']
   };
   const BRAND_MAP = {
     'Appliance': ['GE', 'Whirlpool', 'KitchenAid', 'Bosch', 'Frigidaire', 'Maytag', 'Samsung', 'LG', 'Dyson', 'Shark', 'Vitamix', 'Breville', 'Cuisinart', 'Ninja'],
@@ -336,6 +362,7 @@
     'Fixture & System': ['Honeywell', 'Ecobee', 'Moen', 'Kohler', 'Delta', 'Trane', 'Carrier', 'Rheem', 'A.O. Smith', 'Bradford White'],
     'Furnishing': [],
     'Vehicle & Outdoor': ['Honda', 'Toyota', 'Ford', 'Subaru', 'Weber', 'Traeger', 'Big Green Egg', 'Trek', 'Specialized'],
+    'Hobby & Maker': ['Cricut', 'Bambu', 'Brother', 'Canon', 'Raspberry', 'Tecre'],
     'Other': []
   };
   const CONDITIONS = ['Excellent', 'Good', 'Fair', 'Needs Repair', 'Broken'];
@@ -362,6 +389,7 @@
     renderConditionChips();
     setupTabs();
     setupForm();
+    setupPhotoID();
     setupSync();
     updateStats();
     updateDateStamp();
@@ -620,6 +648,100 @@
     };
   }
 
+  function setupPhotoID() {
+    const btn = document.getElementById('btnPhoto');
+    const input = document.getElementById('photoInput');
+    if (!WORKER_URL) {
+      btn.disabled = true;
+      document.getElementById('photoStatus').textContent = 'Photo ID offline — worker not configured';
+      return;
+    }
+    btn.onclick = () => input.click();
+    input.onchange = () => {
+      const file = input.files && input.files[0];
+      if (file) identifyPhoto(file);
+      input.value = '';
+    };
+  }
+
+  function downscaleImage(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const MAX = 1200;
+        const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.8).split(',')[1]);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not read image')); };
+      img.src = url;
+    });
+  }
+
+  async function identifyPhoto(file) {
+    const btn = document.getElementById('btnPhoto');
+    const status = document.getElementById('photoStatus');
+    btn.disabled = true;
+    status.textContent = 'Scanning photo…';
+    status.classList.add('scanning');
+    try {
+      const image = await downscaleImage(file);
+      const resp = await fetch(WORKER_URL.replace(/\/$/, '') + '/identify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image, mimeType: 'image/jpeg' })
+      });
+      const data = await resp.json();
+      if (!resp.ok || data.error) throw new Error(data.error || 'Identify failed');
+      applyIdentified(data);
+      status.textContent = 'Identified — review & log below';
+      showToast('IDENTIFIED → ' + (data.name || 'ITEM').toUpperCase().slice(0, 26), 'success');
+    } catch (e) {
+      console.error(e);
+      status.textContent = '';
+      showToast('Photo ID failed — enter manually', 'error');
+    } finally {
+      btn.disabled = false;
+      status.classList.remove('scanning');
+    }
+  }
+
+  function applyIdentified(d) {
+    if (d.assetType && ASSET_TYPES.includes(d.assetType)) {
+      currentForm.assetType = d.assetType;
+      currentForm.type = (d.type && TYPE_MAP[d.assetType].includes(d.type)) ? d.type : null;
+    }
+    if (d.brand && currentForm.assetType) {
+      const known = (BRAND_MAP[currentForm.assetType] || []).includes(d.brand);
+      currentForm.brand = known ? d.brand : '__custom__';
+      currentForm.customBrand = known ? '' : d.brand;
+    }
+    renderAssetTypeChips();
+    renderTypeChips();
+    renderBrandChips();
+    if (currentForm.brand === '__custom__') {
+      document.getElementById('customBrandWrap').classList.add('show');
+      document.getElementById('fCustomBrand').value = currentForm.customBrand;
+    }
+    if (d.name) document.getElementById('fItem').value = d.name;
+    if (d.model) document.getElementById('fModel').value = d.model;
+    if (d.estimatedValue !== null && d.estimatedValue !== undefined) document.getElementById('fValue').value = d.estimatedValue;
+    if (d.notes) document.getElementById('fNotes').value = d.notes;
+    if (d.model || d.estimatedValue || d.notes) {
+      document.getElementById('moreFields').classList.add('show');
+      const t = document.getElementById('moreToggle');
+      t.classList.add('open');
+      t.textContent = '− Hide extra fields';
+    }
+    updateStepStates();
+    setTimeout(() => document.getElementById('step4').scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
+  }
+
   function submitItem() {
     const item = document.getElementById('fItem').value.trim();
     const model = document.getElementById('fModel').value.trim();
@@ -793,7 +915,50 @@
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
+  async function syncToNotion() {
+    if (!WORKER_URL) { showToast('Worker not configured — use manual export', 'error'); return; }
+    const pending = state.items.filter(i => !i.synced);
+    if (pending.length === 0) { showToast('No unsynced items', 'error'); return; }
+    const btn = document.getElementById('btnSyncNotion');
+    const status = document.getElementById('syncStatus');
+    const batch = pending.slice(0, 25);
+    btn.disabled = true;
+    status.textContent = 'Syncing ' + batch.length + ' items… (can take ~' + Math.ceil(batch.length * 0.7) + 's)';
+    try {
+      const resp = await fetch(WORKER_URL.replace(/\/$/, '') + '/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: batch.map(i => ({
+          id: i.id, item: i.item, assetType: i.assetType, type: i.type,
+          location: i.location, brand: i.brand, model: i.model, serial: i.serial,
+          condition: i.condition, acquired: i.acquired, value: i.value, notes: i.notes
+        })) })
+      });
+      const data = await resp.json();
+      if (!resp.ok || data.error) throw new Error(data.error || 'Sync failed');
+      const okIds = new Set((data.results || []).filter(r => r.ok).map(r => r.id));
+      state.items.forEach(i => { if (okIds.has(i.id)) i.synced = true; });
+      saveState(); updateStats(); checkWarnings(); renderList();
+      const left = state.items.filter(i => !i.synced).length;
+      if (data.failed > 0) {
+        const firstErr = (data.results || []).find(r => !r.ok);
+        status.textContent = data.synced + ' synced, ' + data.failed + ' failed' + (firstErr && firstErr.error ? ' — ' + firstErr.error : '');
+        showToast(data.synced + ' SYNCED / ' + data.failed + ' FAILED', 'error');
+      } else {
+        status.textContent = data.synced + ' items synced to Notion' + (left > 0 ? ' — ' + left + ' remaining, tap again' : ' ✓');
+        showToast(data.synced + ' ITEMS → NOTION ✓', 'success');
+      }
+    } catch (e) {
+      console.error(e);
+      status.textContent = 'Sync failed — use manual export below';
+      showToast('Sync failed', 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
   function setupSync() {
+    document.getElementById('btnSyncNotion').onclick = syncToNotion;
     document.getElementById('btnGenerate').onclick = generateExport;
     document.getElementById('btnCopy').onclick = copyExport;
     document.getElementById('btnMarkSynced').onclick = markSynced;
