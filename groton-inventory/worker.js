@@ -17,6 +17,8 @@
 const NOTION_DATABASE_ID = '556d2953-506a-4f0c-89a7-8ee499b7a229'; // Home Inventory (Groton)
 
 const ALLOWED_ORIGINS = [
+  'https://www.spiiira.com',
+  'https://spiiira.com',
   'https://jonasspira.github.io',
   'http://localhost',
   'http://127.0.0.1',
