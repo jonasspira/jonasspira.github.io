@@ -309,6 +309,25 @@ addTiles('word', ['COVID','vaxxed','sourdough','covfefe','weird','tariffs','ston
   'enshittification','rizz','tradwife','manosphere','girlboss','situationship','ghosting',
   'clickbait','Barbenheimer']);
 
+/* --- batch 5: Places (added 2026-07, Jonas-approved). Added as 'place' directly, so the
+   name-splitting pass below skips them. --- */
+addTiles('place', [
+  /* conspiracy canon */
+  'Roswell','Bermuda Triangle','Denver Airport','Bohemian Grove','Skinwalker Ranch','Montauk',
+  'Dealey Plaza','Jekyll Island','Waco','Ruby Ridge','Loch Ness','Stonehenge','Atlantis',
+  'Easter Island','the Pyramids','Nazca Lines','Antarctica','Fort Knox','Guantánamo',
+  'Epstein Island','Ground Zero','Chernobyl','Fukushima','Three Mile Island',
+  /* power centers */
+  'the White House','Washington','Capitol Hill','Camp David','the Pentagon','Langley','Davos',
+  'Silicon Valley','Hollywood','Brussels','Geneva',
+  /* the world, as seen from the group chat */
+  'China','Israel','Iran','Ukraine','Gaza','Taiwan','North Korea','Venezuela','Cuba','Haiti',
+  'India','Japan','Syria','Afghanistan','Panama Canal','Dubai','Wuhan',
+  /* America, specifically */
+  'Florida','Texas','California','Alaska','Nevada','Las Vegas','New York','Chicago','Portland',
+  'Detroit','Nashville',"Martha's Vineyard",'Yellowstone','Mount Rushmore','the Grand Canyon'
+]);
+
 /* Split the flat "name" kind into People / Places / Things. Kinds are derived at load
    time and are NOT stored in the save file (which keys on tile id), so this is safe to
    re-cut at any time. PLACES is checked first, so a name listed here wins over THINGS. */
