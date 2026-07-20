@@ -58,13 +58,12 @@
   }
   #tagline { font-size: 10.5px; color: var(--chrome-muted); margin-right: auto; letter-spacing: .3px; }
   @media (max-width: 720px) { #tagline { display: none; } h1 { margin-right: auto; } }
-  select, button, #filter {
+  button, #filter {
     font-family: var(--mono); font-size: 12px;
     background: var(--chrome-bg); color: var(--chrome-fg);
     border: 1px solid var(--chrome-border); border-radius: 4px;
     padding: 6px 9px; touch-action: manipulation;
   }
-  select { max-width: 130px; }
   button { cursor: pointer; }
   button:active { opacity: .7; }
   .paletteBtn.active, #darkBtn.active { background: var(--chrome-fg); color: var(--chrome-bg); border-color: var(--chrome-fg); }
@@ -177,7 +176,6 @@
     #tray { width: auto; height: 40vh; border-left: 0; border-top: 1px solid var(--chrome-border); }
     body.trayHidden #tray { display: none; }
     #trayToggle { display: block; }
-    select { max-width: 100px; }
   }
 </style>
 </head>
@@ -191,9 +189,6 @@
     <button class="paletteBtn" data-palette="fluoride">Fluoride</button>
   </div>
   <button id="darkBtn" title="Kill the lights">🌙 blackout</button>
-  <select id="boardSelect" title="Switch fridge"></select>
-  <button id="newBoard" title="New fridge">＋</button>
-  <button id="delBoard" title="Delete this fridge">🗑</button>
   <button id="handful" title="Throw a random handful of magnets on the fridge">🎲 handful</button>
   <button id="clearBtn" title="Take every magnet off this fridge">clear</button>
   <button id="snapBtn" title="Save a picture of your fridge to Photos (phone) or Downloads (browser)">📷 snapshot</button>
@@ -272,6 +267,10 @@ addTiles('word', ['true','post','make',['many',2],'mask','video','more','most','
   'hoax','number','because','conspiracy','apocalypse','together','accident','assassinate',
   'ran','feed',['catch',2],'under','met','track','meet','block']);
 
+/* Everything added below this line is modern-era. The tray floats these to the top of
+   each section so the current stuff is the first thing you see. */
+const MODERN_FROM = KIT.length;
+
 /* --- batch 3: modern-era additions (added 2026-07, Jonas-approved) --- */
 addTiles('name', ['Taylor Swift','Bill Gates','Joe Rogan','RFK Jr.','MrBeast','Mark Zuckerberg',
   'Jeff Bezos','Oprah','The Simpsons','ChatGPT','TikTok','Bitcoin','Ozempic','NASA','Pfizer',
@@ -310,22 +309,27 @@ addTiles('word', ['COVID','vaxxed','sourdough','covfefe','weird','tariffs','ston
   'enshittification','rizz','tradwife','manosphere','girlboss','situationship','ghosting',
   'clickbait','Barbenheimer']);
 
-/* Split the flat "name" kind into People vs Things. Kinds are derived at load time and
-   are NOT stored in saved boards (those key on tile id), so this is safe to change any time. */
-const THINGS = new Set(['Antifa','IKEA','Fox News','FEMA','Russia','Mars','United Nations',
-  'Wall Street','Big Pharma','Democrat','Americans','5G','Illuminati','The North Pole',
-  'United States','European Union','Italy','Mexico','Canada','Google','America','CDC','Twitter',
+/* Split the flat "name" kind into People / Places / Things. Kinds are derived at load
+   time and are NOT stored in the save file (which keys on tile id), so this is safe to
+   re-cut at any time. PLACES is checked first, so a name listed here wins over THINGS. */
+const PLACES = new Set(['Russia','Mars','The North Pole','United States','America','Italy',
+  'Mexico','Canada','Area 51','the Vatican','Wall Street','Greenland','Mar-a-Lago',
+  'Gulf of America','Roman Empire']);
+const THINGS = new Set(['Antifa','IKEA','Fox News','FEMA','United Nations','Big Pharma',
+  'Democrat','Americans','5G','Illuminati','European Union','Google','CDC','Twitter',
   'Facebook','Deep State','Republican','The Simpsons','ChatGPT','TikTok','Bitcoin','Ozempic',
-  'NASA','Pfizer','Area 51','Amazon','Netflix','Alexa','QAnon','CIA','FBI','NSA','the Fed','IRS',
-  'BlackRock','Monsanto','the Vatican','Raytheon','Tiger King','Zoom','Project 2025','Mar-a-Lago',
-  'MyPillow','Greenland','Gulf of America','DOGE','GameStop','FTX','Theranos','Fyre Festival',
-  'SpaceX','Neuralink','Cybertruck','Grok','Roman Empire','Harambe','Moo Deng','Labubu',
-  'Waffle House','Cracker Barrel']);
-for (const w of KIT) if (w.k === 'name') w.k = THINGS.has(w.t) ? 'thing' : 'person';
+  'NASA','Pfizer','Amazon','Netflix','Alexa','QAnon','CIA','FBI','NSA','the Fed','IRS',
+  'BlackRock','Monsanto','Raytheon','Tiger King','Zoom','Project 2025','MyPillow','DOGE',
+  'GameStop','FTX','Theranos','Fyre Festival','SpaceX','Neuralink','Cybertruck','Grok',
+  'Harambe','Moo Deng','Labubu','Waffle House','Cracker Barrel']);
+for (const w of KIT) {
+  if (w.k !== 'name') continue;
+  w.k = PLACES.has(w.t) ? 'place' : THINGS.has(w.t) ? 'thing' : 'person';
+}
 
 const SECTIONS = [
-  ['person','People'], ['thing','Things'], ['phrase','Phrases'], ['word','Words'],
-  ['suffix','Endings & Letters'], ['punct','Punctuation']
+  ['person','People'], ['place','Places'], ['thing','Things'], ['phrase','Phrases'],
+  ['word','Words'], ['suffix','Endings & Letters'], ['punct','Punctuation']
 ];
 const PALETTES = ['newsprint','primetime','fluoride'];
 /* old single-field themes → palette + blackout flag */
@@ -338,22 +342,29 @@ let state = load();
 function load() {
   try {
     const s = JSON.parse(localStorage.getItem(LS_KEY));
-    if (s && Array.isArray(s.boards) && s.boards.length) {
+    if (s && typeof s === 'object') {
       if (s.theme && !s.palette) {
         const [p, d] = LEGACY_THEMES[s.theme] || ['newsprint', false];
         s.palette = p; s.dark = d;
         delete s.theme;
       }
+      /* Collapse the old multi-fridge save down to the one board that was open. */
+      if (Array.isArray(s.boards)) {
+        const open = s.boards.find(b => b.id === s.active) || s.boards[0];
+        s.tiles = (open && open.tiles) || {};
+        delete s.boards; delete s.active; delete s.nextId;
+      }
       if (!PALETTES.includes(s.palette)) s.palette = 'newsprint';
       s.dark = !!s.dark;
+      if (!s.tiles || typeof s.tiles !== 'object') s.tiles = {};
       return s;
     }
   } catch (e) {}
-  return { active: 1, nextId: 2, palette: 'newsprint', dark: false,
-           boards: [{ id: 1, name: 'My Fridge', tiles: {} }] };
+  return { palette: 'newsprint', dark: false, tiles: {} };
 }
 function save() { localStorage.setItem(LS_KEY, JSON.stringify(state)); }
-function board() { return state.boards.find(b => b.id === state.active) || state.boards[0]; }
+/* One fridge: the state object IS the board. */
+function board() { return state; }
 function rotFor(id) { return ((id * 137) % 50) / 10 - 2.5; }
 
 /* ---------- Elements ---------- */
@@ -362,7 +373,6 @@ const hintEl = document.getElementById('hint');
 const trayEl = document.getElementById('tray');
 const trayTilesEl = document.getElementById('trayTiles');
 const filterEl = document.getElementById('filter');
-const selectEl = document.getElementById('boardSelect');
 let els = {};       // placed tile id -> DOM element
 let zTop = 10;
 
@@ -392,16 +402,7 @@ document.getElementById('darkBtn').addEventListener('click', () => {
 });
 
 /* ---------- Rendering ---------- */
-function render() { renderHeader(); renderBoard(); renderTray(); }
-
-function renderHeader() {
-  selectEl.innerHTML = '';
-  for (const b of state.boards) {
-    const o = document.createElement('option');
-    o.value = b.id; o.textContent = b.name; o.selected = b.id === state.active;
-    selectEl.appendChild(o);
-  }
-}
+function render() { renderBoard(); renderTray(); }
 
 function renderBoard() {
   const b = board();
@@ -435,7 +436,12 @@ function renderTray() {
       entries.push(id);
     });
     if (!entries.length) continue;
-    if (kind !== 'punct') entries.sort((a, c) => KIT[a].t.toLowerCase().localeCompare(KIT[c].t.toLowerCase()));
+    /* Modern-era tiles float to the top of each section, A–Z within each group. */
+    if (kind !== 'punct') entries.sort((a, c) => {
+      const ma = a >= MODERN_FROM, mc = c >= MODERN_FROM;
+      if (ma !== mc) return ma ? -1 : 1;
+      return KIT[a].t.toLowerCase().localeCompare(KIT[c].t.toLowerCase());
+    });
     const wrap = document.createElement('div');
     wrap.className = 'sect';
     const h = document.createElement('h2');
@@ -614,28 +620,6 @@ boardEl.addEventListener('pointerdown', e => {
   el.addEventListener('pointercancel', onCancel);
 });
 
-/* ---------- Boards ---------- */
-selectEl.addEventListener('change', () => {
-  state.active = +selectEl.value;
-  save(); render();
-});
-document.getElementById('newBoard').addEventListener('click', () => {
-  const name = prompt('Name this fridge:', 'Fridge ' + (state.boards.length + 1));
-  if (name === null) return;
-  const nb = { id: state.nextId++, name: name.trim() || ('Fridge ' + state.nextId), tiles: {} };
-  state.boards.push(nb);
-  state.active = nb.id;
-  save(); render();
-});
-document.getElementById('delBoard').addEventListener('click', () => {
-  const b = board();
-  if (!confirm('Delete “' + b.name + '” and its poem?')) return;
-  state.boards = state.boards.filter(x => x.id !== b.id);
-  if (!state.boards.length) state.boards.push({ id: state.nextId++, name: 'My Fridge', tiles: {} });
-  state.active = state.boards[0].id;
-  save(); render();
-});
-
 /* ---------- Random handful ---------- */
 document.getElementById('handful').addEventListener('click', () => {
   const b = board();
@@ -666,7 +650,7 @@ document.getElementById('clearBtn').addEventListener('click', () => {
   const b = board();
   const n = Object.keys(b.tiles).length;
   if (!n) return;
-  if (!confirm('Take all ' + n + ' magnet' + (n === 1 ? '' : 's') + ' off “' + b.name + '”?')) return;
+  if (!confirm('Take all ' + n + ' magnet' + (n === 1 ? '' : 's') + ' off the fridge?')) return;
   b.tiles = {};
   save(); render();
 });
@@ -750,11 +734,11 @@ function renderCanvas() {
 document.getElementById('snapBtn').addEventListener('click', () => {
   renderCanvas().toBlob(async blob => {
     if (!blob) return;
-    const base = (board().name || 'tinfoil').replace(/[^\w\- ]+/g, '').trim() || 'tinfoil';
+    const base = 'tinfoil-' + new Date().toISOString().slice(0, 10);
     const file = new File([blob], base + '.png', { type: 'image/png' });
     // On phones this opens the share sheet (which includes "Save Image" → Photos).
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ files: [file], title: board().name }); return; } catch (e) {}
+      try { await navigator.share({ files: [file], title: 'Tinfoil' }); return; } catch (e) {}
     }
     // On desktop browsers this downloads the PNG to the Downloads folder.
     const a = document.createElement('a');
