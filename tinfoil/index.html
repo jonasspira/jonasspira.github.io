@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Tinfoil">
+<title>Tinfoil — Conspiracy Fridge Poetry</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👁️</text></svg>">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  :root {
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Courier New", monospace;
+    --serif: Georgia, "Times New Roman", serif;
+  }
+  body {
+    font-family: var(--mono);
+    background: var(--page-bg); color: var(--chrome-fg);
+    display: flex; flex-direction: column;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none;
+    overscroll-behavior: none;
+  }
+  /* ---------- palette × mode ----------
+     A palette (newsprint / primetime / fluoride) sets the tile typeface and colors.
+     The mode (light / blackout) sets the chrome and swaps in dark-adapted tile
+     colors, so a colored palette keeps its colors on the dark board. */
+  body[data-mode="light"] {
+    --page-bg: #faf9f6; --chrome-bg: #ffffff; --chrome-fg: #191919;
+    --chrome-muted: #9a958c; --chrome-border: #e2ded6;
+    --board-bg: #ffffff; --grid: #ededea;
+    --input-bg: #ffffff;
+  }
+  body[data-mode="dark"] {
+    --page-bg: #1b2026; --chrome-bg: #1b2026; --chrome-fg: #e8e6df;
+    --chrome-muted: #7e8896; --chrome-border: #343c46;
+    --board-bg: #39414b; --grid: transparent;
+    --input-bg: #232930;
+  }
+  body[data-palette="newsprint"] .tile { font-family: var(--serif); }
+  body[data-palette="primetime"] .tile,
+  body[data-palette="fluoride"] .tile { font-family: var(--mono); font-weight: 700; }
+
+  /* ---------- chrome ---------- */
+  header {
+    display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+    padding: 9px 14px;
+    padding-top: max(9px, env(safe-area-inset-top));
+    background: var(--chrome-bg); border-bottom: 1px solid var(--chrome-border);
+  }
+  /* The wordmark IS a magnet: it carries .tile, so it inherits each theme's
+     tile typeface, weight, border and shadow automatically. */
+  h1.tile {
+    font-size: 18px; padding: 5px 11px; margin-right: 4px; cursor: default;
+    font-weight: normal; /* overridden to 700 by the kitschy/pastel tile rules */
+  }
+  #tagline { font-size: 10.5px; color: var(--chrome-muted); margin-right: auto; letter-spacing: .3px; }
+  @media (max-width: 720px) { #tagline { display: none; } h1 { margin-right: auto; } }
+  select, button, #filter {
+    font-family: var(--mono); font-size: 12px;
+    background: var(--chrome-bg); color: var(--chrome-fg);
+    border: 1px solid var(--chrome-border); border-radius: 4px;
+    padding: 6px 9px; touch-action: manipulation;
+  }
+  select { max-width: 130px; }
+  button { cursor: pointer; }
+  button:active { opacity: .7; }
+  .paletteBtn.active, #darkBtn.active { background: var(--chrome-fg); color: var(--chrome-bg); border-color: var(--chrome-fg); }
+  #palettes { display: flex; gap: 4px; margin-right: 6px; }
+
+  main { flex: 1; display: flex; min-height: 0; }
+  #board {
+    flex: 1; position: relative; overflow: hidden;
+    background-color: var(--board-bg);
+    background-image: linear-gradient(var(--grid) 1px, transparent 1px),
+                      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 28px 28px;
+    touch-action: none;
+  }
+  body[data-mode="dark"] #board {
+    background-image: radial-gradient(120% 100% at 50% 0%, #444d58 0%, #39414b 55%, #30373f 100%);
+    background-size: auto;
+  }
+  #hint {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: var(--chrome-muted); font-size: 12px; letter-spacing: .3px;
+    text-align: center; padding: 30px; pointer-events: none; line-height: 1.8;
+  }
+  #tray {
+    width: 320px; background: var(--chrome-bg); border-left: 1px solid var(--chrome-border);
+    display: flex; flex-direction: column; min-height: 0;
+  }
+  #filter { margin: 10px 12px 2px; padding: 8px 10px; background: var(--input-bg); outline: none; width: auto; }
+  #filter::placeholder { color: var(--chrome-muted); }
+  #trayTiles {
+    flex: 1; overflow-y: auto; padding: 0 12px;
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+    -webkit-overflow-scrolling: touch;
+  }
+  .sect h2 {
+    font-size: 10px; font-weight: 400; text-transform: uppercase; letter-spacing: 1.6px;
+    color: var(--chrome-muted); margin: 16px 0 9px;
+  }
+  .sect .tiles { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  /* ---------- tiles ---------- */
+  .tile {
+    padding: 4px 9px; border-radius: 4px;
+    font-size: 14.5px; line-height: 1.3; white-space: nowrap;
+    background: #fff; color: #191919;
+    border: 1.5px solid #191919;
+    box-shadow: 2px 2px 0 rgba(0,0,0,.16);
+    cursor: grab;
+  }
+  .tile.k-suffix, .tile.k-punct { font-size: 12.5px; padding: 2px 7px; }
+  #board .tile { position: absolute; touch-action: none; }
+  #tray .tile { touch-action: pan-y; }
+  .tile.lift { cursor: grabbing; box-shadow: 4px 6px 0 rgba(0,0,0,.22); }
+
+  /* magnet chrome once the lights are out */
+  body[data-mode="dark"] .tile { border-color: rgba(0,0,0,.45); box-shadow: 0 2px 5px rgba(0,0,0,.45); }
+  body[data-mode="dark"] .tile.lift { box-shadow: 0 8px 18px rgba(0,0,0,.55); }
+
+  /* newsprint — plain paper magnets; in the dark they go cream on navy */
+  body[data-palette="newsprint"][data-mode="dark"] .tile {
+    background: #f6f5ef; color: #17181a; border-color: transparent;
+    box-shadow: 0 1px 2px rgba(0,0,0,.55), 0 2px 6px rgba(0,0,0,.25);
+  }
+
+  /* primetime — light */
+  body[data-palette="primetime"][data-mode="light"] .tile.c0 { background: #d64045; color: #fff; }
+  body[data-palette="primetime"][data-mode="light"] .tile.c1 { background: #e8871e; color: #1a1a1a; }
+  body[data-palette="primetime"][data-mode="light"] .tile.c2 { background: #eab000; color: #1a1a1a; }
+  body[data-palette="primetime"][data-mode="light"] .tile.c3 { background: #2ba84a; color: #fff; }
+  body[data-palette="primetime"][data-mode="light"] .tile.c4 { background: #1b9aaa; color: #fff; }
+  body[data-palette="primetime"][data-mode="light"] .tile.c5 { background: #7952b3; color: #fff; }
+  body[data-palette="primetime"][data-mode="light"] .tile.c6 { background: #e75a9c; color: #fff; }
+  body[data-palette="primetime"][data-mode="light"] .tile.c7 { background: #1a1a1a; color: #fff; }
+  /* primetime — dark: lifted a few steps so they glow on navy; c7 flips light
+     because a near-black magnet would disappear into the board */
+  body[data-palette="primetime"][data-mode="dark"] .tile.c0 { background: #e8555f; color: #fff; }
+  body[data-palette="primetime"][data-mode="dark"] .tile.c1 { background: #ef8f3c; color: #1a1a1a; }
+  body[data-palette="primetime"][data-mode="dark"] .tile.c2 { background: #f0bd3f; color: #1a1a1a; }
+  body[data-palette="primetime"][data-mode="dark"] .tile.c3 { background: #3fb563; color: #12210f; }
+  body[data-palette="primetime"][data-mode="dark"] .tile.c4 { background: #29a8bd; color: #06201f; }
+  body[data-palette="primetime"][data-mode="dark"] .tile.c5 { background: #9068d4; color: #fff; }
+  body[data-palette="primetime"][data-mode="dark"] .tile.c6 { background: #ef6aa8; color: #2a0a1b; }
+  body[data-palette="primetime"][data-mode="dark"] .tile.c7 { background: #f2efe7; color: #1a1a1a; }
+
+  /* fluoride — light */
+  body[data-palette="fluoride"][data-mode="light"] .tile { border-color: rgba(0,0,0,.28); color: #3a3a3a; box-shadow: 2px 2px 0 rgba(0,0,0,.1); }
+  body[data-palette="fluoride"][data-mode="light"] .tile.c0 { background: #f7c8cc; }
+  body[data-palette="fluoride"][data-mode="light"] .tile.c1 { background: #fbdcb8; }
+  body[data-palette="fluoride"][data-mode="light"] .tile.c2 { background: #faf0b8; }
+  body[data-palette="fluoride"][data-mode="light"] .tile.c3 { background: #c9e8d2; }
+  body[data-palette="fluoride"][data-mode="light"] .tile.c4 { background: #c8e4ee; }
+  body[data-palette="fluoride"][data-mode="light"] .tile.c5 { background: #d9d0ef; }
+  body[data-palette="fluoride"][data-mode="light"] .tile.c6 { background: #f6d4e6; }
+  body[data-palette="fluoride"][data-mode="light"] .tile.c7 { background: #efece4; }
+  /* fluoride — dark: knocked back so pale tiles don't glare against the board */
+  body[data-palette="fluoride"][data-mode="dark"] .tile { border-color: rgba(0,0,0,.5); color: #23211d; box-shadow: 0 2px 6px rgba(0,0,0,.45); }
+  body[data-palette="fluoride"][data-mode="dark"] .tile.c0 { background: #d9a5ab; }
+  body[data-palette="fluoride"][data-mode="dark"] .tile.c1 { background: #dcbe98; }
+  body[data-palette="fluoride"][data-mode="dark"] .tile.c2 { background: #dcd199; }
+  body[data-palette="fluoride"][data-mode="dark"] .tile.c3 { background: #a9cdb5; }
+  body[data-palette="fluoride"][data-mode="dark"] .tile.c4 { background: #a4c6d4; }
+  body[data-palette="fluoride"][data-mode="dark"] .tile.c5 { background: #bbb0d6; }
+  body[data-palette="fluoride"][data-mode="dark"] .tile.c6 { background: #d6b2c8; }
+  body[data-palette="fluoride"][data-mode="dark"] .tile.c7 { background: #cfcbc0; }
+
+  #ghost { position: fixed; pointer-events: none; z-index: 1000; }
+  #trayToggle { display: none; }
+  @media (max-width: 899px) {
+    main { flex-direction: column; }
+    #tray { width: auto; height: 40vh; border-left: 0; border-top: 1px solid var(--chrome-border); }
+    body.trayHidden #tray { display: none; }
+    #trayToggle { display: block; }
+    select { max-width: 100px; }
+  }
+</style>
+</head>
+<body data-palette="newsprint" data-mode="light">
+<header>
+  <h1 class="tile">Tinfoil</h1>
+  <span id="tagline">nothing here is a coincidence</span>
+  <div id="palettes">
+    <button class="paletteBtn" data-palette="newsprint">Newsprint</button>
+    <button class="paletteBtn" data-palette="primetime">Primetime</button>
+    <button class="paletteBtn" data-palette="fluoride">Fluoride</button>
+  </div>
+  <button id="darkBtn" title="Kill the lights">🌙 blackout</button>
+  <select id="boardSelect" title="Switch fridge"></select>
+  <button id="newBoard" title="New fridge">＋</button>
+  <button id="delBoard" title="Delete this fridge">🗑</button>
+  <button id="handful" title="Throw a random handful of magnets on the fridge">🎲 handful</button>
+  <button id="clearBtn" title="Take every magnet off this fridge">clear</button>
+  <button id="snapBtn" title="Save a picture of your fridge to Photos (phone) or Downloads (browser)">📷 snapshot</button>
+  <button id="trayToggle">tiles</button>
+</header>
+<main>
+  <div id="board"><div id="hint"></div></div>
+  <aside id="tray">
+    <input id="filter" type="search" placeholder="find a word…" autocomplete="off">
+    <div id="trayTiles"></div>
+  </aside>
+</main>
+<script>
+'use strict';
+
+/* ---------- Tile catalog (transcribed from photos of the physical kit) ----------
+   IMPORTANT: tile ids are array indexes and are stored in saved boards —
+   only ever APPEND new tiles at the end, never reorder or insert. */
+const KIT = [];
+function addTiles(k, words) {
+  for (const w of words) {
+    if (Array.isArray(w)) { for (let i = 0; i < w[1]; i++) KIT.push({ t: w[0], k }); }
+    else KIT.push({ t: w, k });
+  }
+}
+/* --- batch 1: original five photos --- */
+addTiles('name', ['Hillary Clinton','Vladimir Putin','Mr. Rogers','Tom Hanks','Dolly Parton','JFK',
+  'Santa Claus','Ronald Reagan','Nancy Pelosi','Elon Musk','Antifa','IKEA','Fox News','FEMA',
+  'Russia','Mars','United Nations','Wall Street','Big Pharma','Democrat','Americans','5G']);
+addTiles('phrase', ['inside job','connect the dots','did you hear']);
+addTiles('word', ['it','appear','the','reality','has','our','pizza','listen','maybe','I','am',
+  'paranoid','but','cheese','supposedly','shred','his','behind','bros','stole','my','record',
+  ['are',2],'best','be',['to',2],'over','won','those','gluten-free','banana','can','president',
+  'better','realize','help','save','democracy','plastic','smartphone','cover','is','ruin',
+  ['if',2],'experiment','ever','let','truth','built',['a',2],'with','support','of','few',
+  'thousand','reptiles','pyramid','scheme','surprise','hire','fake','family','from','internet',
+  'microchip','buried','how','too','satellite','microwave','see',['who',2],'like','reason',
+  'burn','was','she','give','recruit','you','here','ten','why','still','league','inspect',
+  'double','alter','use','kill',['hide',3],'victim','yet','less','fact','enemy','an',
+  'coincidence','vote','media',['as',2],'money',['at',2],'month','tweet','go','he','no',
+  ['up',2],'all','theory','not','us','him','one','her','taught',['we',2],'crypto','on','or',
+  'me','ask',['did',2],'so','die','body','know','world','would','actual','dead']);
+addTiles('suffix', [['s',3],['ed',4],'d',['ing',2],['er',3],'es',['ly',3],['y',3],'al',
+  ['e',2],'t','n',['r',3],'p','I']);
+addTiles('punct', [['.',3],[',',4],'!',['?',2],[':',2],['"',4],'(',[')',2],'&','—']);
+
+/* --- batch 2: second round of photos (upper sections of both doors) --- */
+addTiles('name', ['Kanye','Lady Gaga','Illuminati','George Soros','The North Pole','Tucker Carlson',
+  'Elvis','United States','European Union','Donald Trump','Biden','AOC','Fauci',
+  'Marjorie Taylor Greene','LeVar Burton','Pope','Italy','Mexico','Canada','Google','America',
+  'CDC','Twitter','Facebook','Deep State','Republican']);
+addTiles('phrase', ['radio waves','avocado toast','remotest jungle','high-fructose corn syrup',
+  'rabbit hole','at sea']);
+addTiles('word', ['true','post','make',['many',2],'mask','video','more','most','allege','move',
+  'woman','implant','notice','someone','must','knew','get','murder','mining','robot','operate',
+  'buy','zombie','say',['some',2],'flag','plan','free','plot','half','real','have','said','hear',
+  'deny','fire','vaccine',
+  'shrink','enemies','control','disguise','throw','snuck','estimate','delete','innocent',
+  'criminal','toast','basement','between','hundred','establishment','government','election',
+  'chemtrails','learn','hidden',['and',2],'show','quinoa','cow','day','stop','chemical','conspire',
+  'study','photo','patsy','sheep','alone','shock','profit','lizard','win','rig','abduct',
+  'destroy','evidence','caught','lie','man','doppelgänger',
+  'had','moon','saw','won','stand','their',['want',2],'after','fed','vast',['fight',2],'end',
+  'bury',['think',2],
+  'there','trust','elect','magnetic','hurricane','toaster','reality','cook',
+  'these','for','then','false','radio',['to',3],['they',2],'them','space','forest','laser',
+  'when','with','global','very','year','steal','build','ballot',
+  'magnet','society','system','though','believe','climate','before','source','kitten','secret',
+  'reveal','run','that','in','research',
+  'act','stage','prove','fix','plant','probe','set','made','crime','recount',
+  'socialist','communist','dollar','will','were','alien','elite',"don't",'what','alive','first',
+  'be','by','do','email','using','discover','out','is','signal','change','undermine','weather',
+  'shadow','cause','explain','could','history','above','landing','aware','million','below',
+  'pattern','imposter','scientists','anonymous','responsible','rigged','denied','studies',
+  'fluoride','inspect','know',
+  'hoax','number','because','conspiracy','apocalypse','together','accident','assassinate',
+  'ran','feed',['catch',2],'under','met','track','meet','block']);
+
+/* --- batch 3: modern-era additions (added 2026-07, Jonas-approved) --- */
+addTiles('name', ['Taylor Swift','Bill Gates','Joe Rogan','RFK Jr.','MrBeast','Mark Zuckerberg',
+  'Jeff Bezos','Oprah','The Simpsons','ChatGPT','TikTok','Bitcoin','Ozempic','NASA','Pfizer',
+  'Area 51','Amazon','Netflix','Alexa','Obama','Kamala Harris','Alex Jones','Travis Kelce',
+  'Andrew Tate','Diddy','Greta Thunberg','Kim Jong Un','Sam Altman','QAnon','CIA','FBI','NSA',
+  'the Fed','IRS','BlackRock','Monsanto','the Vatican','Raytheon']);
+addTiles('phrase', ['fake news','do your own research','wake up sheeple',"birds aren't real",
+  'crisis actor','false flag','the algorithm','mainstream media','dead internet theory',
+  'touch grass','red pill','tin foil hat','space lasers','seed oils','raw milk',
+  '15-minute cities','spy balloon','predicted it','psy-op','the simulation',
+  'Epstein files',"didn't kill himself",'hush money','witch hunt','stop the steal',
+  'drain the swamp','lab leak','flat earth','grassy knoll','second shooter','alien autopsy',
+  'gay frogs','you will own nothing','classified documents',"Hunter's laptop",'stolen election',
+  'weather machine','follow the money','burner phone','pee tape']);
+addTiles('word', ['AI','deepfake','drone','influencer','podcast','vibes','woke','based','cringe',
+  'sus','gaslight','grift','bot','troll','viral','billionaire','bunker','prepper','sheeple',
+  'normie','microplastics','retrograde','ivermectin','booster','mRNA','lockdown','misinformation',
+  'fact-check','whistleblower','redacted','declassified','leaked','cover-up','surveillance',
+  'wiretap','kompromat','collusion','dossier','oligarch','propaganda','narrative','hologram',
+  'clone','doomscroll','brainrot','MAGA']);
+
+/* --- batch 4: cultural zeitgeist, 2016–2026 (added 2026-07, Jonas-approved) --- */
+addTiles('name', ['Carole Baskin','Kate Middleton','Aaron Rodgers','Kendrick Lamar','Drake',
+  'Katy Perry','Bad Bunny','Tiger King','Zoom','Project 2025','Mar-a-Lago','MyPillow','Greenland',
+  'Gulf of America','DOGE','GameStop','FTX','Theranos','Fyre Festival','SpaceX','Neuralink',
+  'Cybertruck','Grok','Roman Empire','Harambe','Moo Deng','Labubu','Waffle House','Cracker Barrel']);
+addTiles('phrase', ['flatten the curve','six feet apart','murder hornets','toilet paper',
+  'alternative facts','very stable genius','but her emails','eating the cats','concepts of a plan',
+  '51st state','the group chat','childless cat ladies','drones over New Jersey','where is Kate',
+  'blood boy','the submersible','diamond hands','to the moon','rug pull','smart fridge','the cloud',
+  'in this economy','quiet quitting','vibe shift','nepo baby','rage bait','cancel culture',
+  'main character','the slap','brat summer','hawk tuah','not like us','kiss cam','Dubai chocolate',
+  'brain worm','six seven']);
+addTiles('word', ['COVID','vaxxed','sourdough','covfefe','weird','tariffs','stonks','trillionaire',
+  'hallucinate','chatbot','robotaxi','slop','cookies','shrinkflation','eggs','self-checkout',
+  'enshittification','rizz','tradwife','manosphere','girlboss','situationship','ghosting',
+  'clickbait','Barbenheimer']);
+
+/* Split the flat "name" kind into People vs Things. Kinds are derived at load time and
+   are NOT stored in saved boards (those key on tile id), so this is safe to change any time. */
+const THINGS = new Set(['Antifa','IKEA','Fox News','FEMA','Russia','Mars','United Nations',
+  'Wall Street','Big Pharma','Democrat','Americans','5G','Illuminati','The North Pole',
+  'United States','European Union','Italy','Mexico','Canada','Google','America','CDC','Twitter',
+  'Facebook','Deep State','Republican','The Simpsons','ChatGPT','TikTok','Bitcoin','Ozempic',
+  'NASA','Pfizer','Area 51','Amazon','Netflix','Alexa','QAnon','CIA','FBI','NSA','the Fed','IRS',
+  'BlackRock','Monsanto','the Vatican','Raytheon','Tiger King','Zoom','Project 2025','Mar-a-Lago',
+  'MyPillow','Greenland','Gulf of America','DOGE','GameStop','FTX','Theranos','Fyre Festival',
+  'SpaceX','Neuralink','Cybertruck','Grok','Roman Empire','Harambe','Moo Deng','Labubu',
+  'Waffle House','Cracker Barrel']);
+for (const w of KIT) if (w.k === 'name') w.k = THINGS.has(w.t) ? 'thing' : 'person';
+
+const SECTIONS = [
+  ['person','People'], ['thing','Things'], ['phrase','Phrases'], ['word','Words'],
+  ['suffix','Endings & Letters'], ['punct','Punctuation']
+];
+const PALETTES = ['newsprint','primetime','fluoride'];
+/* old single-field themes → palette + blackout flag */
+const LEGACY_THEMES = { bw:['newsprint',false], kitschy:['primetime',false],
+                        pastel:['fluoride',false], dark:['newsprint',true] };
+
+/* ---------- State ---------- */
+const LS_KEY = 'tinfoil-boards';
+let state = load();
+function load() {
+  try {
+    const s = JSON.parse(localStorage.getItem(LS_KEY));
+    if (s && Array.isArray(s.boards) && s.boards.length) {
+      if (s.theme && !s.palette) {
+        const [p, d] = LEGACY_THEMES[s.theme] || ['newsprint', false];
+        s.palette = p; s.dark = d;
+        delete s.theme;
+      }
+      if (!PALETTES.includes(s.palette)) s.palette = 'newsprint';
+      s.dark = !!s.dark;
+      return s;
+    }
+  } catch (e) {}
+  return { active: 1, nextId: 2, palette: 'newsprint', dark: false,
+           boards: [{ id: 1, name: 'My Fridge', tiles: {} }] };
+}
+function save() { localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+function board() { return state.boards.find(b => b.id === state.active) || state.boards[0]; }
+function rotFor(id) { return ((id * 137) % 50) / 10 - 2.5; }
+
+/* ---------- Elements ---------- */
+const boardEl = document.getElementById('board');
+const hintEl = document.getElementById('hint');
+const trayEl = document.getElementById('tray');
+const trayTilesEl = document.getElementById('trayTiles');
+const filterEl = document.getElementById('filter');
+const selectEl = document.getElementById('boardSelect');
+let els = {};       // placed tile id -> DOM element
+let zTop = 10;
+
+hintEl.textContent = 'tap a word below to add it · drag magnets around to arrange them · endings like “s” and “ed” snap onto words';
+
+function tileEl(id) {
+  const w = KIT[id];
+  const el = document.createElement('div');
+  el.className = 'tile k-' + w.k + ' c' + (id % 8);
+  el.textContent = w.t;
+  el.dataset.id = id;
+  return el;
+}
+
+/* ---------- Theme ---------- */
+function applyTheme() {
+  document.body.dataset.palette = state.palette;
+  document.body.dataset.mode = state.dark ? 'dark' : 'light';
+  document.querySelectorAll('.paletteBtn').forEach(b =>
+    b.classList.toggle('active', b.dataset.palette === state.palette));
+  document.getElementById('darkBtn').classList.toggle('active', state.dark);
+}
+document.querySelectorAll('.paletteBtn').forEach(b =>
+  b.addEventListener('click', () => { state.palette = b.dataset.palette; save(); applyTheme(); }));
+document.getElementById('darkBtn').addEventListener('click', () => {
+  state.dark = !state.dark; save(); applyTheme();
+});
+
+/* ---------- Rendering ---------- */
+function render() { renderHeader(); renderBoard(); renderTray(); }
+
+function renderHeader() {
+  selectEl.innerHTML = '';
+  for (const b of state.boards) {
+    const o = document.createElement('option');
+    o.value = b.id; o.textContent = b.name; o.selected = b.id === state.active;
+    selectEl.appendChild(o);
+  }
+}
+
+function renderBoard() {
+  const b = board();
+  boardEl.querySelectorAll('.tile').forEach(el => el.remove());
+  els = {};
+  const ids = Object.keys(b.tiles);
+  hintEl.style.display = ids.length ? 'none' : 'flex';
+  const bw = boardEl.clientWidth, bh = boardEl.clientHeight;
+  for (const k of ids) {
+    const id = +k, t = b.tiles[k];
+    const el = tileEl(id);
+    boardEl.appendChild(el);
+    let x = Math.max(0, Math.min(t.x * bw, bw - el.offsetWidth));
+    let y = Math.max(0, Math.min(t.y * bh, bh - el.offsetHeight));
+    el.style.left = Math.round(x) + 'px';
+    el.style.top = Math.round(y) + 'px';
+    el.style.transform = 'rotate(' + t.rot + 'deg)';
+    els[id] = el;
+  }
+}
+
+function renderTray() {
+  const b = board();
+  const q = filterEl.value.trim().toLowerCase();
+  trayTilesEl.innerHTML = '';
+  for (const [kind, label] of SECTIONS) {
+    const entries = [];
+    KIT.forEach((w, id) => {
+      if (w.k !== kind || b.tiles[id]) return;
+      if (q && !w.t.toLowerCase().includes(q)) return;
+      entries.push(id);
+    });
+    if (!entries.length) continue;
+    if (kind !== 'punct') entries.sort((a, c) => KIT[a].t.toLowerCase().localeCompare(KIT[c].t.toLowerCase()));
+    const wrap = document.createElement('div');
+    wrap.className = 'sect';
+    const h = document.createElement('h2');
+    h.textContent = label;
+    const tiles = document.createElement('div');
+    tiles.className = 'tiles';
+    for (const id of entries) tiles.appendChild(tileEl(id));
+    wrap.append(h, tiles);
+    trayTilesEl.appendChild(wrap);
+  }
+}
+
+/* ---------- Attachments (suffix snapping) ---------- */
+function descendants(id) {
+  const b = board(), out = [], set = new Set([id]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const k in b.tiles) {
+      const kk = +k, att = b.tiles[k].att;
+      if (!set.has(kk) && att != null && set.has(att)) { set.add(kk); out.push(kk); changed = true; }
+    }
+  }
+  return out;
+}
+
+function trySnap(id) {
+  const b = board();
+  if (KIT[id].k !== 'suffix' || !els[id]) return;
+  const me = els[id];
+  const mr = me.getBoundingClientRect();
+  const myGroup = new Set([id, ...descendants(id)]);
+  let best = null;
+  for (const k in b.tiles) {
+    const kk = +k;
+    if (myGroup.has(kk) || !els[kk]) continue;
+    const r = els[kk].getBoundingClientRect();
+    const dx = Math.abs(mr.left - r.right);
+    const dy = Math.abs((mr.top + mr.height / 2) - (r.top + r.height / 2));
+    if (dx < 26 && dy < r.height * 0.7) {
+      const score = dx + dy;
+      if (!best || score < best.score) best = { kk, score };
+    }
+  }
+  if (!best) return;
+  const bel = els[best.kk], base = b.tiles[best.kk];
+  const bw = boardEl.clientWidth, bh = boardEl.clientHeight;
+  const nx = parseFloat(bel.style.left) + bel.offsetWidth - 2;
+  const ny = parseFloat(bel.style.top) + (bel.offsetHeight - me.offsetHeight) / 2;
+  const t = b.tiles[id];
+  t.x = nx / bw; t.y = ny / bh; t.rot = base.rot; t.att = best.kk;
+}
+
+/* ---------- Placing tiles from the tray ---------- */
+function placeTileAt(id, px, py) {
+  const b = board();
+  const bw = boardEl.clientWidth, bh = boardEl.clientHeight;
+  b.tiles[id] = {
+    x: Math.max(0, Math.min(px, bw - 40)) / bw,
+    y: Math.max(0, Math.min(py, bh - 30)) / bh,
+    rot: rotFor(id), att: null
+  };
+  renderBoard();
+  if (KIT[id].k === 'suffix') trySnap(id);
+  save(); render();
+}
+function placeTileCenter(id) {
+  const bw = boardEl.clientWidth, bh = boardEl.clientHeight;
+  placeTileAt(id, bw * (0.32 + Math.random() * 0.3), bh * (0.28 + Math.random() * 0.3));
+}
+
+/* Tray: tap places a tile; mouse (or a sideways touch-drag) drags it onto the board */
+trayTilesEl.addEventListener('pointerdown', e => {
+  const el = e.target.closest('.tile');
+  if (!el) return;
+  const id = +el.dataset.id;
+  const sx = e.clientX, sy = e.clientY;
+  let moved = false, ghost = null;
+  const onMove = ev => {
+    const dx = ev.clientX - sx, dy = ev.clientY - sy;
+    if (!ghost && Math.hypot(dx, dy) > 6) {
+      moved = true;
+      if (e.pointerType === 'mouse' || Math.abs(dx) > Math.abs(dy)) {
+        ghost = el.cloneNode(true);
+        ghost.id = 'ghost';
+        ghost.classList.add('lift');
+        document.body.appendChild(ghost);
+      }
+    }
+    if (ghost) {
+      ghost.style.left = (ev.clientX - ghost.offsetWidth / 2) + 'px';
+      ghost.style.top = (ev.clientY - ghost.offsetHeight / 2) + 'px';
+    }
+  };
+  const done = ev => {
+    el.removeEventListener('pointermove', onMove);
+    el.removeEventListener('pointerup', onUp);
+    el.removeEventListener('pointercancel', done);
+    if (ghost) ghost.remove();
+  };
+  const onUp = ev => {
+    const g = ghost;
+    done(ev);
+    if (g) {
+      const br = boardEl.getBoundingClientRect();
+      if (ev.clientX > br.left && ev.clientX < br.right && ev.clientY > br.top && ev.clientY < br.bottom) {
+        placeTileAt(id, ev.clientX - br.left - g.offsetWidth / 2, ev.clientY - br.top - g.offsetHeight / 2);
+      }
+    } else if (!moved) {
+      placeTileCenter(id);
+    }
+  };
+  try { el.setPointerCapture(e.pointerId); } catch (err) {}
+  el.addEventListener('pointermove', onMove);
+  el.addEventListener('pointerup', onUp);
+  el.addEventListener('pointercancel', done);
+});
+
+/* ---------- Dragging tiles on the board ---------- */
+boardEl.addEventListener('pointerdown', e => {
+  const el = e.target.closest('.tile');
+  if (!el) return;
+  e.preventDefault();
+  const id = +el.dataset.id;
+  const b = board();
+  const group = [id, ...descendants(id)];
+  const starts = group.map(g => ({
+    g, el: els[g],
+    x: parseFloat(els[g].style.left), y: parseFloat(els[g].style.top)
+  }));
+  el.classList.add('lift');
+  for (const s of starts) s.el.style.zIndex = ++zTop;
+  const sx = e.clientX, sy = e.clientY;
+  let moved = false;
+  const onMove = ev => {
+    const dx = ev.clientX - sx, dy = ev.clientY - sy;
+    if (Math.hypot(dx, dy) > 3) moved = true;
+    for (const s of starts) {
+      s.el.style.left = (s.x + dx) + 'px';
+      s.el.style.top = (s.y + dy) + 'px';
+    }
+  };
+  const done = () => {
+    el.classList.remove('lift');
+    el.removeEventListener('pointermove', onMove);
+    el.removeEventListener('pointerup', onUp);
+    el.removeEventListener('pointercancel', onCancel);
+  };
+  const onCancel = () => { done(); render(); };
+  const onUp = ev => {
+    done();
+    const tr = trayEl.getBoundingClientRect();
+    const trayVisible = !document.body.classList.contains('trayHidden') && tr.width > 0 && tr.height > 0;
+    const overTray = trayVisible && ev.clientX >= tr.left && ev.clientX <= tr.right
+      && ev.clientY >= tr.top && ev.clientY <= tr.bottom;
+    if (moved && overTray) {
+      delete b.tiles[id];
+      for (const k in b.tiles) if (b.tiles[k].att === id) b.tiles[k].att = null;
+    } else {
+      const bw = boardEl.clientWidth, bh = boardEl.clientHeight;
+      for (const s of starts) {
+        const t = b.tiles[s.g];
+        if (!t) continue;
+        t.x = Math.max(0, Math.min(parseFloat(s.el.style.left), bw - s.el.offsetWidth)) / bw;
+        t.y = Math.max(0, Math.min(parseFloat(s.el.style.top), bh - s.el.offsetHeight)) / bh;
+      }
+      const t = b.tiles[id];
+      if (moved && t.att != null) t.att = null;
+      if (moved && KIT[id].k === 'suffix') trySnap(id);
+    }
+    save(); render();
+  };
+  try { el.setPointerCapture(e.pointerId); } catch (err) {}
+  el.addEventListener('pointermove', onMove);
+  el.addEventListener('pointerup', onUp);
+  el.addEventListener('pointercancel', onCancel);
+});
+
+/* ---------- Boards ---------- */
+selectEl.addEventListener('change', () => {
+  state.active = +selectEl.value;
+  save(); render();
+});
+document.getElementById('newBoard').addEventListener('click', () => {
+  const name = prompt('Name this fridge:', 'Fridge ' + (state.boards.length + 1));
+  if (name === null) return;
+  const nb = { id: state.nextId++, name: name.trim() || ('Fridge ' + state.nextId), tiles: {} };
+  state.boards.push(nb);
+  state.active = nb.id;
+  save(); render();
+});
+document.getElementById('delBoard').addEventListener('click', () => {
+  const b = board();
+  if (!confirm('Delete “' + b.name + '” and its poem?')) return;
+  state.boards = state.boards.filter(x => x.id !== b.id);
+  if (!state.boards.length) state.boards.push({ id: state.nextId++, name: 'My Fridge', tiles: {} });
+  state.active = state.boards[0].id;
+  save(); render();
+});
+
+/* ---------- Random handful ---------- */
+document.getElementById('handful').addEventListener('click', () => {
+  const b = board();
+  const pool = kinds => KIT.map((w, id) => ({ w, id }))
+    .filter(x => !b.tiles[x.id] && kinds.includes(x.w.k));
+  const pick = (arr, n) => {
+    const a = [...arr], out = [];
+    while (a.length && out.length < n) out.push(a.splice(Math.floor(Math.random() * a.length), 1)[0]);
+    return out;
+  };
+  const chosen = [
+    ...pick(pool(['word']), 8),
+    ...pick(pool(['name', 'phrase']), 2),
+    ...pick(pool(['suffix']), 2)
+  ];
+  for (const c of chosen) {
+    b.tiles[c.id] = {
+      x: 0.06 + Math.random() * 0.78,
+      y: 0.08 + Math.random() * 0.74,
+      rot: rotFor(c.id), att: null
+    };
+  }
+  save(); render();
+});
+
+/* ---------- Clear the fridge ---------- */
+document.getElementById('clearBtn').addEventListener('click', () => {
+  const b = board();
+  const n = Object.keys(b.tiles).length;
+  if (!n) return;
+  if (!confirm('Take all ' + n + ' magnet' + (n === 1 ? '' : 's') + ' off “' + b.name + '”?')) return;
+  b.tiles = {};
+  save(); render();
+});
+
+/* ---------- Share as image ---------- */
+function roundRectPath(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function renderCanvas() {
+  const scale = 2;
+  const dark = state.dark;
+  const bw = boardEl.clientWidth, bh = boardEl.clientHeight;
+  const canvas = document.createElement('canvas');
+  canvas.width = bw * scale; canvas.height = bh * scale;
+  const ctx = canvas.getContext('2d');
+  if (dark) {
+    const grad = ctx.createRadialGradient(canvas.width / 2, 0, 0, canvas.width / 2, 0, canvas.height * 1.3);
+    grad.addColorStop(0, '#444d58');
+    grad.addColorStop(0.55, '#39414b');
+    grad.addColorStop(1, '#30373f');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  } else {
+    ctx.fillStyle = getComputedStyle(boardEl).backgroundColor;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#ededea';
+    ctx.lineWidth = 1 * scale;
+    for (let gx = 28; gx < bw; gx += 28) {
+      ctx.beginPath(); ctx.moveTo(gx * scale, 0); ctx.lineTo(gx * scale, canvas.height); ctx.stroke();
+    }
+    for (let gy = 28; gy < bh; gy += 28) {
+      ctx.beginPath(); ctx.moveTo(0, gy * scale); ctx.lineTo(canvas.width, gy * scale); ctx.stroke();
+    }
+  }
+  const b = board();
+  for (const k in b.tiles) {
+    const id = +k, t = b.tiles[k], el = els[id];
+    if (!el) continue;
+    const cs = getComputedStyle(el);
+    const x = parseFloat(el.style.left), y = parseFloat(el.style.top);
+    const w = el.offsetWidth, h = el.offsetHeight;
+    ctx.save();
+    ctx.translate((x + w / 2) * scale, (y + h / 2) * scale);
+    ctx.rotate(t.rot * Math.PI / 180);
+    if (dark) {
+      ctx.shadowColor = 'rgba(0,0,0,.45)';
+      ctx.shadowBlur = 5 * scale;
+      ctx.shadowOffsetY = 1.5 * scale;
+    } else {
+      ctx.shadowColor = 'rgba(0,0,0,.16)';
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 2 * scale;
+      ctx.shadowOffsetY = 2 * scale;
+    }
+    roundRectPath(ctx, -w / 2 * scale, -h / 2 * scale, w * scale, h * scale, 4 * scale);
+    ctx.fillStyle = cs.backgroundColor;
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+    const bc = cs.borderTopColor;
+    if (parseFloat(cs.borderTopWidth) > 0 && bc !== 'transparent' && !/rgba\(\s*\d+,\s*\d+,\s*\d+,\s*0\)/.test(bc)) {
+      ctx.strokeStyle = bc;
+      ctx.lineWidth = 1.5 * scale;
+      ctx.stroke();
+    }
+    ctx.fillStyle = cs.color;
+    ctx.font = cs.fontWeight + ' ' + (parseFloat(cs.fontSize) * scale) + 'px ' + cs.fontFamily;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(KIT[id].t, 0, 1 * scale);
+    ctx.restore();
+  }
+  return canvas;
+}
+document.getElementById('snapBtn').addEventListener('click', () => {
+  renderCanvas().toBlob(async blob => {
+    if (!blob) return;
+    const base = (board().name || 'tinfoil').replace(/[^\w\- ]+/g, '').trim() || 'tinfoil';
+    const file = new File([blob], base + '.png', { type: 'image/png' });
+    // On phones this opens the share sheet (which includes "Save Image" → Photos).
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: board().name }); return; } catch (e) {}
+    }
+    // On desktop browsers this downloads the PNG to the Downloads folder.
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = file.name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  }, 'image/png');
+});
+
+/* ---------- Misc ---------- */
+document.getElementById('trayToggle').addEventListener('click', () => {
+  document.body.classList.toggle('trayHidden');
+});
+filterEl.addEventListener('input', renderTray);
+window.addEventListener('resize', renderBoard);
+
+applyTheme();
+render();
+</script>
+</body>
+</html>
