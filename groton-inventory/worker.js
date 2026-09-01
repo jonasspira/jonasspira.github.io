@@ -103,23 +103,76 @@ function firstNumber() {
  * Source 1 — UPCitemdb (free tier, no key, ~100 requests/day per IP)
  * ------------------------------------------------------------------ */
 
-async function upcitemdb(query, barcode) {
-  const url = barcode
-    ? 'https://api.upcitemdb.com/prod/trial/lookup?upc=' + encodeURIComponent(barcode)
-    : 'https://api.upcitemdb.com/prod/trial/search?s=' + encodeURIComponent(query) + '&match_mode=0&type=product';
+/**
+ * Pull a defensible price out of a UPCitemdb item.
+ *
+ * `lowest_recorded_price` and `highest_recorded_price` are not trustworthy at
+ * the extremes — a can of Coke comes back as a $0–$5000 range, and a $200 drill
+ * kit reports a $3 low. The per-merchant `offers` are real observed prices, so
+ * take the median of those and ignore the range unless there is nothing else.
+ * A wrong value on an insurance record is worse than a blank one, so this
+ * returns null rather than guessing.
+ */
+function recordedPrice(it) {
+  const offers = (Array.isArray(it.offers) ? it.offers : [])
+    .map(o => firstNumber(o.price))
+    .filter(Boolean)
+    .sort((a, b) => a - b);
 
-  const resp = await timedFetch(url, { headers: { 'Accept': 'application/json' } }, 8000);
-  if (!resp.ok) {
-    let code = 'HTTP_' + resp.status;
-    try { code = (await resp.json()).code || code; } catch (e) { /* body not JSON */ }
-    return { ok: false, error: code, candidates: [] };
+  if (offers.length) {
+    return {
+      value: offers[Math.floor(offers.length / 2)],
+      note: 'Median of ' + offers.length + ' recorded retail ' +
+            (offers.length === 1 ? 'offer' : 'offers'),
+    };
   }
 
-  const data = await resp.json();
-  const items = Array.isArray(data.items) ? data.items.slice(0, 5) : [];
-  return {
-    ok: true,
-    candidates: items.map(it => ({
+  // No offers: only trust the recorded range when it isn't obviously junk.
+  const low = firstNumber(it.lowest_recorded_price);
+  const high = firstNumber(it.highest_recorded_price);
+  if (low && high && high / low <= 10) {
+    return { value: (low + high) / 2, note: 'Midpoint of recorded price range' };
+  }
+
+  return { value: null, note: null };
+}
+
+function upcitemdbUrl(mode, value) {
+  return mode === 'lookup'
+    ? 'https://api.upcitemdb.com/prod/trial/lookup?upc=' + encodeURIComponent(value)
+    : 'https://api.upcitemdb.com/prod/trial/search?s=' + encodeURIComponent(value) + '&match_mode=0&type=product';
+}
+
+async function upcitemdb(query, barcode) {
+  // Their barcode catalogue is much thinner on hardware than their keyword index
+  // is — a UPC that returns nothing often turns up as a search hit, so on a miss
+  // we spend one more of the daily allowance rather than give up.
+  const attempts = barcode
+    ? [['lookup', barcode], ['search', barcode]]
+    : [['search', query]];
+
+  let lastError = null;
+  let remaining = null;
+
+  for (const [mode, value] of attempts) {
+    const resp = await timedFetch(upcitemdbUrl(mode, value), { headers: { 'Accept': 'application/json' } }, 8000);
+    remaining = resp.headers.get('X-RateLimit-Remaining') || remaining;
+
+    if (!resp.ok) {
+      lastError = 'HTTP_' + resp.status;
+      try { lastError = (await resp.json()).code || lastError; } catch (e) { /* body not JSON */ }
+      // A rate-limit or auth failure won't fix itself on the next attempt.
+      if (resp.status === 429 || resp.status === 401) break;
+      continue;
+    }
+
+    const data = await resp.json();
+    const items = Array.isArray(data.items) ? data.items.slice(0, 5) : [];
+    if (items.length === 0) {
+      lastError = null;
+      continue;   // reachable, just no match — try the next attempt
+    }
+    return { ok: true, mode: mode, remaining: remaining, candidates: items.map(it => ({
       source: 'upcitemdb',
       name: it.title || null,
       brand: it.brand || null,
@@ -127,11 +180,14 @@ async function upcitemdb(query, barcode) {
       upc: it.upc || it.ean || it.gtin || barcode || null,
       category: it.category || null,
       imageUrl: (Array.isArray(it.images) && it.images[0]) || null,
-      price: firstNumber(it.lowest_recorded_price, it.highest_recorded_price),
-      priceNote: it.lowest_recorded_price ? 'Lowest recorded retail price' : null,
+      price: recordedPrice(it).value,
+      priceNote: recordedPrice(it).note,
       description: it.description || null,
-    })),
-  };
+    })) };
+  }
+
+  // Every attempt was reachable but empty, or the last one errored.
+  return { ok: !lastError, error: lastError, remaining: remaining, candidates: [] };
 }
 
 /* ------------------------------------------------------------------ *
@@ -470,8 +526,9 @@ async function handleHealth(env, headers) {
     probes: {},
   };
 
-  // A real barcode (Apple USB-C cable) so a hit proves the path end to end.
-  const probeUpc = '0190198001740';
+  // Verified present in UPCitemdb, so zero hits means the source is broken
+  // rather than the catalogue merely being thin for this product.
+  const probeUpc = '049000042566';
 
   const [db, eb, notion] = await Promise.allSettled([
     upcitemdb(probeUpc, probeUpc),
@@ -486,13 +543,34 @@ async function handleHealth(env, headers) {
       : Promise.reject(new Error('NOTION_API_KEY not set')),
   ]);
 
-  report.probes.upcitemdb = db.status === 'fulfilled'
-    ? { ok: db.value.ok, hits: db.value.candidates.length, error: db.value.error || null }
-    : { ok: false, error: String(db.reason && db.reason.message || db.reason) };
+  if (db.status === 'fulfilled') {
+    const hits = db.value.candidates.length;
+    report.probes.upcitemdb = {
+      ok: db.value.ok && hits > 0,
+      hits: hits,
+      matchedBy: db.value.mode || null,
+      lookupsLeftToday: db.value.remaining !== null && db.value.remaining !== undefined
+        ? Number(db.value.remaining) : 'unknown',
+      error: db.value.error || null,
+      hint: hits > 0 ? null
+        : 'Reachable but returned nothing for a barcode known to be in the catalogue — likely the daily cap.',
+    };
+  } else {
+    report.probes.upcitemdb = { ok: false, error: String(db.reason && db.reason.message || db.reason) };
+  }
 
-  report.probes.ebay = eb.status === 'fulfilled'
-    ? { ok: eb.value.ok, hits: eb.value.candidates.length, error: eb.value.error || null }
-    : { ok: false, error: String(eb.reason && eb.reason.message || eb.reason) };
+  if (eb.status === 'fulfilled') {
+    report.probes.ebay = {
+      ok: eb.value.ok && eb.value.candidates.length > 0,
+      hits: eb.value.candidates.length,
+      error: eb.value.error || null,
+      hint: eb.value.error === 'NOT_CONFIGURED'
+        ? 'Optional. Without eBay keys there is no live market pricing, and hardware barcodes have thinner coverage.'
+        : null,
+    };
+  } else {
+    report.probes.ebay = { ok: false, error: String(eb.reason && eb.reason.message || eb.reason) };
+  }
 
   if (notion.status === 'fulfilled') {
     const ok = notion.value.ok;
@@ -512,8 +590,16 @@ async function handleHealth(env, headers) {
 
   if (env.ANTHROPIC_API_KEY) {
     try {
+      // Sent with no candidates on purpose: a null name here is the guard against
+      // inventing products working correctly, not a failure.
       const n = await claudeNormalize(env, probeUpc, []);
-      report.probes.claude = { ok: !!n, sample: n ? n.name : null };
+      report.probes.claude = {
+        ok: !!n,
+        sample: n ? n.name : null,
+        note: n && !n.name
+          ? 'Responded, and correctly declined to invent a product for a bare barcode.'
+          : null,
+      };
     } catch (e) {
       report.probes.claude = { ok: false, error: String(e && e.message || e) };
     }
