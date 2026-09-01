@@ -244,6 +244,39 @@ input[type="date"].field, input[type="number"].field { font-variant-numeric: tab
 .reveal { margin-top: var(--s2); display: none; }
 .reveal[data-open="true"] { display: block; }
 
+/* ---------- Combo (typeahead with free entry) ---------- */
+
+.combo { position: relative; }
+
+.combo-list {
+  position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 20;
+  background: var(--surface-raised); border: 1px solid var(--border-strong);
+  border-radius: var(--r-md); overflow: hidden; display: none;
+  max-height: 244px; overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(0,0,0,.45);
+}
+.combo-list[data-open="true"] { display: block; }
+
+.combo-option {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s2);
+  width: 100%; text-align: left; cursor: pointer;
+  background: transparent; border: 0; border-bottom: 1px solid var(--border);
+  color: var(--text); font-family: var(--font); font-size: var(--size-body);
+  padding: var(--s3); min-height: 40px;
+}
+.combo-option:last-child { border-bottom: 0; }
+.combo-option[data-active="true"] { background: var(--brand-tint); color: var(--brand-text); }
+.combo-option .match { color: var(--brand-text); }
+.combo-option[data-new="true"] { color: var(--text-secondary); font-style: italic; }
+.combo-option[data-new="true"] strong { color: var(--text); font-style: normal; font-weight: var(--weight-medium); }
+
+.combo-forget {
+  flex: 0 0 auto; border: 0; background: transparent; cursor: pointer;
+  color: var(--text-muted); font-family: var(--font); font-size: var(--size-label);
+  padding: 0 var(--s2); line-height: 1;
+}
+.combo-forget:hover { color: var(--text); }
+
 /* ---------- Buttons ---------- */
 
 .btn {
@@ -485,9 +518,11 @@ input[type="date"].field, input[type="number"].field { font-variant-numeric: tab
 
         <div class="field-block">
           <div class="field-label">Brand</div>
-          <div class="chips three" id="brandChips"></div>
-          <div class="reveal" id="brandReveal">
-            <input type="text" class="field" id="fCustomBrand" placeholder="Brand name" autocomplete="off" autocapitalize="words">
+          <div class="combo" id="brandCombo">
+            <input type="text" class="field" id="fBrand" placeholder="Type a brand"
+                   autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="words"
+                   role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="brandOptions">
+            <div class="combo-list" id="brandOptions" role="listbox" data-open="false"></div>
           </div>
         </div>
 
@@ -648,16 +683,9 @@ input[type="date"].field, input[type="number"].field { font-variant-numeric: tab
     'Mudroom': ['Furnishing', 'Tool', 'Appliance', 'Home Tech', 'Fixture & System', 'Hobby & Maker', 'Vehicle & Outdoor', 'Other']
   };
 
-  var BRAND_MAP = {
-    'Appliance': ['GE', 'Whirlpool', 'KitchenAid', 'Bosch', 'Frigidaire', 'Maytag', 'Samsung', 'LG', 'Dyson', 'Shark', 'Vitamix', 'Breville', 'Cuisinart', 'Ninja'],
-    'Tool': ['DeWalt', 'Ryobi', 'Craftsman', 'Stanley', 'Black & Decker', 'Husky', 'Kobalt', 'Ridgid', 'Bosch', 'Skil'],
-    'Home Tech': ['Apple', 'Sonos', 'Eero', 'Nest', 'Ring', 'Philips Hue', 'Logitech', 'Roku', 'Bose', 'Anker', 'TP-Link'],
-    'Fixture & System': ['Honeywell', 'Ecobee', 'Moen', 'Kohler', 'Delta', 'Trane', 'Carrier', 'Rheem', 'A.O. Smith', 'Bradford White'],
-    'Furnishing': [],
-    'Vehicle & Outdoor': ['Honda', 'Toyota', 'Ford', 'Subaru', 'Weber', 'Traeger', 'Big Green Egg', 'Trek', 'Specialized'],
-    'Hobby & Maker': ['Cricut', 'Bambu', 'Brother', 'Canon', 'Raspberry', 'Tecre'],
-    'Other': []
-  };
+  // Brand is deliberately not a fixed list. Notion's Brand property is a select,
+  // and the API creates an option on the fly for any name it hasn't seen, so the
+  // only vocabulary that matters is the one built from what has been typed here.
 
   var CONDITIONS = ['Excellent', 'Good', 'Fair', 'Needs Repair', 'Broken'];
 
@@ -669,6 +697,8 @@ input[type="date"].field, input[type="number"].field { font-variant-numeric: tab
 
   var state = {
     items: [],
+    brands: [],          // remembered brand vocabulary, most recently used first
+    brandUI: { open: false, active: -1 },
     sessionCount: 0,
     page: 'add',
     filter: 'all',
@@ -677,7 +707,7 @@ input[type="date"].field, input[type="number"].field { font-variant-numeric: tab
     form: {
       location: null, customLocation: '',
       assetType: null, type: null,
-      brand: null, customBrand: '',
+      brand: '',
       condition: null
     },
     lookup: { status: '', tone: '', candidates: [], basis: '' }
@@ -688,20 +718,96 @@ input[type="date"].field, input[type="number"].field { font-variant-numeric: tab
   function load() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) state.items = JSON.parse(raw).items || [];
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        state.items = parsed.items || [];
+        state.brands = parsed.brands || [];
+      }
     } catch (e) {
       console.error(e);
       toast('Could not read saved items', 'bad');
     }
+    // Seed the vocabulary from anything already logged. Covers the first run
+    // after this upgrade, and repairs the list if it ever gets out of step.
+    // Oldest first, so the newest entries end up at the front of the list.
+    state.items.slice().reverse().forEach(function (i) { rememberBrand(i.brand, true); });
   }
 
   function save() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ items: state.items }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ items: state.items, brands: state.brands }));
     } catch (e) {
       console.error(e);
       toast('Save failed — export your items now', 'bad');
     }
+  }
+
+  /* =========================================================
+     Brand vocabulary
+
+     No fixed list. Every brand ever typed is remembered and offered back as a
+     suggestion, most recently used first. Commas are stripped because Notion
+     rejects them in select option names.
+     ========================================================= */
+
+  function cleanBrand(s) {
+    return String(s == null ? '' : s)
+      .replace(/,/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 100);
+  }
+
+  // Returns the stored spelling if this brand is already known, so that
+  // "dewalt" and "DeWalt" never become two options in Notion.
+  function canonBrand(s) {
+    var v = cleanBrand(s);
+    if (!v) return '';
+    var lower = v.toLowerCase();
+    for (var i = 0; i < state.brands.length; i++) {
+      if (state.brands[i].toLowerCase() === lower) return state.brands[i];
+    }
+    return v;
+  }
+
+  function rememberBrand(s, quiet) {
+    var v = cleanBrand(s);
+    if (!v) return '';
+    var lower = v.toLowerCase();
+    var existing = null;
+    state.brands = state.brands.filter(function (b) {
+      if (b.toLowerCase() === lower) { existing = b; return false; }
+      return true;
+    });
+    var keep = existing || v;
+    state.brands.unshift(keep);          // most recently used first
+    if (!quiet) save();
+    return keep;
+  }
+
+  function forgetBrand(s) {
+    var lower = cleanBrand(s).toLowerCase();
+    state.brands = state.brands.filter(function (b) { return b.toLowerCase() !== lower; });
+    save();
+  }
+
+  // Prefix matches rank above contains matches; both keep recency order.
+  function brandSuggestions(query) {
+    var q = cleanBrand(query).toLowerCase();
+    if (!q) return state.brands.slice(0, 8);
+    var starts = [], contains = [];
+    state.brands.forEach(function (b) {
+      var l = b.toLowerCase();
+      if (l.indexOf(q) === 0) starts.push(b);
+      else if (l.indexOf(q) !== -1) contains.push(b);
+    });
+    return starts.concat(contains).slice(0, 8);
+  }
+
+  function brandIsKnown(s) {
+    var lower = cleanBrand(s).toLowerCase();
+    if (!lower) return true;
+    return state.brands.some(function (b) { return b.toLowerCase() === lower; });
   }
 
   /* =========================================================
@@ -831,9 +937,6 @@ input[type="date"].field, input[type="number"].field { font-variant-numeric: tab
     renderChips($('assetTypeChips'), order, f.assetType, function (v) {
       f.assetType = v;
       if (!v || !TYPE_MAP[v] || TYPE_MAP[v].indexOf(f.type) === -1) f.type = null;
-      if (!v || (BRAND_MAP[v] || []).indexOf(f.brand) === -1) {
-        if (f.brand !== CUSTOM) f.brand = null;
-      }
       render();
       if (v) $('step3').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }, { suggested: suggested });
@@ -850,13 +953,7 @@ input[type="date"].field, input[type="number"].field { font-variant-numeric: tab
 
     // Step 4 — details
     $('step4').setAttribute('data-state', f.type ? 'active' : 'locked');
-    renderChips($('brandChips'), f.assetType ? (BRAND_MAP[f.assetType] || []) : [], f.brand, function (v) {
-      f.brand = v;
-      if (v !== CUSTOM) f.customBrand = '';
-      render();
-      if (v === CUSTOM) $('fCustomBrand').focus();
-    }, { allowCustom: true });
-    $('brandReveal').setAttribute('data-open', f.brand === CUSTOM ? 'true' : 'false');
+    renderBrandOptions();
     renderChips($('conditionChips'), CONDITIONS, f.condition, function (v) {
       f.condition = v; render();
     });
@@ -869,6 +966,146 @@ input[type="date"].field, input[type="number"].field { font-variant-numeric: tab
     $('valueBasis').textContent = state.lookup.basis;
 
     renderItems();
+  }
+
+  /* ---------- Brand combo ---------- */
+
+  function closeBrandList() {
+    state.brandUI.open = false;
+    state.brandUI.active = -1;
+    renderBrandOptions();
+  }
+
+  function setBrand(v) {
+    var picked = canonBrand(v);
+    state.form.brand = picked;
+    $('fBrand').value = picked;
+    closeBrandList();
+  }
+
+  function renderBrandOptions() {
+    var box = $('brandOptions');
+    var input = $('fBrand');
+    if (!state.brandUI.open) {
+      box.setAttribute('data-open', 'false');
+      input.setAttribute('aria-expanded', 'false');
+      box.innerHTML = '';
+      return;
+    }
+
+    var q = cleanBrand(input.value);
+    var list = brandSuggestions(q);
+    var showAdd = q.length > 0 && !brandIsKnown(q);
+
+    if (!list.length && !showAdd) {
+      box.setAttribute('data-open', 'false');
+      input.setAttribute('aria-expanded', 'false');
+      box.innerHTML = '';
+      return;
+    }
+
+    var rows = list.map(function (b) {
+      var label = esc(b);
+      if (q) {
+        var at = b.toLowerCase().indexOf(q.toLowerCase());
+        if (at !== -1) {
+          label = esc(b.slice(0, at)) +
+                  '<span class="match">' + esc(b.slice(at, at + q.length)) + '</span>' +
+                  esc(b.slice(at + q.length));
+        }
+      }
+      return '<div class="combo-option" role="option" data-val="' + esc(b) + '">' +
+               '<span>' + label + '</span>' +
+               '<button type="button" class="combo-forget" data-forget="' + esc(b) +
+               '" title="Remove from suggestions" aria-label="Remove ' + esc(b) + ' from suggestions">×</button>' +
+             '</div>';
+    });
+
+    if (showAdd) {
+      rows.push('<div class="combo-option" role="option" data-new="true" data-val="' + esc(q) + '">' +
+                  '<span>Add <strong>' + esc(q) + '</strong></span>' +
+                '</div>');
+    }
+
+    var total = rows.length;
+    if (state.brandUI.active >= total) state.brandUI.active = total - 1;
+
+    box.innerHTML = rows.join('');
+    box.setAttribute('data-open', 'true');
+    input.setAttribute('aria-expanded', 'true');
+
+    var nodes = box.querySelectorAll('.combo-option');
+    Array.prototype.forEach.call(nodes, function (n, i) {
+      n.setAttribute('data-active', i === state.brandUI.active ? 'true' : 'false');
+      n.setAttribute('aria-selected', i === state.brandUI.active ? 'true' : 'false');
+    });
+    if (state.brandUI.active >= 0 && nodes[state.brandUI.active]) {
+      nodes[state.brandUI.active].scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  function moveBrandActive(step) {
+    var count = $('brandOptions').querySelectorAll('.combo-option').length;
+    if (!count) return;
+    var next = state.brandUI.active + step;
+    if (next < 0) next = count - 1;
+    if (next >= count) next = 0;
+    state.brandUI.active = next;
+    renderBrandOptions();
+  }
+
+  function bindBrandCombo() {
+    var input = $('fBrand');
+    var box = $('brandOptions');
+
+    input.addEventListener('input', function (e) {
+      state.form.brand = cleanBrand(e.target.value);
+      state.brandUI.open = true;
+      state.brandUI.active = -1;
+      renderBrandOptions();
+    });
+
+    input.addEventListener('focus', function () {
+      state.brandUI.open = true;
+      state.brandUI.active = -1;
+      renderBrandOptions();
+    });
+
+    input.addEventListener('blur', function () {
+      state.form.brand = canonBrand(input.value);
+      if (state.form.brand) input.value = state.form.brand;
+      closeBrandList();
+    });
+
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); state.brandUI.open = true; moveBrandActive(1); return; }
+      if (e.key === 'ArrowUp')   { e.preventDefault(); state.brandUI.open = true; moveBrandActive(-1); return; }
+      if (e.key === 'Escape')    { closeBrandList(); return; }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        var nodes = box.querySelectorAll('.combo-option');
+        if (state.brandUI.open && state.brandUI.active >= 0 && nodes[state.brandUI.active]) {
+          setBrand(nodes[state.brandUI.active].getAttribute('data-val'));
+        } else {
+          setBrand(input.value);
+        }
+      }
+    });
+
+    // Keeps the input focused so blur does not close the list before the click lands.
+    box.addEventListener('mousedown', function (e) { e.preventDefault(); });
+
+    box.addEventListener('click', function (e) {
+      var forget = e.target.closest('.combo-forget');
+      if (forget) {
+        forgetBrand(forget.getAttribute('data-forget'));
+        state.brandUI.active = -1;
+        renderBrandOptions();
+        return;
+      }
+      var opt = e.target.closest('.combo-option');
+      if (opt) setBrand(opt.getAttribute('data-val'));
+    });
   }
 
   function renderCandidates() {
@@ -997,16 +1234,12 @@ input[type="date"].field, input[type="number"].field { font-variant-numeric: tab
     $('moreToggle').textContent = '− Hide extra fields';
   }
 
+  // Lookup results reuse the spelling already in the vocabulary when there is one,
+  // so a match on "dewalt" from the product database does not create a second option.
   function applyBrand(brand) {
-    var f = state.form;
-    var known = f.assetType && (BRAND_MAP[f.assetType] || []).indexOf(brand) !== -1;
-    if (known) {
-      f.brand = brand; f.customBrand = '';
-      $('fCustomBrand').value = '';
-    } else {
-      f.brand = CUSTOM; f.customBrand = brand;
-      $('fCustomBrand').value = brand;
-    }
+    var picked = canonBrand(brand);
+    state.form.brand = picked;
+    $('fBrand').value = picked;
   }
 
   function applyLookup(d) {
@@ -1104,7 +1337,7 @@ input[type="date"].field, input[type="number"].field { font-variant-numeric: tab
       return;
     }
 
-    var brand = f.brand === CUSTOM ? $('fCustomBrand').value.trim() : f.brand;
+    var brand = rememberBrand($('fBrand').value, true);
     var location = f.location === CUSTOM ? $('fCustomLocation').value.trim() : f.location;
     var valueStr = $('fValue').value.trim();
     var value = valueStr ? parseFloat(valueStr) : null;
@@ -1135,13 +1368,14 @@ input[type="date"].field, input[type="number"].field { font-variant-numeric: tab
   }
 
   function resetForm() {
-    ['fItem', 'fModel', 'fSerial', 'fUpc', 'fAcquired', 'fValue', 'fNotes', 'fCustomBrand', 'lookupInput']
+    ['fItem', 'fModel', 'fSerial', 'fUpc', 'fAcquired', 'fValue', 'fNotes', 'fBrand', 'lookupInput']
       .forEach(function (id) { $(id).value = ''; });
+    state.brandUI = { open: false, active: -1 };
     // Location survives so you can log a whole room without re-picking it.
     state.form = {
       location: state.form.location,
       customLocation: state.form.customLocation,
-      assetType: null, type: null, brand: null, customBrand: '', condition: null
+      assetType: null, type: null, brand: '', condition: null
     };
     state.lookup = { status: '', tone: '', candidates: [], basis: '' };
   }
@@ -1329,9 +1563,7 @@ input[type="date"].field, input[type="number"].field { font-variant-numeric: tab
       state.form.customLocation = e.target.value;
       $('step1Value').textContent = e.target.value || 'Other';
     });
-    $('fCustomBrand').addEventListener('input', function (e) {
-      state.form.customBrand = e.target.value;
-    });
+    bindBrandCombo();
 
     $('moreToggle').addEventListener('click', function () {
       var m = $('moreFields');
