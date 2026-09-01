@@ -1053,12 +1053,20 @@ input[type="date"].field, input[type="number"].field { font-variant-numeric: tab
       applyLookup(r.data);
 
       var hit = (r.data.sources || []).filter(function (s) { return s.ok && s.hits > 0 && s.name !== 'claude'; });
-      var where = hit.length ? hit.map(function (s) { return s.name; }).join(' + ') : 'Claude';
-      var conf = r.data.confidence === 'low' ? ' — low confidence, check it' : '';
-      state.lookup.status = r.data.name
-        ? 'Found via ' + where + conf
-        : 'Nothing matched that. Enter it by hand.';
-      state.lookup.tone = r.data.name && r.data.confidence !== 'low' ? 'good' : 'bad';
+      var verified = hit.length > 0;
+
+      if (!r.data.name) {
+        state.lookup.status = 'Nothing matched that. Enter it by hand.';
+        state.lookup.tone = 'bad';
+      } else if (!verified) {
+        // Nothing was retrieved — this is recall, not a looked-up fact. Say so.
+        state.lookup.status = 'No database match. Filled in from memory — check the model and value.';
+        state.lookup.tone = 'bad';
+      } else {
+        state.lookup.status = 'Found via ' + hit.map(function (s) { return s.name; }).join(' + ') +
+          (r.data.confidence === 'low' ? ' — low confidence, check it' : '');
+        state.lookup.tone = r.data.confidence === 'low' ? 'bad' : 'good';
+      }
       render();
       if (r.data.name) $('step4').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }).catch(function (e) {

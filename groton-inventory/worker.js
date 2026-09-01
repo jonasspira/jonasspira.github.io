@@ -143,6 +143,53 @@ function recordedPrice(it) {
   return { value: null, note: null };
 }
 
+/**
+ * Reject a model number that is really something else.
+ *
+ * UPCitemdb's `model` is frequently a retailer SKU or a mangled barcode — a can of
+ * Coke reports model "0004900004256", a Rheem heater reports a Home Depot item
+ * number. And with no candidates to work from, the model tends to come back as the
+ * product name restated ("Move" for a Sonos Move). All of those are worse than a
+ * blank, because a wrong model number on an insurance record looks authoritative.
+ */
+function cleanModel(model, name, brand, upc) {
+  if (!model) return null;
+  const m = String(model).trim();
+  if (m.length < 2 || m.length > 60) return null;
+
+  const digitsOnly = m.replace(/[^0-9]/g, '');
+  // A bare long number is a SKU or a barcode, never a model designation.
+  if (/^[0-9\s-]+$/.test(m) && digitsOnly.length >= 10) return null;
+  // Or it is literally the barcode we searched with.
+  if (upc && (digitsOnly === String(upc) || String(upc).indexOf(digitsOnly) === 0) && digitsOnly.length >= 8) return null;
+
+  const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const nm = norm(m);
+  if (!nm) return null;
+  if (nm === norm(brand)) return null;
+
+  // A model with no digits that is just a word lifted out of the product name is
+  // the name restated, not a designation. Real models nearly always carry digits.
+  if (!/[0-9]/.test(m) && norm(name).indexOf(nm) !== -1) return null;
+
+  return m;
+}
+
+/** Collapse near-duplicate listings so the alternates list shows distinct products. */
+function dedupeCandidates(list, limit) {
+  const seen = new Set();
+  const out = [];
+  for (const c of list) {
+    if (!c.name) continue;
+    const key = String(c.name).toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 40);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(c);
+    if (out.length >= (limit || 4)) break;
+  }
+  return out;
+}
+
 function upcitemdbUrl(mode, value) {
   return mode === 'lookup'
     ? 'https://api.upcitemdb.com/prod/trial/lookup?upc=' + encodeURIComponent(value)
@@ -300,7 +347,7 @@ Return ONLY a JSON object, no markdown fences, no commentary:
 {
   "name": "short specific item name a person would recognize, e.g. '20V Cordless Drill' or 'KitchenAid Stand Mixer 5qt'. Strip marketing filler, seller names, condition words, and shipping text out of retail listing titles.",
   "brand": "manufacturer only, e.g. 'DeWalt' — null if unknown",
-  "model": "model number or specific variant — null if unknown",
+  "model": "the MANUFACTURER's own model or part number, as printed on the product or its rating plate — e.g. 'DCD771C2', 'WM4000HWA', 'S17'. null if you do not actually know it.",
   "assetType": one of exactly: "Appliance" | "Tool" | "Home Tech" | "Fixture & System" | "Furnishing" | "Vehicle & Outdoor" | "Hobby & Maker" | "Other",
   "type": subcategory — must be one of the options listed for the assetType you chose:
     Appliance → "Refrigeration" | "Cooking" | "Dishwasher" | "Laundry" | "Small Appliance" | "Vacuum/Floor Care" | "Other"
@@ -318,13 +365,39 @@ Return ONLY a JSON object, no markdown fences, no commentary:
 }
 
 Rules:
-- If the candidates agree, trust them over your own memory.
-- If there are NO candidates, identify the product yourself from the query. A bare
-  barcode you do not recognise should return confidence "low" and null name — do
+
+PICK THE BASE PRODUCT, NOT A LISTING.
+- Retail listings are full of bundles, multi-packs and accessories. Choose the item
+  itself as the manufacturer sells it. Exclude "with case", "+ charger", "bundle",
+  "2-pack", "refurbished", "renewed", "open box", and replacement parts or
+  accessories sold separately (cases, mounts, stands, filters, loose batteries) —
+  unless the query is explicitly asking for one of those.
+- A kit the manufacturer sells as one SKU is a base product, not a bundle. "DCD771C2
+  Drill/Driver Kit" is correct; "DCD771C2 + extra battery + work light" is not.
+- name is the product, not the listing headline. No seller names, no condition
+  words, no shipping or promo text, no ALL CAPS.
+
+MODEL NUMBERS — the strictest field here.
+- Only give a model you actually know to be the manufacturer's designation.
+- NEVER use: a retailer SKU or item number, a UPC/EAN or any bare 10+ digit number,
+  the brand name, or the product name restated. If a candidate record's "model"
+  looks like any of those, it is junk metadata — discard it and return null.
+- "Sonos Move" is a product name, not a model. Returning "Move" as the model is
+  wrong; return null instead.
+- A blank model is a correct answer. A plausible-looking wrong one is a defect,
+  because this ends up on an insurance record.
+
+CONFIDENCE means verified, not familiar.
+- "high" requires candidate records that agree with each other.
+- With NO candidates you are working from memory alone and nothing has been checked:
+  use "medium" at best for a product you know well, and "low" for anything else.
+- A bare barcode you do not recognise returns confidence "low" and null name — do
   not invent a product.
-- Prefer a price that came from a candidate record over your own estimate, and say
-  so in valueBasis.
-- estimatedValue is what it would cost to replace the item new today.`;
+
+VALUE.
+- estimatedValue is what it would cost to replace the item new today.
+- Prefer a price from a candidate record over your own estimate, and say which in
+  valueBasis. If it is your own estimate, valueBasis must say so plainly.`;
 
 async function claudeNormalize(env, query, candidates) {
   if (!env.ANTHROPIC_API_KEY) return null;
@@ -414,21 +487,34 @@ async function handleLookup(body, env, headers) {
 
   // Fall back to the best raw candidate if Claude couldn't be reached.
   const top = candidates[0] || {};
+  const resolvedName = (normalized && normalized.name) || top.name || null;
+  const resolvedBrand = (normalized && normalized.brand) || top.brand || null;
+  const resolvedUpc = barcode || top.upc || null;
+
+  // With nothing retrieved, the answer is unverified recall no matter how sure the
+  // model sounds. Cap it here rather than trusting the prompt to hold the line.
+  const verified = candidates.length > 0;
+  let confidence = (normalized && normalized.confidence) || 'low';
+  if (!verified && confidence === 'high') confidence = 'medium';
+
   const result = {
-    name: (normalized && normalized.name) || top.name || null,
-    brand: (normalized && normalized.brand) || top.brand || null,
-    model: (normalized && normalized.model) || top.model || null,
-    upc: barcode || top.upc || null,
+    name: resolvedName,
+    brand: resolvedBrand,
+    model: cleanModel((normalized && normalized.model) || top.model || null,
+                      resolvedName, resolvedBrand, resolvedUpc),
+    upc: resolvedUpc,
     assetType: null,
     type: null,
     estimatedValue: (normalized && firstNumber(normalized.estimatedValue)) || top.price || null,
     valueBasis: (normalized && normalized.valueBasis) || top.priceNote || null,
-    confidence: (normalized && normalized.confidence) || 'low',
+    confidence: confidence,
+    verified: verified,
     notes: (normalized && normalized.notes) || null,
     imageUrl: top.imageUrl || null,
     sources,
-    // Alternates the app can offer if the top answer is wrong.
-    candidates: candidates.slice(0, 5).map(c => ({
+    // Alternates the app can offer if the top answer is wrong. Deduped, because
+    // five spellings of the same listing is noise, not choice.
+    candidates: dedupeCandidates(candidates, 4).map(c => ({
       source: c.source, name: c.name, brand: c.brand,
       price: c.price, imageUrl: c.imageUrl, link: c.link || null,
     })),
