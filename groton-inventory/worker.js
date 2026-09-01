@@ -70,7 +70,13 @@ function corsHeaders(origin) {
 function json(data, status, headers) {
   return new Response(JSON.stringify(data), {
     status: status || 200,
-    headers: { ...headers, 'Content-Type': 'application/json' },
+    headers: {
+      ...headers,
+      'Content-Type': 'application/json',
+      // Without this a browser happily re-serves a stale /health for the same
+      // URL, which reads exactly like a deploy that didn't take.
+      'Cache-Control': 'no-store',
+    },
   });
 }
 
@@ -513,10 +519,11 @@ async function handleSync(body, env, headers) {
  * GET /health — is everything actually wired up?
  * ------------------------------------------------------------------ */
 
-async function handleHealth(env, headers) {
+async function handleHealth(env, headers, deep) {
   const report = {
     worker: 'ok',
     checkedAt: new Date().toISOString(),
+    mode: deep ? 'deep — live probes, spends one UPCitemdb lookup' : 'quick',
     secrets: {
       ANTHROPIC_API_KEY: !!env.ANTHROPIC_API_KEY,
       NOTION_API_KEY: !!env.NOTION_API_KEY,
@@ -530,9 +537,16 @@ async function handleHealth(env, headers) {
   // rather than the catalogue merely being thin for this product.
   const probeUpc = '049000042566';
 
+  // The UPCitemdb allowance is small and shared, so a routine health check must
+  // not spend it. Only /health?deep=1 hits the product sources for real.
+  const skip = Promise.resolve({
+    ok: null, candidates: [], error: 'NOT_PROBED',
+    hint: 'Add ?deep=1 to actually call this source.',
+  });
+
   const [db, eb, notion] = await Promise.allSettled([
-    upcitemdb(probeUpc, probeUpc),
-    ebay(env, probeUpc, probeUpc),
+    deep ? upcitemdb(probeUpc, probeUpc) : skip,
+    deep ? ebay(env, probeUpc, probeUpc) : skip,
     env.NOTION_API_KEY
       ? timedFetch('https://api.notion.com/v1/databases/' + NOTION_DATABASE_ID, {
           headers: {
@@ -543,7 +557,9 @@ async function handleHealth(env, headers) {
       : Promise.reject(new Error('NOTION_API_KEY not set')),
   ]);
 
-  if (db.status === 'fulfilled') {
+  if (db.status === 'fulfilled' && db.value.ok === null) {
+    report.probes.upcitemdb = { ok: null, hint: db.value.hint };
+  } else if (db.status === 'fulfilled') {
     const hits = db.value.candidates.length;
     report.probes.upcitemdb = {
       ok: db.value.ok && hits > 0,
@@ -559,7 +575,13 @@ async function handleHealth(env, headers) {
     report.probes.upcitemdb = { ok: false, error: String(db.reason && db.reason.message || db.reason) };
   }
 
-  if (eb.status === 'fulfilled') {
+  if (eb.status === 'fulfilled' && eb.value.ok === null) {
+    report.probes.ebay = {
+      ok: null,
+      configured: !!(env.EBAY_CLIENT_ID && env.EBAY_CLIENT_SECRET),
+      hint: eb.value.hint,
+    };
+  } else if (eb.status === 'fulfilled') {
     report.probes.ebay = {
       ok: eb.value.ok && eb.value.candidates.length > 0,
       hits: eb.value.candidates.length,
@@ -588,7 +610,13 @@ async function handleHealth(env, headers) {
     report.probes.notion = { ok: false, error: String(notion.reason && notion.reason.message || notion.reason) };
   }
 
-  if (env.ANTHROPIC_API_KEY) {
+  if (!deep) {
+    report.probes.claude = {
+      ok: null,
+      configured: !!env.ANTHROPIC_API_KEY,
+      hint: 'Add ?deep=1 to actually call this source.',
+    };
+  } else if (env.ANTHROPIC_API_KEY) {
     try {
       // Sent with no candidates on purpose: a null name here is the guard against
       // inventing products working correctly, not a failure.
@@ -625,7 +653,8 @@ export default {
     }
 
     if (path.endsWith('/health')) {
-      return handleHealth(env, headers);
+      const deep = new URL(request.url).searchParams.get('deep') === '1';
+      return handleHealth(env, headers, deep);
     }
 
     if (request.method !== 'POST') {
