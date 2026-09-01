@@ -2,339 +2,630 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Inventory">
-<meta name="theme-color" content="#0d0d0c">
-<title>HOME INVENTORY // GROTON</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Archivo+Black&display=swap" rel="stylesheet">
+<meta name="theme-color" content="#1E1D20">
+<title>Home inventory — Groton Rd</title>
 <style>
-  :root {
-    --bg: #0d0d0c;
-    --bg-2: #161614;
-    --bg-3: #1f1f1c;
-    --teal: #1E5663;
-    --teal-dim: #133b46;
-    --orange: #FF4A14;
-    --orange-dim: #b3320a;
-    --amber: #F28C00;
-    --sand: #D6C2A7;
-    --sand-dim: #a89878;
-    --line: #2a2a26;
-    --line-bright: #3d3d36;
-    --ink: #ebe2cf;
-    --ink-dim: #8a8270;
-    --ink-faint: #4f483a;
-    --good: #7fb86b;
-    --bad: #d63c3c;
-    --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3CfeColorMatrix values='0 0 0 0 0.92, 0 0 0 0 0.85, 0 0 0 0 0.65, 0 0 0 0.04 0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
-  }
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
-  input, textarea, select { -webkit-user-select: text; user-select: text; }
-  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: 'JetBrains Mono', monospace; font-size: 14px; line-height: 1.4; overscroll-behavior: none; min-height: 100vh; }
-  body::before { content: ''; position: fixed; inset: 0; background-image: var(--grain); pointer-events: none; z-index: 1000; opacity: 0.5; mix-blend-mode: overlay; }
-  .app { max-width: 600px; margin: 0 auto; min-height: 100vh; background: var(--bg); position: relative; padding-bottom: 40px; }
-  .hdr { padding: 24px 20px 16px; border-bottom: 2px solid var(--teal); background: var(--bg); position: relative; }
-  .hdr::before { content: ''; position: absolute; inset: auto 0 -2px 0; height: 6px; background: linear-gradient(90deg, var(--teal) 0%, var(--teal) 60%, var(--orange) 60%, var(--orange) 75%, var(--amber) 75%, var(--amber) 88%, var(--sand) 88%, var(--sand) 100%); }
-  .hdr-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
-  .hdr-title { font-family: 'Archivo Black', sans-serif; font-size: 22px; line-height: 1; letter-spacing: -0.02em; margin: 0; color: var(--sand); }
-  .hdr-sub { font-size: 10px; color: var(--ink-dim); letter-spacing: 0.15em; text-transform: uppercase; margin-top: 4px; }
-  .hdr-stamp { text-align: right; font-size: 10px; color: var(--ink-dim); letter-spacing: 0.1em; line-height: 1.3; }
-  .hdr-stamp strong { color: var(--orange); font-weight: 800; }
-  .stat-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); margin-top: 12px; }
-  .stat { background: var(--bg-2); padding: 10px 12px; text-align: center; }
-  .stat-num { font-family: 'Archivo Black', sans-serif; font-size: 22px; line-height: 1; color: var(--sand); }
-  .stat-num.warn { color: var(--amber); }
-  .stat-num.accent { color: var(--orange); }
-  .stat-lbl { font-size: 9px; color: var(--ink-dim); letter-spacing: 0.12em; text-transform: uppercase; margin-top: 4px; }
-  .tabs { display: flex; border-bottom: 2px solid var(--line); background: var(--bg); position: sticky; top: 0; z-index: 40; margin-top: 4px; }
-  .tab { flex: 1; padding: 14px 8px; background: var(--bg-2); border: none; border-right: 1px solid var(--line); color: var(--ink-dim); font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; transition: color 0.15s, background 0.15s; position: relative; }
-  .tab:last-child { border-right: none; }
-  .tab.active { background: var(--bg); color: var(--sand); }
-  .tab.active::after { content: ''; position: absolute; inset: auto 0 -2px 0; height: 2px; background: var(--orange); }
-  .tab .badge { display: inline-block; background: var(--orange); color: var(--bg); font-size: 10px; padding: 1px 5px; margin-left: 4px; font-weight: 800; border-radius: 2px; }
-  .panel { display: none; padding: 20px; }
-  .panel.active { display: block; }
-  .step { margin-bottom: 22px; padding-left: 14px; border-left: 2px solid var(--line); transition: border-color 0.2s, opacity 0.2s; }
-  .step.active { border-left-color: var(--teal); }
-  .step.complete { border-left-color: var(--orange); }
-  .step.locked { opacity: 0.35; pointer-events: none; }
-  .step-num { display: inline-block; background: var(--bg-2); color: var(--ink-dim); font-family: 'Archivo Black', sans-serif; font-size: 10px; width: 22px; height: 22px; line-height: 22px; text-align: center; border: 1px solid var(--line-bright); margin-left: -25px; margin-right: 8px; margin-bottom: 6px; }
-  .step.active .step-num { background: var(--teal); color: var(--sand); border-color: var(--teal); }
-  .step.complete .step-num { background: var(--orange); color: var(--bg); border-color: var(--orange); }
-  .step-label { display: inline-flex; align-items: baseline; justify-content: space-between; width: calc(100% - 30px); font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ink-dim); margin-bottom: 8px; font-weight: 700; }
-  .step.active .step-label { color: var(--sand); }
-  .step-label .req { color: var(--orange); }
-  .step-label .opt { color: var(--ink-faint); font-weight: 400; }
-  .step-value { color: var(--orange); font-weight: 700; font-size: 11px; text-transform: none; letter-spacing: 0.02em; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .field-input, .field-select, .field-textarea { width: 100%; background: var(--bg-2); border: 1px solid var(--line-bright); color: var(--ink); font-family: 'JetBrains Mono', monospace; font-size: 16px; padding: 14px 14px; border-radius: 0; -webkit-appearance: none; appearance: none; transition: border-color 0.15s, background 0.15s; }
-  .field-input:focus, .field-select:focus, .field-textarea:focus { outline: none; border-color: var(--orange); background: var(--bg-3); }
-  .field-textarea { resize: none; min-height: 70px; font-size: 14px; }
-  .chip-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
-  .chip-grid.three-col { grid-template-columns: repeat(3, 1fr); }
-  .chip { background: var(--bg-2); border: 1px solid var(--line-bright); color: var(--ink-dim); font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.05em; padding: 11px 8px; text-align: center; cursor: pointer; transition: all 0.12s; text-transform: uppercase; line-height: 1.2; }
-  .chip:active { transform: scale(0.97); }
-  .chip.selected { background: var(--orange); color: var(--bg); border-color: var(--orange); font-weight: 700; }
-  .chip.suggested { border-color: var(--teal); color: var(--sand); }
-  .chip.suggested.selected { background: var(--orange); color: var(--bg); border-color: var(--orange); }
-  .chip.custom-add { background: transparent; border-style: dashed; color: var(--ink-faint); }
-  .chip.custom-add.selected { background: var(--bg-3); border-style: solid; border-color: var(--orange); color: var(--orange); }
-  .custom-input-wrap { margin-top: 8px; display: none; }
-  .custom-input-wrap.show { display: block; }
-  .more-toggle { background: transparent; border: 1px dashed var(--line-bright); color: var(--ink-dim); font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; padding: 12px; cursor: pointer; width: 100%; text-transform: uppercase; margin: 0 0 16px; transition: all 0.15s; }
-  .more-toggle:active { background: var(--bg-2); color: var(--ink); }
-  .more-toggle.open { border-style: solid; color: var(--ink); border-color: var(--teal); }
-  .more-fields { display: none; }
-  .more-fields.show { display: block; }
-  .field-block { margin-bottom: 14px; }
-  .field-label { font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ink-dim); margin-bottom: 6px; font-weight: 700; }
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .submit-bar { margin-top: 24px; padding-top: 20px; border-top: 1px dashed var(--line-bright); }
-  .btn-submit { width: 100%; background: var(--orange); border: none; color: var(--bg); font-family: 'Archivo Black', sans-serif; font-size: 16px; letter-spacing: 0.1em; padding: 18px; cursor: pointer; transition: background 0.15s, transform 0.1s; text-transform: uppercase; }
-  .btn-submit:active { transform: scale(0.98); background: var(--orange-dim); }
-  .btn-submit:disabled { background: var(--line-bright); color: var(--ink-faint); cursor: not-allowed; }
-  .btn-submit .arrow { margin-left: 8px; }
-  .photo-block { margin-bottom: 22px; }
-  .btn-photo { width: 100%; background: var(--teal); border: none; color: var(--sand); font-family: 'Archivo Black', sans-serif; font-size: 14px; letter-spacing: 0.08em; padding: 16px; cursor: pointer; text-transform: uppercase; transition: background 0.15s, transform 0.1s; }
-  .btn-photo:active { transform: scale(0.98); background: var(--teal-dim); }
-  .btn-photo:disabled { background: var(--line-bright); color: var(--ink-faint); cursor: wait; }
-  .photo-status { font-size: 10px; color: var(--ink-dim); letter-spacing: 0.12em; text-transform: uppercase; margin-top: 8px; text-align: center; min-height: 14px; }
-  .photo-status.scanning { color: var(--amber); animation: blink 1s linear infinite; }
-  @keyframes blink { 50% { opacity: 0.4; } }
-  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(120px); background: var(--sand); color: var(--bg); padding: 12px 20px; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); z-index: 200; box-shadow: 0 8px 24px rgba(0,0,0,0.5); white-space: nowrap; max-width: 90vw; overflow: hidden; text-overflow: ellipsis; }
-  .toast.show { transform: translateX(-50%) translateY(0); }
-  .toast.success { background: var(--good); color: var(--bg); }
-  .toast.error { background: var(--bad); color: var(--ink); }
-  .warn-banner { background: var(--bg-3); border-left: 3px solid var(--amber); padding: 10px 14px; margin: 0 20px 16px; font-size: 11px; color: var(--amber); line-height: 1.4; }
-  .warn-banner.bad { border-left-color: var(--bad); color: var(--bad); }
-  .list-controls { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; }
-  .search-box { flex: 1; background: var(--bg-2); border: 1px solid var(--line-bright); color: var(--ink); font-family: 'JetBrains Mono', monospace; font-size: 13px; padding: 10px 12px; }
-  .search-box:focus { outline: none; border-color: var(--orange); }
-  .filter-row { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
-  .filter-pill { background: var(--bg-2); border: 1px solid var(--line); color: var(--ink-dim); font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.1em; padding: 6px 10px; cursor: pointer; text-transform: uppercase; transition: all 0.15s; }
-  .filter-pill.active { background: var(--teal); color: var(--sand); border-color: var(--teal); }
-  .item-card { background: var(--bg-2); border: 1px solid var(--line); padding: 12px 14px; margin-bottom: 6px; position: relative; transition: border-color 0.15s; border-left: 3px solid var(--teal); }
-  .item-card.synced { opacity: 0.55; border-style: dashed; border-left-style: solid; }
-  .item-card-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-  .item-name { font-size: 14px; font-weight: 700; color: var(--sand); margin-bottom: 4px; line-height: 1.3; }
-  .item-meta { font-size: 10px; color: var(--ink-dim); letter-spacing: 0.05em; text-transform: uppercase; display: flex; flex-wrap: wrap; align-items: center; }
-  .item-meta span { display: inline-flex; align-items: center; }
-  .item-meta .dot { width: 3px; height: 3px; background: var(--ink-faint); border-radius: 50%; margin: 0 6px; align-self: center; }
-  .item-actions { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
-  .icon-btn { background: transparent; border: 1px solid var(--line); color: var(--ink-dim); width: 28px; height: 28px; cursor: pointer; font-family: monospace; font-size: 12px; padding: 0; transition: all 0.15s; }
-  .icon-btn:active { background: var(--line); color: var(--ink); }
-  .icon-btn.del:active { background: var(--bad); color: var(--ink); border-color: var(--bad); }
-  .empty-state { text-align: center; padding: 40px 20px; color: var(--ink-faint); border: 1px dashed var(--line-bright); background: var(--bg-2); }
-  .empty-state .big { font-family: 'Archivo Black', sans-serif; font-size: 18px; color: var(--ink-dim); margin-bottom: 6px; letter-spacing: 0.05em; }
-  .empty-state .small { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; }
-  .sync-block { background: var(--bg-2); border: 1px solid var(--line); padding: 16px; margin-bottom: 16px; }
-  .sync-block h3 { font-family: 'Archivo Black', sans-serif; font-size: 13px; margin: 0 0 8px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--sand); }
-  .sync-block p { font-size: 12px; color: var(--ink-dim); line-height: 1.5; margin: 0 0 12px; }
-  .btn-secondary { background: var(--bg-3); border: 1px solid var(--line-bright); color: var(--ink); font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; padding: 12px 16px; cursor: pointer; text-transform: uppercase; width: 100%; transition: all 0.15s; }
-  .btn-secondary:active { background: var(--line); }
-  .btn-secondary.primary { border-color: var(--teal); color: var(--sand); }
-  .btn-secondary.primary:active { background: var(--teal); }
-  .btn-secondary.danger { color: var(--bad); border-color: var(--bad); }
-  .btn-secondary.danger:active { background: var(--bad); color: var(--ink); }
-  .export-output { width: 100%; background: var(--bg); border: 1px solid var(--line-bright); color: var(--ink); font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 12px; min-height: 200px; margin-top: 12px; line-height: 1.5; resize: vertical; }
-  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
-  .modal-bg.show { display: flex; }
-  .modal { background: var(--bg-2); border: 1px solid var(--line-bright); border-top: 3px solid var(--orange); padding: 20px; max-width: 400px; width: 100%; }
-  .modal h3 { font-family: 'Archivo Black', sans-serif; font-size: 14px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--sand); }
-  .modal p { font-size: 12px; color: var(--ink-dim); margin: 0 0 16px; line-height: 1.5; }
-  .modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .foot { padding: 24px 20px; text-align: center; font-size: 9px; color: var(--ink-faint); letter-spacing: 0.2em; text-transform: uppercase; border-top: 1px solid var(--line); margin-top: 20px; }
+/* ============================================================
+   spiiira-ui tokens. Sampled values — do not retune by eye.
+   Greys are one step apart on purpose; green is data, blue is
+   control. --danger is the one addition, used only for
+   destructive actions, which the reference had none of.
+   ============================================================ */
+:root {
+  --bg:              #1E1D20;
+  --surface:         #242328;
+  --surface-raised:  #333237;
+  --nav:             #292A2D;
+
+  --border:          #333237;
+  --border-strong:   #46454B;
+
+  --text:            #DCDBE0;
+  --text-secondary:  #B4B3B8;
+  --text-muted:      #828186;
+
+  --accent:          #B6EA77;
+  --accent-dim:      #384A1F;
+  --accent-line:     #7DAB3E;
+  --accent-tint:     #273119;
+  --accent-wash:     #35422B;
+
+  --brand:           #4C87E7;
+  --brand-soft:      #6A9CEB;
+  --brand-tint:      #1B2940;
+  --brand-text:      #A9C6F5;
+
+  --notice-bg:       #F1D45D;
+  --notice-text:     #1E1D20;
+
+  --danger:          #E0655C;
+  --danger-tint:     #3A1E1C;
+
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  --size-display:  34px;
+  --size-metric:   24px;
+  --size-h2:       20px;
+  --size-body:     14px;
+  --size-small:    13px;
+  --size-label:    12px;
+  --size-caption:  11px;
+
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-bold:   600;
+
+  --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px;
+  --s5: 20px; --s6: 24px; --s7: 32px; --s8: 40px;
+
+  --r-sm: 4px;
+  --r-md: 6px;
+
+  --shadow-popover: 0 4px 16px rgba(0,0,0,.55);
+
+  --page-pad: 20px;
+  --card-pad: 20px;
+  --card-gap: 16px;
+
+  --dur: 120ms;
+  --ease: cubic-bezier(.2,0,.2,1);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--size-body);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+  min-height: 100vh;
+}
+
+.num, .metric, .kpi-value, .mono { font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--font-mono); }
+
+.app { max-width: 680px; margin: 0 auto; padding-bottom: var(--s8); }
+
+/* ---------- Top bar ---------- */
+
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  min-height: 44px; padding: var(--s3) var(--page-pad);
+  border-bottom: 1px solid var(--border);
+  gap: var(--s3);
+}
+.topbar-title { font-weight: var(--weight-bold); font-size: var(--size-small); }
+.topbar-actions { color: var(--text-muted); font-size: var(--size-label); text-align: right; }
+
+/* ---------- Notice ---------- */
+
+.notice {
+  display: flex; align-items: flex-start; gap: var(--s2);
+  background: var(--notice-bg); color: var(--notice-text);
+  font-size: var(--size-small); padding: var(--s3) var(--page-pad);
+}
+.notice strong { font-weight: var(--weight-bold); }
+.notice button {
+  margin-left: auto; background: none; border: 0; color: var(--notice-text);
+  cursor: pointer; font-size: 18px; line-height: 1; padding: 0 var(--s1);
+}
+
+/* ---------- KPI row ---------- */
+
+.kpi-row {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s2);
+  padding: var(--s4) var(--page-pad) 0;
+}
+.panel {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: var(--s3);
+}
+.kpi-label { font-size: var(--size-label); color: var(--text-secondary); }
+.kpi-value {
+  font-size: var(--size-metric); font-weight: var(--weight-bold);
+  margin-top: var(--s1); color: var(--accent); line-height: 1.1;
+}
+.kpi-value.pending { color: var(--accent-dim); }
+.kpi-value.pending.has-items { color: var(--accent); }
+.kpi-sub { font-size: var(--size-caption); color: var(--text-muted); }
+
+/* ---------- Tabs ---------- */
+
+.tabs {
+  display: flex; gap: var(--s5);
+  padding: var(--s4) var(--page-pad) 0;
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 30; background: var(--bg);
+}
+.tab {
+  background: none; border: 0; border-bottom: 2px solid transparent;
+  color: var(--text-muted); font-family: var(--font);
+  font-size: var(--size-small); font-weight: var(--weight-medium);
+  padding: 0 0 var(--s3); cursor: pointer;
+  transition: color var(--dur) var(--ease);
+}
+.tab:hover { color: var(--text-secondary); }
+.tab[aria-selected="true"] { color: var(--brand-text); border-bottom-color: var(--brand); }
+.tab .count { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+/* ---------- Page ---------- */
+
+.page { padding: var(--s5) var(--page-pad); display: none; flex-direction: column; gap: var(--card-gap); }
+.page[data-active="true"] { display: flex; }
+
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: var(--card-pad);
+}
+.card-title { margin: 0; font-size: var(--size-h2); font-weight: var(--weight-bold); }
+.card-desc { margin: var(--s1) 0 var(--s4); font-size: var(--size-label); color: var(--text-muted); }
+.footnote {
+  margin: var(--s4) 0 0; font-size: var(--size-caption);
+  color: var(--text-muted); line-height: 1.5;
+}
+
+/* ---------- Steps ---------- */
+
+.step {
+  border-left: 2px solid var(--border);
+  padding: 0 0 0 var(--s4); margin-bottom: var(--s6);
+  transition: border-color var(--dur) var(--ease), opacity var(--dur) var(--ease);
+}
+.step[data-state="active"]   { border-left-color: var(--brand); }
+.step[data-state="complete"] { border-left-color: var(--accent-line); }
+.step[data-state="locked"]   { opacity: .4; pointer-events: none; }
+.step:last-of-type { margin-bottom: 0; }
+
+.step-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--s3); margin-bottom: var(--s3);
+}
+.step-label { font-size: var(--size-label); color: var(--text-secondary); font-weight: var(--weight-medium); }
+.step-label .opt { color: var(--text-muted); font-weight: var(--weight-normal); }
+.step-label .req { color: var(--brand-text); }
+.step-value {
+  font-size: var(--size-label); color: var(--accent); font-variant-numeric: tabular-nums;
+  max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  text-align: right;
+}
+
+/* ---------- Fields ---------- */
+
+.field-block { margin-bottom: var(--s4); }
+.field-block:last-child { margin-bottom: 0; }
+.field-label { font-size: var(--size-label); color: var(--text-secondary); margin-bottom: var(--s2); }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); }
+
+.field {
+  width: 100%;
+  background: var(--surface-raised); border: 1px solid var(--border-strong);
+  border-radius: var(--r-md); color: var(--text);
+  font-family: var(--font); font-size: 16px;
+  padding: var(--s3); -webkit-appearance: none; appearance: none;
+  transition: border-color var(--dur) var(--ease);
+}
+.field::placeholder { color: var(--text-muted); }
+.field:focus { outline: 2px solid var(--brand); outline-offset: 1px; border-color: var(--brand); }
+textarea.field { resize: vertical; min-height: 72px; font-size: var(--size-body); }
+input[type="date"].field, input[type="number"].field { font-variant-numeric: tabular-nums; }
+
+/* ---------- Chips ---------- */
+
+.chips { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s2); }
+.chips.three { grid-template-columns: repeat(3, 1fr); }
+
+.chip {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--r-md); color: var(--text-secondary);
+  font-family: var(--font); font-size: var(--size-label);
+  padding: var(--s3) var(--s2); text-align: center; cursor: pointer;
+  line-height: 1.25; min-height: 40px;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.chip:hover { border-color: var(--border-strong); }
+.chip[aria-pressed="true"] {
+  background: var(--brand-tint); border-color: var(--brand); color: var(--brand-text);
+  font-weight: var(--weight-medium);
+}
+.chip.suggested { border-color: var(--accent-line); }
+.chip.suggested[aria-pressed="true"] { border-color: var(--brand); }
+.chip.other { border-style: dashed; color: var(--text-muted); }
+
+.reveal { margin-top: var(--s2); display: none; }
+.reveal[data-open="true"] { display: block; }
+
+/* ---------- Buttons ---------- */
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);
+  width: 100%; border-radius: var(--r-md); cursor: pointer;
+  font-family: var(--font); font-size: var(--size-small); font-weight: var(--weight-medium);
+  padding: var(--s3) var(--s4); min-height: 44px;
+  border: 1px solid var(--border-strong); background: var(--surface-raised); color: var(--text);
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), opacity var(--dur) var(--ease);
+}
+.btn:hover { border-color: var(--brand); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn:disabled:hover { border-color: var(--border-strong); }
+.btn--primary { background: var(--brand); border-color: var(--brand); color: #0E1725; font-weight: var(--weight-bold); }
+.btn--primary:hover { background: var(--brand-soft); border-color: var(--brand-soft); }
+.btn--danger { color: var(--danger); border-color: var(--danger); background: none; }
+.btn--danger:hover { background: var(--danger-tint); border-color: var(--danger); }
+.btn--quiet {
+  width: auto; background: none; border: 0; color: var(--text-secondary);
+  min-height: 0; padding: var(--s1) var(--s2); font-size: var(--size-label);
+}
+.btn--quiet:hover { background: rgba(255,255,255,.06); color: var(--text); border: 0; }
+
+.btn-row { display: flex; gap: var(--s2); }
+.btn-row .btn { flex: 1; }
+
+/* ---------- Lookup ---------- */
+
+.lookup-row { display: flex; gap: var(--s2); }
+.lookup-row .field { flex: 1; font-family: var(--font-mono); }
+.lookup-row .btn { width: auto; flex: 0 0 auto; padding: var(--s3) var(--s5); }
+
+.status { font-size: var(--size-label); color: var(--text-muted); margin-top: var(--s3); min-height: 18px; }
+.status[data-tone="working"] { color: var(--brand-text); }
+.status[data-tone="good"] { color: var(--accent); }
+.status[data-tone="bad"] { color: var(--danger); }
+
+.candidates { display: flex; flex-direction: column; gap: var(--s2); margin-top: var(--s3); }
+.candidate {
+  display: flex; align-items: center; gap: var(--s3); width: 100%; text-align: left;
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-md);
+  padding: var(--s3); cursor: pointer; color: inherit; font-family: var(--font);
+  transition: border-color var(--dur) var(--ease);
+}
+.candidate:hover { border-color: var(--border-strong); }
+.candidate img { width: 40px; height: 40px; object-fit: contain; border-radius: var(--r-sm); background: var(--surface-raised); flex: 0 0 40px; }
+.candidate-body { min-width: 0; flex: 1; }
+.candidate-name {
+  font-size: var(--size-small); font-weight: var(--weight-medium);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.candidate-meta { font-size: var(--size-caption); color: var(--text-muted); }
+.candidate-price { font-size: var(--size-small); color: var(--accent); font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+
+.source-tag {
+  display: inline-block; font-size: var(--size-caption); color: var(--text-muted);
+  border: 1px solid var(--border); border-radius: var(--r-sm); padding: 0 var(--s1);
+  margin-right: var(--s1);
+}
+
+/* ---------- Item list ---------- */
+
+.filters { display: flex; gap: var(--s2); flex-wrap: wrap; margin-top: var(--s3); }
+.filter {
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-sm);
+  color: var(--text-muted); font-family: var(--font); font-size: var(--size-caption);
+  padding: var(--s1) var(--s2); cursor: pointer;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.filter:hover { border-color: var(--border-strong); }
+.filter[aria-pressed="true"] { background: var(--brand-tint); border-color: var(--brand); color: var(--brand-text); }
+
+.items { display: flex; flex-direction: column; gap: var(--s2); }
+.item {
+  display: flex; align-items: flex-start; gap: var(--s3);
+  background: var(--surface); border: 1px solid var(--border);
+  border-left: 2px solid var(--accent); border-radius: var(--r-md); padding: var(--s3);
+}
+.item[data-synced="true"] { border-left-color: var(--accent-dim); }
+.item-body { flex: 1; min-width: 0; }
+.item-name { font-size: var(--size-small); font-weight: var(--weight-medium); }
+.item-meta { font-size: var(--size-caption); color: var(--text-muted); margin-top: 2px; }
+.item-notes { font-size: var(--size-caption); color: var(--text-muted); margin-top: var(--s1); }
+.item-value { font-size: var(--size-small); color: var(--accent); font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+.item-value.projected { color: var(--accent-dim); }
+.item-del {
+  background: none; border: 1px solid var(--border); border-radius: var(--r-sm);
+  color: var(--text-muted); width: 28px; height: 28px; flex: 0 0 28px;
+  cursor: pointer; font-size: 16px; line-height: 1; padding: 0;
+  transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.item-del:hover { color: var(--danger); border-color: var(--danger); }
+
+.empty {
+  border: 1px dashed var(--border-strong); border-radius: var(--r-md);
+  padding: var(--s7) var(--s4); text-align: center; color: var(--text-muted);
+  font-size: var(--size-small);
+}
+
+/* ---------- Sync ---------- */
+
+.output {
+  width: 100%; background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--r-md); color: var(--text-secondary);
+  font-family: var(--font-mono); font-size: var(--size-caption);
+  padding: var(--s3); min-height: 160px; margin-top: var(--s3);
+  line-height: 1.5; resize: vertical;
+}
+
+/* ---------- Toast + modal ---------- */
+
+.toast {
+  position: fixed; left: 50%; bottom: var(--s6);
+  transform: translateX(-50%) translateY(140px);
+  background: var(--surface); border: 1px solid var(--border);
+  border-left: 3px solid var(--accent); border-radius: var(--r-md);
+  box-shadow: var(--shadow-popover); color: var(--text);
+  padding: var(--s3) var(--s4); font-size: var(--size-small);
+  max-width: calc(100vw - 40px); z-index: 60;
+  transition: transform var(--dur) var(--ease);
+}
+.toast[data-open="true"] { transform: translateX(-50%) translateY(0); }
+.toast[data-tone="bad"] { border-left-color: var(--danger); }
+
+.scrim {
+  position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 70;
+  display: none; align-items: center; justify-content: center; padding: var(--s5);
+}
+.scrim[data-open="true"] { display: flex; }
+.modal {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: var(--s5); max-width: 400px; width: 100%;
+}
+.modal h3 { margin: 0 0 var(--s2); font-size: var(--size-small); font-weight: var(--weight-bold); }
+.modal p { margin: 0 0 var(--s5); font-size: var(--size-label); color: var(--text-secondary); }
+
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 0ms !important; animation-duration: 0ms !important; }
+}
+@media (max-width: 420px) {
+  :root { --page-pad: 14px; --card-pad: 14px; }
+  .chips.three { grid-template-columns: repeat(2, 1fr); }
+}
 </style>
 </head>
 <body>
+
 <div class="app">
-  <header class="hdr">
-    <div class="hdr-top">
-      <div>
-        <h1 class="hdr-title">HOME INVENTORY</h1>
-        <div class="hdr-sub">// GROTON RD — FIELD ENTRY</div>
-      </div>
-      <div class="hdr-stamp">FORM REV. 03<br><strong id="dateStamp">—</strong></div>
-    </div>
-    <div class="stat-row">
-      <div class="stat"><div class="stat-num" id="statTotal">0</div><div class="stat-lbl">Logged</div></div>
-      <div class="stat"><div class="stat-num warn" id="statPending">0</div><div class="stat-lbl">Unsynced</div></div>
-      <div class="stat"><div class="stat-num accent" id="statSession">0</div><div class="stat-lbl">Session</div></div>
-    </div>
+
+  <header class="topbar">
+    <div class="topbar-title">Home inventory</div>
+    <div class="topbar-actions">Groton Rd · <span class="mono" id="dateStamp">—</span></div>
   </header>
 
-  <nav class="tabs">
-    <button class="tab active" data-panel="entry">Entry</button>
-    <button class="tab" data-panel="list">List <span class="badge" id="listBadge" style="display:none">0</span></button>
-    <button class="tab" data-panel="sync">Sync</button>
+  <div id="noticeSlot"></div>
+
+  <div class="kpi-row">
+    <div class="panel">
+      <div class="kpi-label">Logged</div>
+      <div class="kpi-value" id="kpiTotal">0</div>
+      <div class="kpi-sub" id="kpiTotalSub">on this device</div>
+    </div>
+    <div class="panel">
+      <div class="kpi-label">Unsynced</div>
+      <div class="kpi-value pending" id="kpiPending">0</div>
+      <div class="kpi-sub">not yet in Notion</div>
+    </div>
+    <div class="panel">
+      <div class="kpi-label">This session</div>
+      <div class="kpi-value" id="kpiSession">0</div>
+      <div class="kpi-sub">new entries</div>
+    </div>
+  </div>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" data-page="add" aria-selected="true">Add</button>
+    <button class="tab" role="tab" data-page="items" aria-selected="false">Items <span class="count" id="tabCount"></span></button>
+    <button class="tab" role="tab" data-page="sync" aria-selected="false">Sync</button>
   </nav>
 
-  <div id="warnContainer"></div>
+  <!-- ============================ ADD ============================ -->
+  <div class="page" id="page-add" data-active="true">
 
-  <div class="panel active" id="panel-entry">
-
-    <div class="photo-block">
-      <button class="btn-photo" id="btnPhoto">&#128247; Identify from Photo</button>
-      <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none">
-      <div class="photo-status" id="photoStatus"></div>
-    </div>
-
-    <div class="step active" id="step1">
-      <div class="step-num">1</div>
-      <div class="step-label">
-        <span>Location <span class="opt">/ optional</span></span>
-        <span class="step-value" id="step1Value"></span>
+    <section class="card">
+      <h2 class="card-title">Find the product</h2>
+      <p class="card-desc">Type a UPC or EAN barcode number, or just the product name and model. Fills in the fields below so you only correct what's wrong.</p>
+      <div class="lookup-row">
+        <input type="text" class="field" id="lookupInput" placeholder="Barcode or product name"
+               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
+        <button class="btn btn--primary" id="lookupBtn" type="button">Look up</button>
       </div>
-      <div class="chip-grid three-col" id="locationChips"></div>
-      <div class="custom-input-wrap" id="customLocationWrap">
-        <input type="text" class="field-input" id="fCustomLocation" placeholder="Type location" autocomplete="off" autocapitalize="words" style="margin-top:8px;font-size:14px;padding:10px 12px;">
-      </div>
-    </div>
+      <div class="status" id="lookupStatus"></div>
+      <div class="candidates" id="lookupCandidates"></div>
+      <p class="footnote" id="lookupFootnote">Checks UPCitemdb, then eBay's live listings, then falls back to Claude. Values are replacement cost, not what you paid.</p>
+    </section>
 
-    <div class="step" id="step2">
-      <div class="step-num">2</div>
-      <div class="step-label">
-        <span>Asset Type <span class="req">*</span></span>
-        <span class="step-value" id="step2Value"></span>
-      </div>
-      <div class="chip-grid" id="assetTypeChips"></div>
-    </div>
+    <section class="card">
+      <h2 class="card-title">Log an item</h2>
+      <p class="card-desc">Location stays put between entries, so you can walk a room and log everything in it.</p>
 
-    <div class="step locked" id="step3">
-      <div class="step-num">3</div>
-      <div class="step-label">
-        <span>Type <span class="req">*</span></span>
-        <span class="step-value" id="step3Value"></span>
-      </div>
-      <div class="chip-grid" id="typeChips"></div>
-    </div>
-
-    <div class="step locked" id="step4">
-      <div class="step-num">4</div>
-      <div class="step-label"><span>Details</span></div>
-
-      <div class="field-block">
-        <div class="field-label">Item Name <span style="color:var(--orange)">*</span></div>
-        <input type="text" class="field-input" id="fItem" placeholder="e.g. 20V Cordless Drill" autocomplete="off" autocapitalize="words">
-      </div>
-
-      <div class="field-block">
-        <div class="field-label">Brand</div>
-        <div class="chip-grid three-col" id="brandChips"></div>
-        <div class="custom-input-wrap" id="customBrandWrap">
-          <input type="text" class="field-input" id="fCustomBrand" placeholder="Type brand name" autocomplete="off" autocapitalize="words" style="margin-top:8px;font-size:14px;padding:10px 12px;">
+      <div class="step" id="step1" data-state="active">
+        <div class="step-head">
+          <div class="step-label">Location <span class="opt">optional</span></div>
+          <div class="step-value" id="step1Value"></div>
+        </div>
+        <div class="chips three" id="locationChips"></div>
+        <div class="reveal" id="locationReveal">
+          <input type="text" class="field" id="fCustomLocation" placeholder="Where is it?" autocomplete="off" autocapitalize="words">
         </div>
       </div>
 
-      <button class="more-toggle" id="moreToggle">+ More fields (Model, Serial, Condition, Acquired, Value, Notes)</button>
+      <div class="step" id="step2" data-state="active">
+        <div class="step-head">
+          <div class="step-label">Asset type <span class="req">required</span></div>
+          <div class="step-value" id="step2Value"></div>
+        </div>
+        <div class="chips" id="assetTypeChips"></div>
+      </div>
 
-      <div class="more-fields" id="moreFields">
+      <div class="step" id="step3" data-state="locked">
+        <div class="step-head">
+          <div class="step-label">Type <span class="req">required</span></div>
+          <div class="step-value" id="step3Value"></div>
+        </div>
+        <div class="chips" id="typeChips"></div>
+      </div>
+
+      <div class="step" id="step4" data-state="locked">
+        <div class="step-head">
+          <div class="step-label">Details</div>
+        </div>
+
         <div class="field-block">
-          <div class="two-col">
+          <div class="field-label">Item name <span class="req">required</span></div>
+          <input type="text" class="field" id="fItem" placeholder="e.g. 20V cordless drill" autocomplete="off" autocapitalize="words">
+        </div>
+
+        <div class="field-block">
+          <div class="field-label">Brand</div>
+          <div class="chips three" id="brandChips"></div>
+          <div class="reveal" id="brandReveal">
+            <input type="text" class="field" id="fCustomBrand" placeholder="Brand name" autocomplete="off" autocapitalize="words">
+          </div>
+        </div>
+
+        <div class="field-block">
+          <button class="btn btn--quiet" id="moreToggle" type="button">+ Model, serial, UPC, condition, date, value, notes</button>
+        </div>
+
+        <div id="moreFields" hidden>
+          <div class="field-block two-col">
             <div>
               <div class="field-label">Model</div>
-              <input type="text" class="field-input" id="fModel" placeholder="Model #" autocomplete="off" style="font-size:14px;padding:10px 12px;">
+              <input type="text" class="field" id="fModel" placeholder="Model #" autocomplete="off">
             </div>
             <div>
               <div class="field-label">Serial</div>
-              <input type="text" class="field-input" id="fSerial" placeholder="Serial #" autocomplete="off" style="font-size:14px;padding:10px 12px;">
+              <input type="text" class="field" id="fSerial" placeholder="Serial #" autocomplete="off">
             </div>
           </div>
-        </div>
-        <div class="field-block">
-          <div class="field-label">Condition</div>
-          <div class="chip-grid three-col" id="conditionChips"></div>
-        </div>
-        <div class="field-block">
-          <div class="two-col">
+
+          <div class="field-block">
+            <div class="field-label">UPC</div>
+            <input type="text" class="field mono" id="fUpc" placeholder="Barcode number" autocomplete="off" inputmode="numeric">
+          </div>
+
+          <div class="field-block">
+            <div class="field-label">Condition</div>
+            <div class="chips three" id="conditionChips"></div>
+          </div>
+
+          <div class="field-block two-col">
             <div>
               <div class="field-label">Acquired</div>
-              <input type="date" class="field-input" id="fAcquired" autocomplete="off" style="font-size:14px;padding:10px 12px;">
+              <input type="date" class="field" id="fAcquired" autocomplete="off">
             </div>
             <div>
-              <div class="field-label">Value (USD)</div>
-              <input type="number" inputmode="decimal" class="field-input" id="fValue" placeholder="$" autocomplete="off" min="0" step="1" style="font-size:14px;padding:10px 12px;">
+              <div class="field-label">Replacement value (USD)</div>
+              <input type="number" class="field" id="fValue" placeholder="0" inputmode="decimal" min="0" step="1" autocomplete="off">
             </div>
           </div>
-        </div>
-        <div class="field-block">
-          <div class="field-label">Notes</div>
-          <textarea class="field-textarea" id="fNotes" placeholder="Sub-location, quirks, borrowed from..." autocomplete="off"></textarea>
+          <div class="kpi-sub" id="valueBasis" style="margin:-8px 0 16px"></div>
+
+          <div class="field-block">
+            <div class="field-label">Notes</div>
+            <textarea class="field" id="fNotes" placeholder="Sub-location, quirks, borrowed from…" autocomplete="off"></textarea>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="submit-bar">
-      <button class="btn-submit" id="btnSubmit">Log &amp; Continue <span class="arrow">→</span></button>
-    </div>
+      <div style="margin-top:24px">
+        <button class="btn btn--primary" id="submitBtn" type="button">Log item</button>
+      </div>
+      <p class="footnote">Saved to this device only until you sync. Nothing leaves the phone before you press sync.</p>
+    </section>
+
   </div>
 
-  <div class="panel" id="panel-list">
-    <div class="list-controls"><input type="text" class="search-box" id="searchBox" placeholder="Search logged items..." autocomplete="off"></div>
-    <div class="filter-row" id="filterRow"></div>
-    <div id="itemList"></div>
+  <!-- ============================ ITEMS ============================ -->
+  <div class="page" id="page-items">
+    <section class="card">
+      <h2 class="card-title">Logged items</h2>
+      <p class="card-desc" id="itemsDesc">Everything captured on this device, newest first.</p>
+      <input type="text" class="field" id="searchBox" placeholder="Search name, brand, model, room, notes" autocomplete="off">
+      <div class="filters" id="filterRow"></div>
+    </section>
+    <div class="items" id="itemList"></div>
   </div>
 
-  <div class="panel" id="panel-sync">
-    <div class="sync-block">
-      <h3>Sync to Notion</h3>
-      <p>Push all unsynced items straight into the <strong>Home Inventory</strong> database in Notion (under Groton). One tap — no copy-paste.</p>
-      <button class="btn-secondary primary" id="btnSyncNotion">Sync to Notion</button>
-      <div class="photo-status" id="syncStatus" style="text-align:left;"></div>
-    </div>
-    <div class="sync-block">
-      <h3>Manual Export (Fallback)</h3>
-      <p>If direct sync is down: copy the export below and paste it into a Claude chat. Claude will write each item into the <strong>Home Inventory</strong> database in Notion.</p>
-      <button class="btn-secondary primary" id="btnGenerate">Generate Export</button>
-      <textarea class="export-output" id="exportOutput" readonly placeholder="Click 'Generate Export' to create the sync payload..."></textarea>
-      <button class="btn-secondary" id="btnCopy" style="margin-top:8px;">Copy to Clipboard</button>
-    </div>
-    <div class="sync-block">
-      <h3>Mark as Synced</h3>
-      <p>After Claude confirms the items are in Notion, mark them as synced. Synced items stay in the list (greyed out) but won't be re-exported.</p>
-      <button class="btn-secondary" id="btnMarkSynced">Mark Unsynced as Synced</button>
-    </div>
-    <div class="sync-block">
-      <h3>Backup Plain Text</h3>
-      <p>Generate a human-readable backup. Email it to yourself or save to Notes app as an extra safety layer.</p>
-      <button class="btn-secondary" id="btnBackup">Generate Backup Text</button>
-    </div>
-    <div class="sync-block">
-      <h3 style="color:var(--bad)">Danger Zone</h3>
-      <p>Clear all synced items. Unsynced items will not be touched.</p>
-      <button class="btn-secondary danger" id="btnClearSynced">Clear Synced Items</button>
-      <p style="margin-top:16px">Wipe everything. Cannot be undone.</p>
-      <button class="btn-secondary danger" id="btnWipe">Wipe All Data</button>
-    </div>
+  <!-- ============================ SYNC ============================ -->
+  <div class="page" id="page-sync">
+
+    <section class="card">
+      <h2 class="card-title">Sync to Notion</h2>
+      <p class="card-desc">Writes unsynced items into the Home Inventory database under Groton. Up to 25 per tap.</p>
+      <button class="btn btn--primary" id="syncBtn" type="button">Sync to Notion</button>
+      <div class="status" id="syncStatus"></div>
+      <p class="footnote">Items are marked synced only for the rows Notion confirmed. A failure leaves the item unsynced so the next tap retries it.</p>
+    </section>
+
+    <section class="card">
+      <h2 class="card-title">Manual export</h2>
+      <p class="card-desc">If direct sync is down: copy this and paste it into a Claude chat, which will write the rows for you.</p>
+      <div class="btn-row">
+        <button class="btn" id="exportBtn" type="button">Generate export</button>
+        <button class="btn" id="copyBtn" type="button">Copy</button>
+      </div>
+      <textarea class="output" id="output" readonly placeholder="Nothing generated yet."></textarea>
+      <div style="margin-top:12px" class="btn-row">
+        <button class="btn" id="backupBtn" type="button">Plain-text backup</button>
+        <button class="btn" id="markSyncedBtn" type="button">Mark all synced</button>
+      </div>
+      <p class="footnote">Mark all synced only after you've confirmed the rows landed in Notion — it can't be undone from here.</p>
+    </section>
+
+    <section class="card">
+      <h2 class="card-title">Clear data</h2>
+      <p class="card-desc">Removes items from this device. Anything already in Notion stays there.</p>
+      <div class="btn-row">
+        <button class="btn btn--danger" id="clearSyncedBtn" type="button">Clear synced</button>
+        <button class="btn btn--danger" id="wipeBtn" type="button">Wipe everything</button>
+      </div>
+    </section>
+
   </div>
 
-  <div class="foot">END OF FORM // SAVE OFTEN</div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<div class="modal-bg" id="modalBg">
-  <div class="modal">
+<div class="scrim" id="scrim">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <h3 id="modalTitle">Confirm</h3>
     <p id="modalText">Are you sure?</p>
-    <div class="modal-actions">
-      <button class="btn-secondary" id="modalCancel">Cancel</button>
-      <button class="btn-secondary danger" id="modalConfirm">Confirm</button>
+    <div class="btn-row">
+      <button class="btn" id="modalCancel" type="button">Cancel</button>
+      <button class="btn btn--danger" id="modalConfirm" type="button">Confirm</button>
     </div>
   </div>
 </div>
 
 <script>
-  const STORAGE_KEY = 'home_inventory_v3';
-  // Paste your deployed Cloudflare Worker URL here (see worker.js for deploy steps).
-  // Powers both "Identify from Photo" and one-tap "Sync to Notion".
-  const WORKER_URL = 'https://groton-vision.jonas-spira.workers.dev';
-  const LOCATIONS = ['Garage', 'Basement', 'Kitchen', 'Living Room', 'Dining Room', 'Primary Bedroom', 'J Office', 'Outdoor Shed', 'Mudroom'];
-  const ASSET_TYPES = ['Appliance', 'Tool', 'Home Tech', 'Fixture & System', 'Furnishing', 'Vehicle & Outdoor', 'Hobby & Maker', 'Other'];
-  const TYPE_MAP = {
+(function () {
+  'use strict';
+
+  /* =========================================================
+     Config
+     ========================================================= */
+
+  var STORAGE_KEY = 'home_inventory_v3';   // shared with v2 — existing items carry over
+  var WORKER_URL  = 'https://groton-vision.jonas-spira.workers.dev';
+
+  var LOCATIONS = ['Garage', 'Basement', 'Kitchen', 'Living Room', 'Dining Room',
+                   'Primary Bedroom', 'J Office', 'Outdoor Shed', 'Mudroom'];
+
+  var ASSET_TYPES = ['Appliance', 'Tool', 'Home Tech', 'Fixture & System',
+                     'Furnishing', 'Vehicle & Outdoor', 'Hobby & Maker', 'Other'];
+
+  // Must stay identical to TYPE_MAP in worker.js and to the select options in Notion.
+  var TYPE_MAP = {
     'Appliance': ['Refrigeration', 'Cooking', 'Dishwasher', 'Laundry', 'Small Appliance', 'Vacuum/Floor Care', 'Other'],
     'Tool': ['Power Tools', 'Hand Tools', 'Yard & Garden', 'Painting', 'Cleaning Supplies', 'Plumbing Tools', 'Electrical Tools', 'Fasteners & Hardware', 'Safety & PPE', 'Measuring & Layout', 'Auto Tools', 'Storage & Organization', 'Consumables', 'Other'],
     'Home Tech': ['Networking', 'Smart Home', 'Audio/Video', 'Computer/Tablet', 'Apple Device', 'Camera/Security', 'Wearable', 'Gaming', 'Other'],
@@ -344,7 +635,8 @@
     'Hobby & Maker': ['Crafting/Maker', '3D Printing', 'Office Equipment', 'Hobby Electronics', 'Other'],
     'Other': ['Other']
   };
-  const LOCATION_ASSET_PRIORITY = {
+
+  var LOCATION_PRIORITY = {
     'Garage': ['Tool', 'Vehicle & Outdoor', 'Home Tech', 'Appliance', 'Hobby & Maker', 'Fixture & System', 'Furnishing', 'Other'],
     'Basement': ['Fixture & System', 'Tool', 'Home Tech', 'Appliance', 'Hobby & Maker', 'Furnishing', 'Vehicle & Outdoor', 'Other'],
     'Kitchen': ['Appliance', 'Furnishing', 'Fixture & System', 'Home Tech', 'Tool', 'Hobby & Maker', 'Vehicle & Outdoor', 'Other'],
@@ -355,737 +647,731 @@
     'Outdoor Shed': ['Vehicle & Outdoor', 'Tool', 'Fixture & System', 'Appliance', 'Home Tech', 'Hobby & Maker', 'Furnishing', 'Other'],
     'Mudroom': ['Furnishing', 'Tool', 'Appliance', 'Home Tech', 'Fixture & System', 'Hobby & Maker', 'Vehicle & Outdoor', 'Other']
   };
-  const BRAND_MAP = {
+
+  var BRAND_MAP = {
     'Appliance': ['GE', 'Whirlpool', 'KitchenAid', 'Bosch', 'Frigidaire', 'Maytag', 'Samsung', 'LG', 'Dyson', 'Shark', 'Vitamix', 'Breville', 'Cuisinart', 'Ninja'],
     'Tool': ['DeWalt', 'Ryobi', 'Craftsman', 'Stanley', 'Black & Decker', 'Husky', 'Kobalt', 'Ridgid', 'Bosch', 'Skil'],
-    'Home Tech': ['Apple', 'Sonos', 'Eero', 'Nest', 'Ring', 'Philips Hue', 'Logitech', 'Roku', 'Bose', 'Anker'],
+    'Home Tech': ['Apple', 'Sonos', 'Eero', 'Nest', 'Ring', 'Philips Hue', 'Logitech', 'Roku', 'Bose', 'Anker', 'TP-Link'],
     'Fixture & System': ['Honeywell', 'Ecobee', 'Moen', 'Kohler', 'Delta', 'Trane', 'Carrier', 'Rheem', 'A.O. Smith', 'Bradford White'],
     'Furnishing': [],
     'Vehicle & Outdoor': ['Honda', 'Toyota', 'Ford', 'Subaru', 'Weber', 'Traeger', 'Big Green Egg', 'Trek', 'Specialized'],
     'Hobby & Maker': ['Cricut', 'Bambu', 'Brother', 'Canon', 'Raspberry', 'Tecre'],
     'Other': []
   };
-  const CONDITIONS = ['Excellent', 'Good', 'Fair', 'Needs Repair', 'Broken'];
 
-  let state = { items: [], sessionCount: 0 };
-  let currentForm = { location: null, customLocation: '', assetType: null, type: null, brand: null, customBrand: '', condition: null };
-  let activeFilter = 'all';
+  var CONDITIONS = ['Excellent', 'Good', 'Fair', 'Needs Repair', 'Broken'];
 
-  function loadState() {
+  var CUSTOM = ' custom';   // sentinel that can never collide with a real value
+
+  /* =========================================================
+     State
+     ========================================================= */
+
+  var state = {
+    items: [],
+    sessionCount: 0,
+    page: 'add',
+    filter: 'all',
+    search: '',
+    noticeDismissed: false,
+    form: {
+      location: null, customLocation: '',
+      assetType: null, type: null,
+      brand: null, customBrand: '',
+      condition: null
+    },
+    lookup: { status: '', tone: '', candidates: [], basis: '' }
+  };
+
+  function $(id) { return document.getElementById(id); }
+
+  function load() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) state.items = (JSON.parse(raw).items) || [];
-    } catch(e) { console.error(e); showToast('Storage load failed', 'error'); }
-  }
-  function saveState() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ items: state.items })); }
-    catch(e) { console.error(e); showToast('SAVE FAILED — copy export ASAP', 'error'); }
-  }
-
-  function init() {
-    loadState();
-    renderLocationChips();
-    renderAssetTypeChips();
-    renderConditionChips();
-    setupTabs();
-    setupForm();
-    setupPhotoID();
-    setupSync();
-    updateStats();
-    updateDateStamp();
-    renderList();
-    checkWarnings();
-    updateStepStates();
-  }
-
-  function updateDateStamp() {
-    document.getElementById('dateStamp').textContent = new Date().toISOString().slice(0,10).replace(/-/g, '.');
-  }
-
-  function updateStepStates() {
-    const s1 = document.getElementById('step1');
-    s1.classList.remove('locked');
-    if (currentForm.location) {
-      s1.classList.add('complete'); s1.classList.remove('active');
-      const locName = currentForm.location === '__custom__' ? (currentForm.customLocation || 'Custom') : currentForm.location;
-      document.getElementById('step1Value').textContent = locName;
-    } else {
-      s1.classList.remove('complete'); s1.classList.add('active');
-      document.getElementById('step1Value').textContent = '';
-    }
-
-    const s2 = document.getElementById('step2');
-    s2.classList.remove('locked');
-    if (currentForm.assetType) {
-      s2.classList.add('complete'); s2.classList.remove('active');
-      document.getElementById('step2Value').textContent = currentForm.assetType;
-    } else {
-      s2.classList.remove('complete'); s2.classList.add('active');
-      document.getElementById('step2Value').textContent = '';
-    }
-
-    const s3 = document.getElementById('step3');
-    if (!currentForm.assetType) {
-      s3.classList.add('locked'); s3.classList.remove('active', 'complete');
-      document.getElementById('step3Value').textContent = '';
-    } else if (currentForm.type) {
-      s3.classList.remove('locked', 'active'); s3.classList.add('complete');
-      document.getElementById('step3Value').textContent = currentForm.type;
-    } else {
-      s3.classList.remove('locked', 'complete'); s3.classList.add('active');
-      document.getElementById('step3Value').textContent = '';
-    }
-
-    const s4 = document.getElementById('step4');
-    if (!currentForm.type) {
-      s4.classList.add('locked'); s4.classList.remove('active', 'complete');
-    } else {
-      s4.classList.remove('locked'); s4.classList.add('active');
-    }
-  }
-
-  function renderLocationChips() {
-    const grid = document.getElementById('locationChips');
-    grid.innerHTML = '';
-    LOCATIONS.forEach(loc => {
-      const chip = document.createElement('button');
-      chip.className = 'chip';
-      chip.textContent = loc;
-      if (currentForm.location === loc) chip.classList.add('selected');
-      chip.onclick = () => selectLocation(loc, chip);
-      grid.appendChild(chip);
-    });
-    const custom = document.createElement('button');
-    custom.className = 'chip custom-add';
-    custom.textContent = '+ Other';
-    if (currentForm.location === '__custom__') custom.classList.add('selected');
-    custom.onclick = () => selectLocation('__custom__', custom);
-    grid.appendChild(custom);
-  }
-
-  function selectLocation(loc, el) {
-    document.querySelectorAll('#locationChips .chip').forEach(c => c.classList.remove('selected'));
-    if (currentForm.location === loc) {
-      currentForm.location = null; currentForm.customLocation = '';
-      document.getElementById('customLocationWrap').classList.remove('show');
-      document.getElementById('fCustomLocation').value = '';
-      renderAssetTypeChips(); updateStepStates();
-      return;
-    }
-    el.classList.add('selected');
-    currentForm.location = loc;
-    if (loc === '__custom__') {
-      document.getElementById('customLocationWrap').classList.add('show');
-      setTimeout(() => document.getElementById('fCustomLocation').focus(), 100);
-    } else {
-      document.getElementById('customLocationWrap').classList.remove('show');
-      document.getElementById('fCustomLocation').value = '';
-      currentForm.customLocation = '';
-    }
-    renderAssetTypeChips();
-    updateStepStates();
-  }
-
-  document.getElementById('fCustomLocation').addEventListener('input', e => {
-    currentForm.customLocation = e.target.value;
-    if (currentForm.location === '__custom__') {
-      document.getElementById('step1Value').textContent = e.target.value || 'Custom';
-    }
-  });
-
-  function renderAssetTypeChips() {
-    const grid = document.getElementById('assetTypeChips');
-    grid.innerHTML = '';
-    let ordered = ASSET_TYPES.slice();
-    let suggested = new Set();
-    if (currentForm.location && currentForm.location !== '__custom__' && LOCATION_ASSET_PRIORITY[currentForm.location]) {
-      ordered = LOCATION_ASSET_PRIORITY[currentForm.location].slice();
-      ordered.slice(0, 3).forEach(t => suggested.add(t));
-    }
-    ordered.forEach(at => {
-      const chip = document.createElement('button');
-      chip.className = 'chip' + (suggested.has(at) ? ' suggested' : '');
-      chip.textContent = at;
-      if (currentForm.assetType === at) chip.classList.add('selected');
-      chip.onclick = () => selectAssetType(at, chip);
-      grid.appendChild(chip);
-    });
-  }
-
-  function selectAssetType(at, el) {
-    document.querySelectorAll('#assetTypeChips .chip').forEach(c => c.classList.remove('selected'));
-    if (currentForm.assetType === at) {
-      currentForm.assetType = null; currentForm.type = null; currentForm.brand = null; currentForm.customBrand = '';
-      renderTypeChips(); renderBrandChips(); updateStepStates();
-      return;
-    }
-    el.classList.add('selected');
-    currentForm.assetType = at;
-    if (currentForm.type && !TYPE_MAP[at].includes(currentForm.type)) currentForm.type = null;
-    currentForm.brand = null; currentForm.customBrand = '';
-    document.getElementById('customBrandWrap').classList.remove('show');
-    document.getElementById('fCustomBrand').value = '';
-    renderTypeChips();
-    renderBrandChips();
-    updateStepStates();
-    setTimeout(() => {
-      document.getElementById('step3').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 150);
-  }
-
-  function renderTypeChips() {
-    const grid = document.getElementById('typeChips');
-    grid.innerHTML = '';
-    if (!currentForm.assetType) return;
-    const types = TYPE_MAP[currentForm.assetType] || [];
-    types.forEach(t => {
-      const chip = document.createElement('button');
-      chip.className = 'chip';
-      chip.textContent = t;
-      if (currentForm.type === t) chip.classList.add('selected');
-      chip.onclick = () => selectType(t, chip);
-      grid.appendChild(chip);
-    });
-  }
-
-  function selectType(t, el) {
-    document.querySelectorAll('#typeChips .chip').forEach(c => c.classList.remove('selected'));
-    if (currentForm.type === t) {
-      currentForm.type = null; updateStepStates(); return;
-    }
-    el.classList.add('selected');
-    currentForm.type = t;
-    updateStepStates();
-    setTimeout(() => {
-      document.getElementById('step4').scrollIntoView({ behavior: 'smooth', block: 'start' });
-      document.getElementById('fItem').focus();
-    }, 200);
-  }
-
-  function renderBrandChips() {
-    const grid = document.getElementById('brandChips');
-    grid.innerHTML = '';
-    if (!currentForm.assetType) return;
-    const brands = BRAND_MAP[currentForm.assetType] || [];
-    brands.forEach(brand => {
-      const chip = document.createElement('button');
-      chip.className = 'chip';
-      chip.textContent = brand;
-      if (currentForm.brand === brand) chip.classList.add('selected');
-      chip.onclick = () => selectBrand(brand, chip);
-      grid.appendChild(chip);
-    });
-    const custom = document.createElement('button');
-    custom.className = 'chip custom-add';
-    custom.textContent = '+ Other';
-    if (currentForm.brand === '__custom__') custom.classList.add('selected');
-    custom.onclick = () => selectBrand('__custom__', custom);
-    grid.appendChild(custom);
-  }
-
-  function selectBrand(brand, el) {
-    document.querySelectorAll('#brandChips .chip').forEach(c => c.classList.remove('selected'));
-    if (currentForm.brand === brand) {
-      currentForm.brand = null; currentForm.customBrand = '';
-      document.getElementById('customBrandWrap').classList.remove('show');
-      document.getElementById('fCustomBrand').value = '';
-      return;
-    }
-    el.classList.add('selected');
-    currentForm.brand = brand;
-    if (brand === '__custom__') {
-      document.getElementById('customBrandWrap').classList.add('show');
-      setTimeout(() => document.getElementById('fCustomBrand').focus(), 100);
-    } else {
-      document.getElementById('customBrandWrap').classList.remove('show');
-      document.getElementById('fCustomBrand').value = '';
-      currentForm.customBrand = '';
-    }
-  }
-
-  document.getElementById('fCustomBrand').addEventListener('input', e => { currentForm.customBrand = e.target.value; });
-
-  function renderConditionChips() {
-    const grid = document.getElementById('conditionChips');
-    grid.innerHTML = '';
-    CONDITIONS.forEach(c => {
-      const chip = document.createElement('button');
-      chip.className = 'chip';
-      chip.textContent = c;
-      chip.onclick = () => selectCondition(c, chip);
-      grid.appendChild(chip);
-    });
-  }
-
-  function selectCondition(c, el) {
-    document.querySelectorAll('#conditionChips .chip').forEach(ch => ch.classList.remove('selected'));
-    if (currentForm.condition === c) { currentForm.condition = null; return; }
-    el.classList.add('selected');
-    currentForm.condition = c;
-  }
-
-  function setupTabs() {
-    document.querySelectorAll('.tab').forEach(tab => {
-      tab.onclick = () => {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-        tab.classList.add('active');
-        document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
-        if (tab.dataset.panel === 'list') { renderList(); renderFilterRow(); }
-        window.scrollTo(0, 0);
-      };
-    });
-  }
-
-  function setupForm() {
-    document.getElementById('btnSubmit').onclick = submitItem;
-    document.getElementById('moreToggle').onclick = () => {
-      const f = document.getElementById('moreFields');
-      const t = document.getElementById('moreToggle');
-      f.classList.toggle('show');
-      t.classList.toggle('open');
-      t.textContent = f.classList.contains('show') ? '− Hide extra fields' : '+ More fields (Model, Serial, Condition, Acquired, Value, Notes)';
-    };
-  }
-
-  function setupPhotoID() {
-    const btn = document.getElementById('btnPhoto');
-    const input = document.getElementById('photoInput');
-    if (!WORKER_URL) {
-      btn.disabled = true;
-      document.getElementById('photoStatus').textContent = 'Photo ID offline — worker not configured';
-      return;
-    }
-    btn.onclick = () => input.click();
-    input.onchange = () => {
-      const file = input.files && input.files[0];
-      if (file) identifyPhoto(file);
-      input.value = '';
-    };
-  }
-
-  function downscaleImage(file) {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      const url = URL.createObjectURL(file);
-      img.onload = () => {
-        URL.revokeObjectURL(url);
-        const MAX = 1200;
-        const scale = Math.min(1, MAX / Math.max(img.width, img.height));
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.round(img.width * scale);
-        canvas.height = Math.round(img.height * scale);
-        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', 0.8).split(',')[1]);
-      };
-      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not read image')); };
-      img.src = url;
-    });
-  }
-
-  async function identifyPhoto(file) {
-    const btn = document.getElementById('btnPhoto');
-    const status = document.getElementById('photoStatus');
-    btn.disabled = true;
-    status.textContent = 'Scanning photo…';
-    status.classList.add('scanning');
-    try {
-      const image = await downscaleImage(file);
-      const resp = await fetch(WORKER_URL.replace(/\/$/, '') + '/identify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image, mimeType: 'image/jpeg' })
-      });
-      const data = await resp.json();
-      if (!resp.ok || data.error) throw new Error(data.error || 'Identify failed');
-      applyIdentified(data);
-      status.textContent = 'Identified — review & log below';
-      showToast('IDENTIFIED → ' + (data.name || 'ITEM').toUpperCase().slice(0, 26), 'success');
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) state.items = JSON.parse(raw).items || [];
     } catch (e) {
       console.error(e);
-      status.textContent = '';
-      showToast('Photo ID failed — enter manually', 'error');
-    } finally {
-      btn.disabled = false;
-      status.classList.remove('scanning');
+      toast('Could not read saved items', 'bad');
     }
   }
 
-  function applyIdentified(d) {
-    if (d.assetType && ASSET_TYPES.includes(d.assetType)) {
-      currentForm.assetType = d.assetType;
-      currentForm.type = (d.type && TYPE_MAP[d.assetType].includes(d.type)) ? d.type : null;
+  function save() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ items: state.items }));
+    } catch (e) {
+      console.error(e);
+      toast('Save failed — export your items now', 'bad');
     }
-    if (d.brand && currentForm.assetType) {
-      const known = (BRAND_MAP[currentForm.assetType] || []).includes(d.brand);
-      currentForm.brand = known ? d.brand : '__custom__';
-      currentForm.customBrand = known ? '' : d.brand;
-    }
-    renderAssetTypeChips();
-    renderTypeChips();
-    renderBrandChips();
-    if (currentForm.brand === '__custom__') {
-      document.getElementById('customBrandWrap').classList.add('show');
-      document.getElementById('fCustomBrand').value = currentForm.customBrand;
-    }
-    if (d.name) document.getElementById('fItem').value = d.name;
-    if (d.model) document.getElementById('fModel').value = d.model;
-    if (d.estimatedValue !== null && d.estimatedValue !== undefined) document.getElementById('fValue').value = d.estimatedValue;
-    if (d.notes) document.getElementById('fNotes').value = d.notes;
-    if (d.model || d.estimatedValue || d.notes) {
-      document.getElementById('moreFields').classList.add('show');
-      const t = document.getElementById('moreToggle');
-      t.classList.add('open');
-      t.textContent = '− Hide extra fields';
-    }
-    updateStepStates();
-    setTimeout(() => document.getElementById('step4').scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
   }
+
+  /* =========================================================
+     Small helpers
+     ========================================================= */
+
+  function esc(s) {
+    if (s === null || s === undefined) return '';
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function money(n) {
+    if (n === null || n === undefined || isNaN(n)) return null;
+    return '$' + Math.round(Number(n)).toLocaleString('en-US');
+  }
+
+  var toastTimer = null;
+  function toast(msg, tone) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.setAttribute('data-tone', tone || 'good');
+    t.setAttribute('data-open', 'true');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.setAttribute('data-open', 'false'); }, 2600);
+  }
+
+  var confirmAction = null;
+  function confirmModal(title, text, onConfirm) {
+    $('modalTitle').textContent = title;
+    $('modalText').textContent = text;
+    $('scrim').setAttribute('data-open', 'true');
+    confirmAction = onConfirm;
+  }
+  function closeModal() {
+    $('scrim').setAttribute('data-open', 'false');
+    confirmAction = null;
+  }
+
+  /** Build a chip grid. Returns nothing; wires its own clicks through onPick. */
+  function renderChips(container, values, selected, onPick, opts) {
+    opts = opts || {};
+    container.innerHTML = '';
+    values.forEach(function (v) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip' + (opts.suggested && opts.suggested.indexOf(v) !== -1 ? ' suggested' : '');
+      b.textContent = v;
+      b.setAttribute('aria-pressed', selected === v ? 'true' : 'false');
+      b.addEventListener('click', function () { onPick(selected === v ? null : v); });
+      container.appendChild(b);
+    });
+    if (opts.allowCustom) {
+      var c = document.createElement('button');
+      c.type = 'button';
+      c.className = 'chip other';
+      c.textContent = 'Other';
+      c.setAttribute('aria-pressed', selected === CUSTOM ? 'true' : 'false');
+      c.addEventListener('click', function () { onPick(selected === CUSTOM ? null : CUSTOM); });
+      container.appendChild(c);
+    }
+  }
+
+  /* =========================================================
+     Render — one function, called after every state change
+     ========================================================= */
+
+  function render() {
+    var total = state.items.length;
+    var pending = state.items.filter(function (i) { return !i.synced; }).length;
+    var f = state.form;
+
+    // KPIs
+    $('kpiTotal').textContent = total;
+    $('kpiPending').textContent = pending;
+    $('kpiPending').className = 'kpi-value pending' + (pending > 0 ? ' has-items' : '');
+    $('kpiSession').textContent = state.sessionCount;
+    var valued = state.items.filter(function (i) { return i.value > 0; });
+    var sum = valued.reduce(function (a, i) { return a + Number(i.value); }, 0);
+    $('kpiTotalSub').textContent = valued.length
+      ? money(sum) + ' · ' + valued.length + ' valued'
+      : 'on this device';
+    $('tabCount').textContent = total ? '(' + total + ')' : '';
+
+    // Notice — only when there's something you must know
+    var slot = $('noticeSlot');
+    if (pending >= 25 && !state.noticeDismissed) {
+      slot.innerHTML = '<div class="notice"><span><strong>' + pending +
+        ' items are not in Notion yet.</strong> They live only in this browser until you sync.</span>' +
+        '<button type="button" id="noticeClose" aria-label="Dismiss">&times;</button></div>';
+      $('noticeClose').addEventListener('click', function () {
+        state.noticeDismissed = true; render();
+      });
+    } else {
+      slot.innerHTML = '';
+    }
+
+    // Tabs
+    ['add', 'items', 'sync'].forEach(function (p) {
+      $('page-' + p).setAttribute('data-active', state.page === p ? 'true' : 'false');
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) {
+      t.setAttribute('aria-selected', t.dataset.page === state.page ? 'true' : 'false');
+    });
+
+    // Step 1 — location
+    var locName = f.location === CUSTOM ? (f.customLocation || 'Other') : f.location;
+    $('step1').setAttribute('data-state', f.location ? 'complete' : 'active');
+    $('step1Value').textContent = locName || '';
+    renderChips($('locationChips'), LOCATIONS, f.location, function (v) {
+      f.location = v;
+      if (v !== CUSTOM) f.customLocation = '';
+      render();
+      if (v === CUSTOM) $('fCustomLocation').focus();
+    }, { allowCustom: true });
+    $('locationReveal').setAttribute('data-open', f.location === CUSTOM ? 'true' : 'false');
+
+    // Step 2 — asset type, ordered by what's usually in that room
+    var order = ASSET_TYPES.slice();
+    var suggested = [];
+    if (f.location && f.location !== CUSTOM && LOCATION_PRIORITY[f.location]) {
+      order = LOCATION_PRIORITY[f.location].slice();
+      suggested = order.slice(0, 3);
+    }
+    $('step2').setAttribute('data-state', f.assetType ? 'complete' : 'active');
+    $('step2Value').textContent = f.assetType || '';
+    renderChips($('assetTypeChips'), order, f.assetType, function (v) {
+      f.assetType = v;
+      if (!v || !TYPE_MAP[v] || TYPE_MAP[v].indexOf(f.type) === -1) f.type = null;
+      if (!v || (BRAND_MAP[v] || []).indexOf(f.brand) === -1) {
+        if (f.brand !== CUSTOM) f.brand = null;
+      }
+      render();
+      if (v) $('step3').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, { suggested: suggested });
+
+    // Step 3 — type
+    $('step3').setAttribute('data-state',
+      !f.assetType ? 'locked' : (f.type ? 'complete' : 'active'));
+    $('step3Value').textContent = f.type || '';
+    renderChips($('typeChips'), f.assetType ? TYPE_MAP[f.assetType] : [], f.type, function (v) {
+      f.type = v;
+      render();
+      if (v) { $('step4').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); $('fItem').focus(); }
+    });
+
+    // Step 4 — details
+    $('step4').setAttribute('data-state', f.type ? 'active' : 'locked');
+    renderChips($('brandChips'), f.assetType ? (BRAND_MAP[f.assetType] || []) : [], f.brand, function (v) {
+      f.brand = v;
+      if (v !== CUSTOM) f.customBrand = '';
+      render();
+      if (v === CUSTOM) $('fCustomBrand').focus();
+    }, { allowCustom: true });
+    $('brandReveal').setAttribute('data-open', f.brand === CUSTOM ? 'true' : 'false');
+    renderChips($('conditionChips'), CONDITIONS, f.condition, function (v) {
+      f.condition = v; render();
+    });
+
+    // Lookup panel
+    var st = $('lookupStatus');
+    st.textContent = state.lookup.status;
+    st.setAttribute('data-tone', state.lookup.tone);
+    renderCandidates();
+    $('valueBasis').textContent = state.lookup.basis;
+
+    renderItems();
+  }
+
+  function renderCandidates() {
+    var wrap = $('lookupCandidates');
+    var list = state.lookup.candidates;
+    if (!list.length) { wrap.innerHTML = ''; return; }
+    wrap.innerHTML = list.map(function (c, idx) {
+      var price = money(c.price);
+      return '<button type="button" class="candidate" data-idx="' + idx + '">' +
+        (c.imageUrl ? '<img src="' + esc(c.imageUrl) + '" alt="" loading="lazy">' : '') +
+        '<span class="candidate-body">' +
+          '<span class="candidate-name">' + esc(c.name || 'Untitled') + '</span>' +
+          '<span class="candidate-meta"><span class="source-tag">' + esc(c.source) + '</span>' +
+            esc(c.brand || 'Brand unknown') + '</span>' +
+        '</span>' +
+        (price ? '<span class="candidate-price">' + price + '</span>' : '') +
+      '</button>';
+    }).join('');
+    Array.prototype.forEach.call(wrap.querySelectorAll('.candidate'), function (btn) {
+      btn.addEventListener('click', function () {
+        var c = state.lookup.candidates[Number(btn.dataset.idx)];
+        if (c.name) $('fItem').value = c.name;
+        if (c.brand) applyBrand(c.brand);
+        if (c.price) $('fValue').value = Math.round(c.price);
+        state.lookup.basis = c.price ? 'From the ' + c.source + ' listing you picked' : '';
+        state.lookup.status = 'Using “' + (c.name || 'that result') + '”';
+        state.lookup.tone = 'good';
+        openMoreFields();
+        render();
+      });
+    });
+  }
+
+  function renderItems() {
+    var wrap = $('itemList');
+    var all = state.items;
+
+    // Filters recompute the list rather than greying rows out.
+    var used = [];
+    all.forEach(function (i) {
+      if (i.assetType && used.indexOf(i.assetType) === -1) used.push(i.assetType);
+    });
+    used.sort();
+    var buttons = [{ key: 'all', label: 'All (' + all.length + ')' }];
+    used.forEach(function (a) {
+      buttons.push({
+        key: 'a:' + a,
+        label: a + ' (' + all.filter(function (i) { return i.assetType === a; }).length + ')'
+      });
+    });
+    $('filterRow').innerHTML = buttons.map(function (b) {
+      return '<button type="button" class="filter" data-key="' + esc(b.key) + '" aria-pressed="' +
+        (state.filter === b.key ? 'true' : 'false') + '">' + esc(b.label) + '</button>';
+    }).join('');
+    Array.prototype.forEach.call($('filterRow').querySelectorAll('.filter'), function (b) {
+      b.addEventListener('click', function () { state.filter = b.dataset.key; render(); });
+    });
+
+    var items = all;
+    if (state.filter.indexOf('a:') === 0) {
+      var at = state.filter.slice(2);
+      items = items.filter(function (i) { return i.assetType === at; });
+    }
+    var q = state.search.toLowerCase().trim();
+    if (q) {
+      items = items.filter(function (i) {
+        return ['item', 'brand', 'model', 'type', 'assetType', 'location', 'notes', 'serial', 'upc']
+          .some(function (k) { return String(i[k] || '').toLowerCase().indexOf(q) !== -1; });
+      });
+    }
+
+    var shown = items.filter(function (i) { return i.value > 0; });
+    var sum = shown.reduce(function (a, i) { return a + Number(i.value); }, 0);
+    $('itemsDesc').textContent = items.length === all.length
+      ? 'Everything captured on this device, newest first.'
+      : items.length + ' of ' + all.length + ' items' + (sum ? ', ' + money(sum) + ' of value' : '') + '.';
+
+    if (!items.length) {
+      wrap.innerHTML = '<div class="empty">' + (all.length === 0
+        ? 'Nothing logged yet. Open the Add tab and start with the room you’re standing in.'
+        : 'No items match that search. Clear it to see all ' + all.length + '.') + '</div>';
+      return;
+    }
+
+    wrap.innerHTML = items.map(function (i) {
+      var meta = [];
+      if (i.brand) meta.push(i.brand);
+      if (i.model) meta.push(i.model);
+      if (i.type) meta.push(i.type);
+      if (i.location) meta.push(i.location);
+      if (i.condition) meta.push(i.condition);
+      if (i.serial) meta.push('SN ' + i.serial);
+      if (i.upc) meta.push('UPC ' + i.upc);
+      if (!i.synced) meta.push('not synced');
+      var v = money(i.value);
+      return '<div class="item" data-synced="' + (i.synced ? 'true' : 'false') + '">' +
+        '<div class="item-body">' +
+          '<div class="item-name">' + esc(i.item) + '</div>' +
+          '<div class="item-meta">' + esc(meta.join(' · ')) + '</div>' +
+          (i.notes ? '<div class="item-notes">' + esc(i.notes) + '</div>' : '') +
+        '</div>' +
+        (v ? '<div class="item-value">' + v + '</div>' : '') +
+        '<button type="button" class="item-del" data-id="' + esc(i.id) + '" aria-label="Delete ' + esc(i.item) + '">&times;</button>' +
+      '</div>';
+    }).join('');
+
+    Array.prototype.forEach.call(wrap.querySelectorAll('.item-del'), function (b) {
+      b.addEventListener('click', function () {
+        var id = b.dataset.id;
+        var it = state.items.filter(function (i) { return i.id === id; })[0];
+        confirmModal('Delete this item?', (it ? '“' + it.item + '” ' : '') +
+          'will be removed from this device. If it already synced, the Notion row stays.', function () {
+          state.items = state.items.filter(function (i) { return i.id !== id; });
+          save(); render(); toast('Deleted');
+        });
+      });
+    });
+  }
+
+  /* =========================================================
+     Lookup
+     ========================================================= */
+
+  function openMoreFields() {
+    $('moreFields').hidden = false;
+    $('moreToggle').textContent = '− Hide extra fields';
+  }
+
+  function applyBrand(brand) {
+    var f = state.form;
+    var known = f.assetType && (BRAND_MAP[f.assetType] || []).indexOf(brand) !== -1;
+    if (known) {
+      f.brand = brand; f.customBrand = '';
+      $('fCustomBrand').value = '';
+    } else {
+      f.brand = CUSTOM; f.customBrand = brand;
+      $('fCustomBrand').value = brand;
+    }
+  }
+
+  function applyLookup(d) {
+    var f = state.form;
+
+    if (d.assetType && TYPE_MAP[d.assetType]) {
+      f.assetType = d.assetType;
+      f.type = (d.type && TYPE_MAP[d.assetType].indexOf(d.type) !== -1) ? d.type : null;
+    }
+    if (d.brand) applyBrand(d.brand);
+    if (d.name) $('fItem').value = d.name;
+    if (d.model) $('fModel').value = d.model;
+    if (d.upc) $('fUpc').value = d.upc;
+    if (d.estimatedValue) $('fValue').value = Math.round(d.estimatedValue);
+    if (d.notes) {
+      var notes = $('fNotes');
+      notes.value = notes.value ? notes.value + ' · ' + d.notes : d.notes;
+    }
+
+    state.lookup.basis = d.valueBasis || '';
+    state.lookup.candidates = (d.candidates || []).filter(function (c) { return c.name; });
+
+    if (d.model || d.upc || d.estimatedValue || d.notes) openMoreFields();
+  }
+
+  function doLookup() {
+    var query = $('lookupInput').value.trim();
+    if (!query) { $('lookupInput').focus(); return; }
+
+    var btn = $('lookupBtn');
+    btn.disabled = true;
+    state.lookup = { status: 'Searching product databases…', tone: 'working', candidates: [], basis: '' };
+    render();
+
+    fetch(WORKER_URL.replace(/\/+$/, '') + '/lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: query })
+    }).then(function (resp) {
+      return resp.json().then(function (data) { return { ok: resp.ok, data: data }; });
+    }).then(function (r) {
+      if (!r.ok || r.data.error) throw new Error(r.data.error || 'Lookup failed');
+
+      applyLookup(r.data);
+
+      var hit = (r.data.sources || []).filter(function (s) { return s.ok && s.hits > 0 && s.name !== 'claude'; });
+      var where = hit.length ? hit.map(function (s) { return s.name; }).join(' + ') : 'Claude';
+      var conf = r.data.confidence === 'low' ? ' — low confidence, check it' : '';
+      state.lookup.status = r.data.name
+        ? 'Found via ' + where + conf
+        : 'Nothing matched that. Enter it by hand.';
+      state.lookup.tone = r.data.name && r.data.confidence !== 'low' ? 'good' : 'bad';
+      render();
+      if (r.data.name) $('step4').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }).catch(function (e) {
+      console.error(e);
+      state.lookup.status = String(e.message || e) + ' — enter it by hand below.';
+      state.lookup.tone = 'bad';
+      state.lookup.candidates = [];
+      render();
+    }).then(function () {
+      btn.disabled = false;
+    });
+  }
+
+  /* =========================================================
+     Submit
+     ========================================================= */
 
   function submitItem() {
-    const item = document.getElementById('fItem').value.trim();
-    const model = document.getElementById('fModel').value.trim();
-    const serial = document.getElementById('fSerial').value.trim();
-    const acquired = document.getElementById('fAcquired').value;
-    const valueStr = document.getElementById('fValue').value.trim();
-    const value = valueStr ? parseFloat(valueStr) : null;
-    const notes = document.getElementById('fNotes').value.trim();
-    let brand = currentForm.brand;
-    if (brand === '__custom__') brand = document.getElementById('fCustomBrand').value.trim() || null;
-    let location = currentForm.location;
-    if (location === '__custom__') location = document.getElementById('fCustomLocation').value.trim() || null;
+    var f = state.form;
+    var name = $('fItem').value.trim();
 
-    if (!currentForm.assetType) {
-      showToast('Pick an Asset Type', 'error');
-      document.getElementById('step2').scrollIntoView({ behavior: 'smooth' });
+    if (!f.assetType) {
+      toast('Pick an asset type', 'bad');
+      $('step2').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       return;
     }
-    if (!currentForm.type) {
-      showToast('Pick a Type', 'error');
-      document.getElementById('step3').scrollIntoView({ behavior: 'smooth' });
+    if (!f.type) {
+      toast('Pick a type', 'bad');
+      $('step3').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       return;
     }
-    if (!item) {
-      showToast('Item name required', 'error');
-      document.getElementById('fItem').focus();
+    if (!name) {
+      toast('Item name is required', 'bad');
+      $('fItem').focus();
       return;
     }
 
-    const entry = {
-      id: 'i_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
-      item, assetType: currentForm.assetType, type: currentForm.type,
-      location: location || null, brand: brand || null,
-      model: model || null, serial: serial || null,
-      condition: currentForm.condition || null,
-      acquired: acquired || null,
+    var brand = f.brand === CUSTOM ? $('fCustomBrand').value.trim() : f.brand;
+    var location = f.location === CUSTOM ? $('fCustomLocation').value.trim() : f.location;
+    var valueStr = $('fValue').value.trim();
+    var value = valueStr ? parseFloat(valueStr) : null;
+
+    state.items.unshift({
+      id: 'i_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      item: name,
+      assetType: f.assetType,
+      type: f.type,
+      location: location || null,
+      brand: brand || null,
+      model: $('fModel').value.trim() || null,
+      serial: $('fSerial').value.trim() || null,
+      upc: $('fUpc').value.replace(/[^0-9]/g, '') || null,
+      condition: f.condition || null,
+      acquired: $('fAcquired').value || null,
       value: (value !== null && !isNaN(value)) ? value : null,
-      notes: notes || null,
-      logged_at: new Date().toISOString(), synced: false
-    };
-    state.items.unshift(entry);
+      notes: $('fNotes').value.trim() || null,
+      logged_at: new Date().toISOString(),
+      synced: false
+    });
     state.sessionCount++;
-    saveState();
-    updateStats();
-    checkWarnings();
-    showToast('LOGGED → ' + item.toUpperCase().slice(0, 28), 'success');
+    save();
     resetForm();
+    render();
+    toast('Logged ' + name);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function resetForm() {
-    document.getElementById('fItem').value = '';
-    document.getElementById('fModel').value = '';
-    document.getElementById('fSerial').value = '';
-    document.getElementById('fAcquired').value = '';
-    document.getElementById('fValue').value = '';
-    document.getElementById('fNotes').value = '';
-    document.getElementById('fCustomBrand').value = '';
-    const keepLocation = currentForm.location;
-    const keepCustomLocation = currentForm.customLocation;
-    currentForm = { location: keepLocation, customLocation: keepCustomLocation, assetType: null, type: null, brand: null, customBrand: '', condition: null };
-    document.querySelectorAll('#assetTypeChips .chip.selected, #typeChips .chip.selected, #brandChips .chip.selected, #conditionChips .chip.selected').forEach(c => c.classList.remove('selected'));
-    document.getElementById('customBrandWrap').classList.remove('show');
-    renderAssetTypeChips();
-    renderTypeChips();
-    renderBrandChips();
-    updateStepStates();
+    ['fItem', 'fModel', 'fSerial', 'fUpc', 'fAcquired', 'fValue', 'fNotes', 'fCustomBrand', 'lookupInput']
+      .forEach(function (id) { $(id).value = ''; });
+    // Location survives so you can log a whole room without re-picking it.
+    state.form = {
+      location: state.form.location,
+      customLocation: state.form.customLocation,
+      assetType: null, type: null, brand: null, customBrand: '', condition: null
+    };
+    state.lookup = { status: '', tone: '', candidates: [], basis: '' };
   }
 
-  function updateStats() {
-    const total = state.items.length;
-    const pending = state.items.filter(i => !i.synced).length;
-    document.getElementById('statTotal').textContent = total;
-    document.getElementById('statPending').textContent = pending;
-    document.getElementById('statSession').textContent = state.sessionCount;
-    const badge = document.getElementById('listBadge');
-    if (total > 0) { badge.textContent = total; badge.style.display = 'inline-block'; }
-    else { badge.style.display = 'none'; }
-  }
+  /* =========================================================
+     Sync
+     ========================================================= */
 
-  function checkWarnings() {
-    const container = document.getElementById('warnContainer');
-    container.innerHTML = '';
-    const pending = state.items.filter(i => !i.synced).length;
-    if (pending >= 25) {
-      const banner = document.createElement('div');
-      banner.className = 'warn-banner ' + (pending >= 50 ? 'bad' : '');
-      banner.innerHTML = '<strong>' + pending + ' UNSYNCED ITEMS</strong> — time to push to Notion. Open the Sync tab.';
-      container.appendChild(banner);
-    }
-  }
+  function syncToNotion() {
+    var pending = state.items.filter(function (i) { return !i.synced; });
+    if (!pending.length) { toast('Nothing to sync', 'bad'); return; }
 
-  function renderFilterRow() {
-    const row = document.getElementById('filterRow');
-    if (state.items.length === 0) { row.innerHTML = ''; return; }
-    const usedAssetTypes = [...new Set(state.items.map(i => i.assetType).filter(Boolean))].sort();
-    const buttons = [{ key: 'all', label: 'All (' + state.items.length + ')' }];
-    usedAssetTypes.forEach(at => {
-      const count = state.items.filter(i => i.assetType === at).length;
-      buttons.push({ key: 'a:' + at, label: at + ' (' + count + ')' });
-    });
-    row.innerHTML = buttons.map(b =>
-      '<button class="filter-pill ' + (activeFilter === b.key ? 'active' : '') + '" data-filter="' + escapeHtml(b.key) + '">' +
-        escapeHtml(b.label) + '</button>'
-    ).join('');
-    row.querySelectorAll('.filter-pill').forEach(btn => {
-      btn.onclick = () => { activeFilter = btn.dataset.filter; renderFilterRow(); renderList(); };
-    });
-  }
-
-  function renderList() {
-    const wrap = document.getElementById('itemList');
-    const search = document.getElementById('searchBox').value.toLowerCase().trim();
-    let items = state.items;
-    if (activeFilter !== 'all' && activeFilter.startsWith('a:')) {
-      const at = activeFilter.slice(2);
-      items = items.filter(i => i.assetType === at);
-    }
-    if (search) {
-      items = items.filter(i =>
-        (i.item || '').toLowerCase().includes(search) ||
-        (i.brand || '').toLowerCase().includes(search) ||
-        (i.type || '').toLowerCase().includes(search) ||
-        (i.assetType || '').toLowerCase().includes(search) ||
-        (i.location || '').toLowerCase().includes(search) ||
-        (i.notes || '').toLowerCase().includes(search) ||
-        (i.model || '').toLowerCase().includes(search)
-      );
-    }
-    if (items.length === 0) {
-      wrap.innerHTML = '<div class="empty-state"><div class="big">' +
-        (state.items.length === 0 ? 'NO ITEMS YET' : 'NO MATCHES') + '</div>' +
-        '<div class="small">' +
-        (state.items.length === 0 ? 'Switch to Entry tab to start logging' : 'Try a different search') +
-        '</div></div>';
-      return;
-    }
-    wrap.innerHTML = items.map(i => {
-      const meta = [];
-      if (i.type) meta.push(i.type);
-      if (i.location) meta.push(i.location);
-      if (i.brand) meta.push(i.brand);
-      if (i.model) meta.push('M: ' + i.model);
-      if (i.condition) meta.push(i.condition);
-      if (i.serial) meta.push('SN: ' + i.serial);
-      if (i.value !== null && i.value !== undefined) meta.push('$' + i.value);
-      return '<div class="item-card ' + (i.synced ? 'synced' : '') + '">' +
-        '<div class="item-card-row">' +
-          '<div style="flex:1;min-width:0">' +
-            '<div class="item-name">' + escapeHtml(i.item) + (i.synced ? ' <span style="color:var(--good);font-size:9px;letter-spacing:0.1em">✓ SYNCED</span>' : '') + '</div>' +
-            '<div class="item-meta">' + meta.map(m => '<span>' + escapeHtml(m) + '</span>').join('<span class="dot"></span>') + '</div>' +
-            (i.notes ? '<div style="font-size:11px;color:var(--ink-faint);margin-top:6px;font-style:italic">' + escapeHtml(i.notes) + '</div>' : '') +
-          '</div>' +
-          '<div class="item-actions"><button class="icon-btn del" onclick="deleteItem(\'' + i.id + '\')" title="Delete">×</button></div>' +
-        '</div>' +
-      '</div>';
-    }).join('');
-  }
-  document.getElementById('searchBox').addEventListener('input', renderList);
-
-  window.deleteItem = function(id) {
-    confirmModal('Delete Item?', 'This cannot be undone.', () => {
-      state.items = state.items.filter(i => i.id !== id);
-      saveState(); updateStats(); checkWarnings(); renderList(); renderFilterRow();
-      showToast('Deleted', 'success');
-    });
-  };
-
-  function escapeHtml(s) {
-    if (s === null || s === undefined) return '';
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-
-  async function syncToNotion() {
-    if (!WORKER_URL) { showToast('Worker not configured — use manual export', 'error'); return; }
-    const pending = state.items.filter(i => !i.synced);
-    if (pending.length === 0) { showToast('No unsynced items', 'error'); return; }
-    const btn = document.getElementById('btnSyncNotion');
-    const status = document.getElementById('syncStatus');
-    const batch = pending.slice(0, 25);
+    var batch = pending.slice(0, 25);
+    var btn = $('syncBtn');
     btn.disabled = true;
-    status.textContent = 'Syncing ' + batch.length + ' items… (can take ~' + Math.ceil(batch.length * 0.7) + 's)';
-    try {
-      const resp = await fetch(WORKER_URL.replace(/\/$/, '') + '/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: batch.map(i => ({
-          id: i.id, item: i.item, assetType: i.assetType, type: i.type,
-          location: i.location, brand: i.brand, model: i.model, serial: i.serial,
-          condition: i.condition, acquired: i.acquired, value: i.value, notes: i.notes
-        })) })
-      });
-      const data = await resp.json();
-      if (!resp.ok || data.error) throw new Error(data.error || 'Sync failed');
-      const okIds = new Set((data.results || []).filter(r => r.ok).map(r => r.id));
-      state.items.forEach(i => { if (okIds.has(i.id)) i.synced = true; });
-      saveState(); updateStats(); checkWarnings(); renderList();
-      const left = state.items.filter(i => !i.synced).length;
-      if (data.failed > 0) {
-        const firstErr = (data.results || []).find(r => !r.ok);
-        status.textContent = data.synced + ' synced, ' + data.failed + ' failed' + (firstErr && firstErr.error ? ' — ' + firstErr.error : '');
-        showToast(data.synced + ' SYNCED / ' + data.failed + ' FAILED', 'error');
-      } else {
-        status.textContent = data.synced + ' items synced to Notion' + (left > 0 ? ' — ' + left + ' remaining, tap again' : ' ✓');
-        showToast(data.synced + ' ITEMS → NOTION ✓', 'success');
-      }
-    } catch (e) {
-      console.error(e);
-      status.textContent = 'Sync failed — use manual export below';
-      showToast('Sync failed', 'error');
-    } finally {
-      btn.disabled = false;
-    }
-  }
+    var st = $('syncStatus');
+    st.setAttribute('data-tone', 'working');
+    st.textContent = 'Writing ' + batch.length + ' items to Notion, about ' +
+      Math.ceil(batch.length * 0.7) + ' seconds…';
 
-  function setupSync() {
-    document.getElementById('btnSyncNotion').onclick = syncToNotion;
-    document.getElementById('btnGenerate').onclick = generateExport;
-    document.getElementById('btnCopy').onclick = copyExport;
-    document.getElementById('btnMarkSynced').onclick = markSynced;
-    document.getElementById('btnBackup').onclick = generateBackup;
-    document.getElementById('btnClearSynced').onclick = clearSynced;
-    document.getElementById('btnWipe').onclick = wipeAll;
+    fetch(WORKER_URL.replace(/\/+$/, '') + '/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        items: batch.map(function (i) {
+          return {
+            id: i.id, item: i.item, assetType: i.assetType, type: i.type,
+            location: i.location, brand: i.brand, model: i.model, serial: i.serial,
+            upc: i.upc, condition: i.condition, acquired: i.acquired,
+            value: i.value, notes: i.notes
+          };
+        })
+      })
+    }).then(function (resp) {
+      return resp.json().then(function (data) { return { ok: resp.ok, data: data }; });
+    }).then(function (r) {
+      if (!r.ok || r.data.error) throw new Error(r.data.error || 'Sync failed');
+
+      var okIds = {};
+      (r.data.results || []).forEach(function (x) { if (x.ok) okIds[x.id] = true; });
+      state.items.forEach(function (i) { if (okIds[i.id]) i.synced = true; });
+      save();
+
+      var left = state.items.filter(function (i) { return !i.synced; }).length;
+      if (r.data.failed > 0) {
+        var firstErr = (r.data.results || []).filter(function (x) { return !x.ok; })[0];
+        st.setAttribute('data-tone', 'bad');
+        st.textContent = r.data.synced + ' written, ' + r.data.failed + ' failed' +
+          (firstErr && firstErr.error ? ' — ' + firstErr.error : '');
+      } else {
+        st.setAttribute('data-tone', 'good');
+        st.textContent = r.data.synced + ' items written to Notion' +
+          (left > 0 ? ' — ' + left + ' left, tap again' : '.');
+      }
+      render();
+    }).catch(function (e) {
+      console.error(e);
+      st.setAttribute('data-tone', 'bad');
+      st.textContent = String(e.message || e) + ' — use the manual export below.';
+    }).then(function () {
+      btn.disabled = false;
+    });
   }
 
   function generateExport() {
-    const pending = state.items.filter(i => !i.synced);
-    if (pending.length === 0) { showToast('No unsynced items', 'error'); return; }
-    const payload = {
+    var pending = state.items.filter(function (i) { return !i.synced; });
+    if (!pending.length) { toast('Nothing unsynced to export', 'bad'); return; }
+    var payload = {
       export_type: 'home_inventory_batch',
       target_database: 'Home Inventory (Groton)',
       generated_at: new Date().toISOString(),
       item_count: pending.length,
-      items: pending.map(i => ({
-        item: i.item, asset_type: i.assetType, type: i.type, location: i.location,
-        brand: i.brand, model: i.model, serial: i.serial, condition: i.condition,
-        acquired: i.acquired, value: i.value, notes: i.notes, logged_at: i.logged_at
-      }))
+      items: pending.map(function (i) {
+        return {
+          item: i.item, asset_type: i.assetType, type: i.type, location: i.location,
+          brand: i.brand, model: i.model, serial: i.serial, upc: i.upc,
+          condition: i.condition, acquired: i.acquired, value: i.value,
+          notes: i.notes, logged_at: i.logged_at
+        };
+      })
     };
-    const text = 'HOME INVENTORY SYNC PAYLOAD\n' +
-      '============================\n' +
-      'Hey Claude — please push these ' + pending.length + ' items to the Home Inventory database in Notion (under Groton).\n' +
-      'Map "asset_type" → "Asset Type" field, "type" → "Type" field. Then tell me how many were successfully logged.\n\n' +
+    $('output').value =
+      'Please add these ' + pending.length + ' items to the Home Inventory database in Notion, under Groton.\n' +
+      'Map asset_type to the "Asset Type" property, type to "Type", value to "Value (USD)", upc to "UPC".\n' +
+      'Tell me how many rows were created.\n\n' +
       '```json\n' + JSON.stringify(payload, null, 2) + '\n```';
-    document.getElementById('exportOutput').value = text;
-    showToast('Export ready', 'success');
+    toast('Export ready');
   }
 
-  async function copyExport() {
-    const txt = document.getElementById('exportOutput').value;
-    if (!txt) { showToast('Generate export first', 'error'); return; }
-    try { await navigator.clipboard.writeText(txt); showToast('Copied to clipboard', 'success'); }
-    catch(e) {
-      const ta = document.getElementById('exportOutput'); ta.select();
-      try { document.execCommand('copy'); showToast('Copied to clipboard', 'success'); }
-      catch(e2) { showToast('Copy failed — select & copy manually', 'error'); }
+  function copyOutput() {
+    var txt = $('output').value;
+    if (!txt) { toast('Generate the export first', 'bad'); return; }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt).then(function () {
+        toast('Copied');
+      }).catch(fallbackCopy);
+    } else {
+      fallbackCopy();
     }
-  }
-
-  function markSynced() {
-    const pending = state.items.filter(i => !i.synced).length;
-    if (pending === 0) { showToast('Nothing to mark', 'error'); return; }
-    confirmModal('Mark ' + pending + ' Items Synced?', 'Only do this AFTER Claude confirms they are in Notion.', () => {
-      state.items.forEach(i => { if (!i.synced) i.synced = true; });
-      saveState(); updateStats(); checkWarnings(); renderList();
-      showToast(pending + ' items marked synced', 'success');
-    });
+    function fallbackCopy() {
+      var ta = $('output');
+      ta.removeAttribute('readonly');
+      ta.select();
+      try { document.execCommand('copy'); toast('Copied'); }
+      catch (e) { toast('Copy failed — select the text and copy it', 'bad'); }
+      ta.setAttribute('readonly', 'readonly');
+    }
   }
 
   function generateBackup() {
-    if (state.items.length === 0) { showToast('Nothing to back up', 'error'); return; }
-    const lines = ['HOME INVENTORY BACKUP — ' + new Date().toISOString().slice(0,10)];
-    lines.push('Total: ' + state.items.length + ' items');
-    lines.push('='.repeat(50)); lines.push('');
-    state.items.forEach((i, idx) => {
-      lines.push((idx + 1) + '. ' + i.item + (i.synced ? ' [SYNCED]' : ''));
-      if (i.assetType) lines.push('   Asset Type: ' + i.assetType);
-      if (i.type) lines.push('   Type: ' + i.type);
-      if (i.location) lines.push('   Location: ' + i.location);
-      if (i.brand) lines.push('   Brand: ' + i.brand);
-      if (i.model) lines.push('   Model: ' + i.model);
-      if (i.serial) lines.push('   Serial: ' + i.serial);
-      if (i.condition) lines.push('   Condition: ' + i.condition);
-      if (i.acquired) lines.push('   Acquired: ' + i.acquired);
-      if (i.value !== null && i.value !== undefined) lines.push('   Value: $' + i.value);
-      if (i.notes) lines.push('   Notes: ' + i.notes);
-      lines.push('   Logged: ' + i.logged_at.slice(0,16).replace('T',' '));
+    if (!state.items.length) { toast('Nothing to back up', 'bad'); return; }
+    var lines = ['Home inventory backup — ' + new Date().toISOString().slice(0, 10),
+                 state.items.length + ' items', ''];
+    state.items.forEach(function (i, idx) {
+      lines.push((idx + 1) + '. ' + i.item + (i.synced ? '  [synced]' : ''));
+      [['Asset type', i.assetType], ['Type', i.type], ['Location', i.location],
+       ['Brand', i.brand], ['Model', i.model], ['Serial', i.serial], ['UPC', i.upc],
+       ['Condition', i.condition], ['Acquired', i.acquired],
+       ['Value', i.value ? money(i.value) : null], ['Notes', i.notes]
+      ].forEach(function (p) { if (p[1]) lines.push('    ' + p[0] + ': ' + p[1]); });
+      lines.push('    Logged: ' + String(i.logged_at).slice(0, 16).replace('T', ' '));
       lines.push('');
     });
-    document.getElementById('exportOutput').value = lines.join('\n');
-    showToast('Backup ready', 'success');
+    $('output').value = lines.join('\n');
+    toast('Backup ready');
+  }
+
+  function markAllSynced() {
+    var pending = state.items.filter(function (i) { return !i.synced; }).length;
+    if (!pending) { toast('Nothing to mark', 'bad'); return; }
+    confirmModal('Mark ' + pending + ' items synced?',
+      'Do this only once you have seen the rows in Notion. They will never be exported or synced again.',
+      function () {
+        state.items.forEach(function (i) { i.synced = true; });
+        save(); render(); toast(pending + ' items marked synced');
+      });
   }
 
   function clearSynced() {
-    const synced = state.items.filter(i => i.synced).length;
-    if (synced === 0) { showToast('No synced items', 'error'); return; }
-    confirmModal('Clear ' + synced + ' Synced Items?', 'They remain in Notion. This cannot be undone.', () => {
-      state.items = state.items.filter(i => !i.synced);
-      saveState(); updateStats(); checkWarnings(); renderList(); renderFilterRow();
-      showToast(synced + ' items cleared', 'success');
-    });
+    var synced = state.items.filter(function (i) { return i.synced; }).length;
+    if (!synced) { toast('No synced items to clear', 'bad'); return; }
+    confirmModal('Clear ' + synced + ' synced items?',
+      'They stay in Notion. This removes them from this device only.', function () {
+        state.items = state.items.filter(function (i) { return !i.synced; });
+        save(); render(); toast(synced + ' items cleared');
+      });
   }
 
   function wipeAll() {
-    if (state.items.length === 0) { showToast('Already empty', 'error'); return; }
-    confirmModal('WIPE ALL DATA?', 'Deletes all ' + state.items.length + ' items from this app. Cannot be undone.', () => {
-      state.items = []; state.sessionCount = 0;
-      saveState(); updateStats(); checkWarnings(); renderList(); renderFilterRow();
-      document.getElementById('exportOutput').value = '';
-      showToast('All data wiped', 'success');
+    if (!state.items.length) { toast('Already empty', 'bad'); return; }
+    var pending = state.items.filter(function (i) { return !i.synced; }).length;
+    confirmModal('Wipe all ' + state.items.length + ' items?',
+      (pending ? pending + ' of them have never been synced and will be lost for good. ' : '') +
+      'This cannot be undone.', function () {
+        state.items = [];
+        state.sessionCount = 0;
+        $('output').value = '';
+        save(); render(); toast('All items wiped');
+      });
+  }
+
+  /* =========================================================
+     Wiring
+     ========================================================= */
+
+  function init() {
+    load();
+
+    $('dateStamp').textContent = new Date().toISOString().slice(0, 10);
+
+    Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) {
+      t.addEventListener('click', function () {
+        state.page = t.dataset.page;
+        render();
+        window.scrollTo(0, 0);
+      });
     });
-  }
 
-  let toastTimer = null;
-  function showToast(msg, type) {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.className = 'toast show ' + (type || '');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { t.classList.remove('show'); }, 2200);
-  }
+    $('lookupBtn').addEventListener('click', doLookup);
+    $('lookupInput').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); doLookup(); }
+    });
 
-  let modalOnConfirm = null;
-  function confirmModal(title, text, onConfirm) {
-    document.getElementById('modalTitle').textContent = title;
-    document.getElementById('modalText').textContent = text;
-    document.getElementById('modalBg').classList.add('show');
-    modalOnConfirm = onConfirm;
-  }
-  document.getElementById('modalCancel').onclick = () => {
-    document.getElementById('modalBg').classList.remove('show'); modalOnConfirm = null;
-  };
-  document.getElementById('modalConfirm').onclick = () => {
-    document.getElementById('modalBg').classList.remove('show');
-    if (modalOnConfirm) modalOnConfirm();
-    modalOnConfirm = null;
-  };
-  document.getElementById('modalBg').onclick = (e) => {
-    if (e.target.id === 'modalBg') {
-      document.getElementById('modalBg').classList.remove('show'); modalOnConfirm = null;
+    $('fCustomLocation').addEventListener('input', function (e) {
+      state.form.customLocation = e.target.value;
+      $('step1Value').textContent = e.target.value || 'Other';
+    });
+    $('fCustomBrand').addEventListener('input', function (e) {
+      state.form.customBrand = e.target.value;
+    });
+
+    $('moreToggle').addEventListener('click', function () {
+      var m = $('moreFields');
+      m.hidden = !m.hidden;
+      $('moreToggle').textContent = m.hidden
+        ? '+ Model, serial, UPC, condition, date, value, notes'
+        : '− Hide extra fields';
+    });
+
+    $('submitBtn').addEventListener('click', submitItem);
+
+    $('searchBox').addEventListener('input', function (e) {
+      state.search = e.target.value; render();
+    });
+
+    $('syncBtn').addEventListener('click', syncToNotion);
+    $('exportBtn').addEventListener('click', generateExport);
+    $('copyBtn').addEventListener('click', copyOutput);
+    $('backupBtn').addEventListener('click', generateBackup);
+    $('markSyncedBtn').addEventListener('click', markAllSynced);
+    $('clearSyncedBtn').addEventListener('click', clearSynced);
+    $('wipeBtn').addEventListener('click', wipeAll);
+
+    $('modalCancel').addEventListener('click', closeModal);
+    $('modalConfirm').addEventListener('click', function () {
+      var fn = confirmAction;
+      closeModal();
+      if (fn) fn();
+    });
+    $('scrim').addEventListener('click', function (e) {
+      if (e.target === $('scrim')) closeModal();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    if (!WORKER_URL) {
+      $('lookupBtn').disabled = true;
+      $('syncBtn').disabled = true;
+      state.lookup.status = 'Lookup is offline — WORKER_URL is not set in index.html.';
+      state.lookup.tone = 'bad';
     }
-  };
+
+    render();
+  }
 
   init();
+})();
 </script>
 </body>
 </html>
