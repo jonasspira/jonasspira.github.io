@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(CoreGraphics)
+import CoreGraphics
+#endif
 
 /// Inputs that decide the size of a Pop's grid.
 public struct GridSpec: Equatable, Sendable {

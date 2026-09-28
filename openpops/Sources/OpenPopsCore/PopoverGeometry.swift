@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(CoreGraphics)
+import CoreGraphics
+#endif
 
 /// Which side of the popover points at the thing that opened it.
 public enum ArrowEdge: String, Sendable {
