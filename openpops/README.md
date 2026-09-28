@@ -71,7 +71,7 @@ An app you build yourself opens without Gatekeeper warnings.
 
 ### Or download a build
 
-Every push that touches `openpops/` is built by GitHub Actions ([workflow](../.github/workflows/openpops.yml)). Open the latest **OpenPops** run under the repository's **Actions** tab and download the `OpenPops-app` artifact. Pushing a tag like `openpops-v1.0.0` also publishes the zip as a GitHub Release.
+Every push that touches `openpops/` is built by GitHub Actions. Open the latest run on the [OpenPops workflow page](https://github.com/jonasspira/jonasspira.github.io/actions/workflows/openpops.yml) and download the `OpenPops-app` artifact (you need to be signed in to GitHub). Pushing a tag like `openpops-v1.0.0` also publishes the zip as a GitHub Release.
 
 These builds are signed ad hoc, not notarized, so macOS blocks them the first time:
 

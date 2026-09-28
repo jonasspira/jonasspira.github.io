@@ -28,7 +28,7 @@ jobs:
       run:
         working-directory: openpops
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Toolchain
         run: |
@@ -51,7 +51,7 @@ jobs:
           fi
 
       - name: Upload app
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: OpenPops-app
           path: openpops/build/OpenPops.zip
@@ -59,7 +59,7 @@ jobs:
 
       - name: Upload self-test output
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: OpenPops-self-test
           path: openpops/build/self-test
@@ -72,7 +72,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           name: OpenPops-app
 
