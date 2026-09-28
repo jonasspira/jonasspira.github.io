@@ -41,6 +41,8 @@ final class IconProvider {
         checkAppearance()
         if let cached = icons[path] { return cached.image }
         let image = draw(path)
+        // Browsing big folders adds an icon per file; keep the cache bounded.
+        if icons.count > 500 { icons.removeAll() }
         icons[path] = Entry(image: image, created: Date(), draws: 1)
         return image
     }
@@ -74,8 +76,9 @@ final class IconProvider {
         return Self.flatten(source)
     }
 
-    /// Draws an image into a bitmap using the app's current appearance.
-    static func flatten(_ source: NSImage, pixels: Int = 256) -> NSImage {
+    /// Draws an image into a bitmap using the app's current appearance. 192 pixels covers
+    /// the largest icon size (96 pt) on Retina screens.
+    static func flatten(_ source: NSImage, pixels: Int = 192) -> NSImage {
         NSImage.rendered(pixels: pixels, points: CGFloat(pixels) / 2) { rect in
             NSApp.effectiveAppearance.performAsCurrentDrawingAppearance {
                 source.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
@@ -121,6 +124,7 @@ final class IconProvider {
             failedThumbnails.insert(path)
             return
         }
+        if thumbnails.count > 500 { thumbnails.removeAll() }
         thumbnails[path] = image
         callbacks.forEach { $0(image) }
     }
