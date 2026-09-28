@@ -1,0 +1,86 @@
+name: OpenPops
+
+# Builds and tests the OpenPops Mac app in openpops/.
+# Every run uploads OpenPops.zip as an artifact. Pushing a tag like openpops-v1.0.0
+# also publishes it as a GitHub Release.
+
+on:
+  push:
+    branches: ['**']
+    tags: ['openpops-v*']
+    paths:
+      - 'openpops/**'
+      - '.github/workflows/openpops.yml'
+  pull_request:
+    paths:
+      - 'openpops/**'
+      - '.github/workflows/openpops.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: openpops
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+
+      - name: Unit tests
+        run: swift test
+
+      - name: Build app (Apple silicon + Intel)
+        run: ./build.sh --universal --zip
+
+      - name: Self-test
+        run: |
+          if [ -x scripts/self-test.sh ]; then
+            scripts/self-test.sh
+          else
+            echo "No self-test script yet"
+          fi
+
+      - name: Upload app
+        uses: actions/upload-artifact@v5
+        with:
+          name: OpenPops-app
+          path: openpops/build/OpenPops.zip
+          if-no-files-found: error
+
+      - name: Upload self-test output
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: OpenPops-self-test
+          path: openpops/build/self-test
+          if-no-files-found: ignore
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/openpops-v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: OpenPops-app
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" OpenPops.zip \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "OpenPops ${GITHUB_REF_NAME#openpops-v}" \
+            --notes "Ad-hoc signed build for personal use. See openpops/README.md for how to open it the first time."
