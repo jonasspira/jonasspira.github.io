@@ -46,12 +46,33 @@ screencapture -x "$OUT/smoke-2-reopen.png" 2>/dev/null || true
 open "openpops://show?pop=Utilities"
 sleep 3
 screencapture -x "$OUT/smoke-3-url-show.png" 2>/dev/null || true
+
+wanted=("created [0-9]+ starter pops" "organizer shown" "reopen" "popover shown" "url command openpops://show")
+if [ -n "${CI:-}" ]; then
+  # Only on CI: this pins a tile to the Dock and restarts the Dock.
+  echo "==> Add to Dock"
+  open "openpops://tile?pop=Utilities"
+  sleep 8
+  screencapture -x "$OUT/smoke-4-dock-tile.png" 2>/dev/null || true
+  if defaults read com.apple.dock persistent-apps | grep -q "OpenPops%20Tiles/Utilities.app"; then
+    echo "ok   smoke: tile is pinned in the Dock's preferences"
+  else
+    echo "FAIL smoke: tile is pinned in the Dock's preferences"
+    status=1
+  fi
+  open "$HOME/Applications/OpenPops Tiles/Utilities.app"
+  sleep 3
+  screencapture -x "$OUT/smoke-5-tile-open.png" 2>/dev/null || true
+  wanted+=("tile ready" "\[tile pop:.*popover shown: Utilities")
+fi
+
 pkill -f "/OpenPops.app/Contents/MacOS/OpenPops" 2>/dev/null || true
+pkill -f "/OpenPops Tiles/" 2>/dev/null || true
 sleep 1
 
 cp "$SUPPORT/debug.log" "$OUT/smoke-debug.log" 2>/dev/null || true
 cp "$SUPPORT/library.json" "$OUT/smoke-library.json" 2>/dev/null || true
-for want in "created [0-9]+ starter pops" "organizer shown" "reopen" "popover shown" "url command openpops://show"; do
+for want in "${wanted[@]}"; do
   if grep -Eq "$want" "$OUT/smoke-debug.log"; then
     echo "ok   smoke: $want"
   else
