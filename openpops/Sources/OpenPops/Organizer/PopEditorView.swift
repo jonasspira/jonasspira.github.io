@@ -76,6 +76,7 @@ struct ItemsEditor: View {
                 addButtons.labelStyle(.titleAndIcon)
                 addButtons.labelStyle(.iconOnly)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
 
