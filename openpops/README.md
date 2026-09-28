@@ -6,6 +6,16 @@ It is an open-source take on [DockPops](https://dockpops.com/), built for person
 
 Requires macOS 14 (Sonoma) or later.
 
+![A Pop open above the OpenPops icon in the Dock](docs/popover-dock.png)
+
+![Pops in the Sunset, Matrix and Graphite themes](docs/themes.png)
+
+![Browsing a folder inside a Pop, with a Quick Look preview](docs/folder-quicklook.png)
+
+![The Organizer, editing a Pop's appearance](docs/organizer.png)
+
+These screenshots come from the automated test run on a macOS 26 GitHub runner.
+
 ## What it does
 
 **Pops**
