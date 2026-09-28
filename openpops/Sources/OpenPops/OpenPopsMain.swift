@@ -1,17 +1,24 @@
 import AppKit
 import OpenPopsCore
 
-// Temporary entry point used to check the CI pipeline; replaced by the real app.
 @main
 enum OpenPopsMain {
     @MainActor
     static func main() {
+        let args = CommandLine.arguments
         let app = NSApplication.shared
-        let library = LibraryStore(directory: FileManager.default.temporaryDirectory
-            .appendingPathComponent("openpops-ci-probe")).library
-        print("OpenPops probe: \(library.pops.count) pops, \(BuiltInThemes.all.count) themes")
-        if CommandLine.arguments.contains("--probe") { return }
-        app.setActivationPolicy(.regular)
-        app.run()
+
+        if let i = args.firstIndex(of: "--self-test") {
+            let out = args.count > i + 1 ? args[i + 1] : "build/self-test"
+            SelfTest.run(outputDirectory: URL(fileURLWithPath: out))
+        }
+
+        let model = AppModel(store: LibraryStore())
+        let delegate = AppDelegate(model: model)
+        app.delegate = delegate
+        // `delegate` stays alive for as long as run() does.
+        withExtendedLifetime(delegate) {
+            app.run()
+        }
     }
 }

@@ -97,9 +97,12 @@ extension Library {
         return "\(root) \(n)"
     }
 
+    /// Pass `id` when the edit may be replayed (see AppModel), so every replay creates the same Pop.
     @discardableResult
-    public mutating func addPop(named name: String, theme: Theme? = nil, items: [PopItem] = [], at index: Int? = nil) -> UUID {
-        var pop = Pop(name: uniquePopName(name), items: [])
+    public mutating func addPop(named name: String, theme: Theme? = nil, items: [PopItem] = [], at index: Int? = nil,
+                                id: UUID = UUID()) -> UUID {
+        if pop(id) != nil { return id }
+        var pop = Pop(id: id, name: uniquePopName(name), items: [])
         if let theme = theme {
             pop.style = theme.style
             pop.themeID = theme.id
@@ -119,10 +122,10 @@ extension Library {
     }
 
     @discardableResult
-    public mutating func duplicatePop(_ id: UUID) -> UUID? {
-        guard let i = popIndex(id) else { return nil }
+    public mutating func duplicatePop(_ id: UUID, as newID: UUID = UUID()) -> UUID? {
+        guard let i = popIndex(id), pop(newID) == nil else { return nil }
         var copy = pops[i]
-        copy.id = UUID()
+        copy.id = newID
         copy.name = uniquePopName(pops[i].name + " Copy")
         copy.createdAt = Date()
         copy.items = copy.items.map { item in
@@ -232,9 +235,10 @@ extension Library {
     // MARK: Groups
 
     @discardableResult
-    public mutating func addGroup(named name: String, popIDs: [UUID] = []) -> UUID {
+    public mutating func addGroup(named name: String, popIDs: [UUID] = [], id: UUID = UUID()) -> UUID {
+        if group(id) != nil { return id }
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let group = PopGroup(name: trimmed.isEmpty ? "New Group" : trimmed, popIDs: popIDs)
+        let group = PopGroup(id: id, name: trimmed.isEmpty ? "New Group" : trimmed, popIDs: popIDs)
         groups.append(group)
         return group.id
     }
@@ -251,10 +255,11 @@ extension Library {
     // MARK: Themes
 
     @discardableResult
-    public mutating func saveTheme(named name: String, from popID: UUID) -> String? {
-        guard let pop = pop(popID) else { return nil }
+    public mutating func saveTheme(named name: String, from popID: UUID,
+                                   id: String = "custom-" + UUID().uuidString.lowercased()) -> String? {
+        guard let pop = pop(popID), !customThemes.contains(where: { $0.id == id }) else { return nil }
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let theme = Theme(id: "custom-" + UUID().uuidString.lowercased(),
+        let theme = Theme(id: id,
                           name: trimmed.isEmpty ? pop.name : trimmed,
                           style: pop.style,
                           dockBackground: pop.dockIcon.matchPopBackground ? nil : pop.dockIcon.background)

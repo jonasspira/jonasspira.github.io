@@ -129,6 +129,20 @@ final class LibraryOpsTests: XCTestCase {
         XCTAssertEqual(lib.resolveGroup("both")?.id, g)
     }
 
+    func testReplayingEditsWithFixedIDsIsIdempotent() {
+        var lib = Library()
+        let popID = UUID(), groupID = UUID(), copyID = UUID()
+        for _ in 0..<2 {
+            lib.addPop(named: "Work", id: popID)
+            lib.addGroup(named: "G", popIDs: [popID], id: groupID)
+            lib.duplicatePop(popID, as: copyID)
+            lib.saveTheme(named: "Mine", from: popID, id: "custom-fixed")
+        }
+        XCTAssertEqual(lib.pops.map(\.id), [popID, copyID])
+        XCTAssertEqual(lib.groups.map(\.id), [groupID])
+        XCTAssertEqual(lib.customThemes.map(\.id), ["custom-fixed"])
+    }
+
     func testDuplicatePop() {
         var lib = Library()
         let a = lib.addPop(named: "A")
