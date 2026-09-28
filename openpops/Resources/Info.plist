@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleExecutable</key>
+	<string>OpenPops</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.spiiira.openpops</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>OpenPops</string>
+	<key>CFBundleDisplayName</key>
+	<string>OpenPops</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>__VERSION__</string>
+	<key>CFBundleVersion</key>
+	<string>__BUILD__</string>
+	<key>OPBuildID</key>
+	<string>__BUILD__-__REVISION__</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.productivity</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>NSSupportsAutomaticGraphicsSwitching</key>
+	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>Open source, for personal use.</string>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>OpenPops shows previews and folder contents for Desktop items you add to a Pop.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>OpenPops shows previews and folder contents for Documents items you add to a Pop.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>OpenPops shows previews and folder contents for Downloads items you add to a Pop.</string>
+	<key>NSRemovableVolumesUsageDescription</key>
+	<string>OpenPops shows previews and folder contents for items on external drives you add to a Pop.</string>
+	<key>NSNetworkVolumesUsageDescription</key>
+	<string>OpenPops shows previews and folder contents for items on network drives you add to a Pop.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.spiiira.openpops</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>openpops</string>
+			</array>
+		</dict>
+	</array>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Apps, Files and Folders</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.item</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
