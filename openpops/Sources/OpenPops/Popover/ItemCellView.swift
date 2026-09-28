@@ -61,7 +61,12 @@ final class ItemCellView: NSView {
         fatalError("init(coder:) is not supported")
     }
 
-    func setIcon(_ image: NSImage) {
+    /// True once a Quick Look thumbnail replaced the icon.
+    private(set) var showsThumbnail = false
+
+    func setIcon(_ image: NSImage, isThumbnail: Bool = false) {
+        if showsThumbnail && !isThumbnail { return }
+        showsThumbnail = showsThumbnail || isThumbnail
         iconView.image = image
     }
 
@@ -120,13 +125,16 @@ final class ItemCellView: NSView {
         guard alpha > 0 else { return }
         let rect = bounds.insetBy(dx: 1, dy: 1)
         let path = NSBezierPath(roundedRect: rect, xRadius: 11, yRadius: 11)
-        style.appearance.highlightBase.withAlphaComponent(alpha).setFill()
-        path.fill()
         if isSelected {
-            NSColor.controlAccentColor.withAlphaComponent(0.85).setStroke()
+            NSColor.controlAccentColor.withAlphaComponent(style.appearance.isDark ? 0.38 : 0.22).setFill()
+            path.fill()
+            NSColor.controlAccentColor.withAlphaComponent(0.9).setStroke()
             let ring = NSBezierPath(roundedRect: rect.insetBy(dx: 0.75, dy: 0.75), xRadius: 10.5, yRadius: 10.5)
             ring.lineWidth = 1.5
             ring.stroke()
+        } else {
+            style.appearance.highlightBase.withAlphaComponent(alpha).setFill()
+            path.fill()
         }
     }
 }

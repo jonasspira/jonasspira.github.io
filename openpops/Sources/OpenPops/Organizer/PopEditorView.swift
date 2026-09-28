@@ -6,7 +6,6 @@ struct PopEditorView: View {
     let popID: UUID
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var state: OrganizerState
-    @State private var tab: EditorTab = .items
 
     enum EditorTab: String, CaseIterable, Identifiable {
         case items = "Items"
@@ -20,7 +19,7 @@ struct PopEditorView: View {
             HStack(spacing: 0) {
                 VStack(spacing: 0) {
                     header(pop)
-                    Picker("", selection: $tab) {
+                    Picker("", selection: $state.editorTab) {
                         ForEach(EditorTab.allCases) { Text($0.rawValue).tag($0) }
                     }
                     .pickerStyle(.segmented)
@@ -28,7 +27,7 @@ struct PopEditorView: View {
                     .padding(.horizontal, 20)
                     .padding(.bottom, 10)
                     Divider()
-                    switch tab {
+                    switch state.editorTab {
                     case .items: ItemsEditor(pop: pop)
                     case .appearance: AppearanceEditor(pop: pop)
                     case .dockIcon: DockIconEditor(pop: pop)
@@ -73,12 +72,9 @@ struct ItemsEditor: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                Button { showBrowser = true } label: { Label("Add Apps…", systemImage: "square.grid.2x2") }
-                Button { state.addFiles(to: pop.id) } label: { Label("Add Files…", systemImage: "doc.badge.plus") }
-                Button { showLink = true } label: { Label("Add Link…", systemImage: "link") }
-                Button { showSuggestions = true } label: { Label("Suggestions", systemImage: "sparkles") }
-                Spacer()
+            ViewThatFits(in: .horizontal) {
+                addButtons.labelStyle(.titleAndIcon)
+                addButtons.labelStyle(.iconOnly)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
@@ -132,6 +128,21 @@ struct ItemsEditor: View {
         .sheet(isPresented: $showSuggestions) { SuggestionsSheet(popID: pop.id) }
     }
 
+    private var addButtons: some View {
+        HStack(spacing: 10) {
+            Button { showBrowser = true } label: { Label("Add Apps…", systemImage: "square.grid.2x2") }
+                .help("Add apps from the App Browser")
+            Button { state.addFiles(to: pop.id) } label: { Label("Add Files…", systemImage: "doc.badge.plus") }
+                .help("Add files or folders")
+            Button { showLink = true } label: { Label("Add Link…", systemImage: "link") }
+                .help("Add a web link")
+            Button { showSuggestions = true } label: { Label("Suggestions", systemImage: "sparkles") }
+                .help("Apps that fit this Pop")
+            Spacer(minLength: 0)
+        }
+        .fixedSize(horizontal: true, vertical: false)
+    }
+
     private func remove(_ ids: [UUID]) {
         let popID = pop.id
         model.update { lib in
@@ -150,8 +161,7 @@ struct ItemRow: View {
     var body: some View {
         let missing = !Launcher.existsNonisolated(item)
         HStack(spacing: 10) {
-            Image(nsImage: IconProvider.shared.icon(for: item))
-                .resizable()
+            ItemIconView(item: item)
                 .frame(width: 28, height: 28)
                 .opacity(missing ? 0.5 : 1)
             VStack(alignment: .leading, spacing: 1) {

@@ -82,7 +82,7 @@ final class PopGridView: NSView {
             if let path = entry.path, !entry.isMissing {
                 IconProvider.shared.thumbnail(forPath: path, size: size) { [weak cell] image in
                     guard let cell = cell, cell.entry.path == path else { return }
-                    cell.setIcon(image)
+                    cell.setIcon(image, isThumbnail: true)
                 }
             }
             return cell
@@ -92,7 +92,33 @@ final class PopGridView: NSView {
         if let s = selectedIndex, s >= entries.count { selectedIndex = nil }
         hoverIndex = nil
         needsDisplay = true
+        scheduleIconRefresh()
     }
+
+    /// Icons drawn for the first time can be placeholders; redraw them once macOS has
+    /// rendered the real ones.
+    private func scheduleIconRefresh() {
+        for delay in [0.35, 1.3] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                MainActor.assumeIsolated { self?.refreshIcons() }
+            }
+        }
+    }
+
+    private func refreshIcons() {
+        for cell in cells where !cell.showsThumbnail {
+            switch cell.entry.kind {
+            case .item(let item):
+                cell.setIcon(IconProvider.shared.settledIcon(for: item))
+            case .child(let url, _):
+                cell.setIcon(IconProvider.shared.settledIcon(forPath: url.path))
+            case .openInFinder:
+                cell.setIcon(IconProvider.shared.settledIcon(forPath: Self.finderPath))
+            }
+        }
+    }
+
+    static let finderPath = "/System/Library/CoreServices/Finder.app"
 
     private func icon(for entry: GridEntry) -> NSImage {
         switch entry.kind {
@@ -102,7 +128,7 @@ final class PopGridView: NSView {
         case .child(let url, _):
             return IconProvider.shared.cachedThumbnail(forPath: url.path) ?? IconProvider.shared.icon(forPath: url.path)
         case .openInFinder:
-            return IconProvider.shared.icon(forPath: "/System/Library/CoreServices/Finder.app")
+            return IconProvider.shared.icon(forPath: Self.finderPath)
         }
     }
 

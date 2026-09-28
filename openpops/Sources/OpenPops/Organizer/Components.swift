@@ -322,7 +322,16 @@ struct ThemeGrid: View {
 @MainActor
 final class IconCache {
     static let shared = IconCache()
-    private var cache: [Int: NSImage] = [:]
+    private var cache: [Int: (image: NSImage, created: Date)] = [:]
+
+    /// Entries younger than a few seconds may contain placeholder item icons, so they're redrawn.
+    private func lookup(_ key: Int, make: () -> NSImage) -> NSImage {
+        if let hit = cache[key], Date().timeIntervalSince(hit.created) > 3 { return hit.image }
+        let image = make()
+        if cache.count > 300 { cache.removeAll() }
+        cache[key] = (image, cache[key]?.created ?? Date())
+        return image
+    }
 
     func icon(for pop: Pop, pixels: Int = 128) -> NSImage {
         var h = Hasher()
@@ -331,12 +340,7 @@ final class IconCache {
         h.combine(pop.name)
         h.combine(pixels)
         for item in pop.sortedItems().prefix(16) { h.combine(item.target) }
-        let key = h.finalize()
-        if let cached = cache[key] { return cached }
-        let image = DockIconRenderer.image(for: pop, pixels: pixels)
-        if cache.count > 300 { cache.removeAll() }
-        cache[key] = image
-        return image
+        return lookup(h.finalize()) { DockIconRenderer.image(for: pop, pixels: pixels) }
     }
 
     func icon(forGroup group: PopGroup, pops: [Pop], pixels: Int = 128) -> NSImage {
@@ -349,11 +353,40 @@ final class IconCache {
             h.combine(p.style.background)
             for item in p.sortedItems().prefix(9) { h.combine(item.target) }
         }
-        let key = h.finalize()
-        if let cached = cache[key] { return cached }
-        let image = DockIconRenderer.image(forGroup: group, pops: pops, pixels: pixels)
-        cache[key] = image
-        return image
+        return lookup(h.finalize()) { DockIconRenderer.image(forGroup: group, pops: pops, pixels: pixels) }
+    }
+}
+
+/// An item icon that redraws itself shortly after appearing, replacing any placeholder.
+struct ItemIconView: View {
+    let item: PopItem
+    @State private var image: NSImage?
+
+    var body: some View {
+        Image(nsImage: image ?? IconProvider.shared.icon(for: item))
+            .resizable()
+            .task(id: item.target) {
+                for delay in [400_000_000, 1_200_000_000] as [UInt64] {
+                    try? await Task.sleep(nanoseconds: delay)
+                    image = IconProvider.shared.settledIcon(for: item)
+                }
+            }
+    }
+}
+
+struct PathIconView: View {
+    let path: String
+    @State private var image: NSImage?
+
+    var body: some View {
+        Image(nsImage: image ?? IconProvider.shared.icon(forPath: path))
+            .resizable()
+            .task(id: path) {
+                for delay in [400_000_000, 1_200_000_000] as [UInt64] {
+                    try? await Task.sleep(nanoseconds: delay)
+                    image = IconProvider.shared.settledIcon(forPath: path)
+                }
+            }
     }
 }
 

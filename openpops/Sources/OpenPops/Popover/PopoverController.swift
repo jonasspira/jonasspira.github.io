@@ -48,6 +48,7 @@ final class PopoverController: NSObject {
     private var lastWheelPage: TimeInterval = 0
     private var closing = false
     private var menuTracking = false
+    private var lastRenderSignature: Int?
     let preview = QuickLookPreview()
 
     var onOpenOrganizer: ((UUID?) -> Void)?
@@ -273,8 +274,26 @@ final class PopoverController: NSObject {
         return best
     }
 
+    /// Everything the current page's appearance depends on. Library changes that leave it
+    /// alone (like remembering the last active Pop) don't re-render.
+    private func renderSignature() -> Int {
+        var h = Hasher()
+        h.combine(popIDs)
+        h.combine(pageIndex)
+        h.combine(folderStack)
+        h.combine(confirmingOpenAll)
+        if let pop = currentPop { h.combine(pop) }
+        var s = settings
+        s.lastActivePopID = nil
+        s.popOutFrames = [:]
+        s.openPopOuts = []
+        h.combine(s)
+        return h.finalize()
+    }
+
     func render(transition: CATransitionSubtype?, animateFrame: Bool) {
         guard let panel = panel, let root = root, let pop = currentPop else { return }
+        lastRenderSignature = renderSignature()
         let appearance = PopAppearance(style: pop.style)
         let folder = folderStack.last
         var readable = true
@@ -353,6 +372,7 @@ final class PopoverController: NSObject {
         let current = currentPopID
         popIDs = fresh
         pageIndex = current.flatMap { fresh.firstIndex(of: $0) } ?? min(pageIndex, fresh.count - 1)
+        if renderSignature() == lastRenderSignature { return }
         let selected = grid?.selectedIndex
         render(transition: nil, animateFrame: true)
         if let s = selected, s < entries.count { grid?.selectedIndex = s }

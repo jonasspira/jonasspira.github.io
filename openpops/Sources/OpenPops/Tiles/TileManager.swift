@@ -52,6 +52,10 @@ final class TileManager {
             lib.tiles.append(record)
         }
         refreshIcon(for: record)
+        // Redraw once the item icons have settled (the first draw can have placeholders).
+        Timer.scheduledTimer(withTimeInterval: 2.5, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated { self?.refreshIcon(for: record) }
+        }
         DebugLog.log("tile ready: \(url.path)")
         return record
     }

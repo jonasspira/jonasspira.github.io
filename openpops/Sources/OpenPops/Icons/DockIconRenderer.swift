@@ -62,7 +62,8 @@ enum DockIconRenderer {
             let text = style.glyph.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 ? String(pop.name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(1)).uppercased()
                 : style.glyph
-            drawGlyph(text.isEmpty ? "?" : text, in: body, color: glyphColor(style: style, fill: fill))
+            drawGlyph(text.isEmpty ? "?" : text, in: body,
+                      color: glyphColor(style: style, fill: fill, labelColor: pop.style.label.color))
         case .dynamic:
             drawTile(body: body, radius: radius, fill: style.resolvedBackground(popStyle: pop.style))
             let items = pop.sortedItems()
@@ -80,7 +81,7 @@ enum DockIconRenderer {
                 let r = CGRect(x: body.minX + pad + col * (cell + gap),
                                y: body.maxY - pad - cell - row * (cell + gap),
                                width: cell, height: cell)
-                let icon = IconProvider.shared.icon(for: item)
+                let icon = IconProvider.shared.settledIcon(for: item)
                 // App icons carry their own transparent margin; scale up a bit so they read.
                 icon.draw(in: r.insetBy(dx: -cell * 0.08, dy: -cell * 0.08),
                           from: .zero, operation: .sourceOver, fraction: 1)
@@ -131,8 +132,14 @@ enum DockIconRenderer {
         edge.stroke()
     }
 
-    private static func glyphColor(style: DockIconStyle, fill: BackgroundFill) -> NSColor {
+    private static func glyphColor(style: DockIconStyle, fill: BackgroundFill, labelColor: RGBA? = nil) -> NSColor {
         if let c = style.glyphColor { return c.nsColor }
+        // A theme with its own label color (like Matrix's green) uses it for the glyph too,
+        // when it reads well on the tile.
+        if let label = labelColor, style.matchPopBackground,
+           let bg = fill.representativeColor, label.contrastRatio(with: bg) >= 3 {
+            return label.withAlpha(1).nsColor
+        }
         let base = fill.representativeColor ?? RGBA(0.9, 0.9, 0.92)
         return base.prefersDarkText ? NSColor(white: 0.12, alpha: 0.9) : NSColor.white
     }

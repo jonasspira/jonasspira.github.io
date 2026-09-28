@@ -61,17 +61,20 @@ final class QuickLookPreview: NSObject {
         url = nil
     }
 
+    /// Beside the popover on whichever side has more room, shrinking to fit when needed.
     private func placement(beside frame: NSRect, size: NSSize) -> NSRect {
         let screen = NSScreen.containing(NSPoint(x: frame.midX, y: frame.midY))
         let visible = screen?.visibleFrame ?? frame.insetBy(dx: -600, dy: -600)
-        var w = min(size.width, visible.width * 0.45), h = min(size.height, visible.height - 16)
-        w = max(w, 260)
-        h = max(h, 240)
-        var x = frame.maxX + 8
-        if x + w > visible.maxX - 6 { x = frame.minX - 8 - w }
-        x = min(max(x, visible.minX + 6), visible.maxX - 6 - w)
-        var y = frame.minY
-        y = min(max(y, visible.minY + 6), visible.maxY - 6 - h)
+        let gap: CGFloat = 8, margin: CGFloat = 6
+        let roomRight = visible.maxX - margin - (frame.maxX + gap)
+        let roomLeft = (frame.minX - gap) - (visible.minX + margin)
+        let onRight = roomRight >= size.width || roomRight >= roomLeft
+        let room = onRight ? roomRight : roomLeft
+        let w = max(min(size.width, room), min(260, size.width))
+        let h = max(min(size.height, visible.height - 2 * margin), 240)
+        var x = onRight ? frame.maxX + gap : frame.minX - gap - w
+        x = min(max(x, visible.minX + margin), visible.maxX - margin - w)
+        let y = min(max(frame.minY, visible.minY + margin), visible.maxY - margin - h)
         return NSRect(x: x, y: y, width: w, height: h)
     }
 

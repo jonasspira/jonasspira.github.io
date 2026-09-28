@@ -4,34 +4,86 @@ import UniformTypeIdentifiers
 import OpenPopsCore
 
 /// Icons for Pop items, with Quick Look thumbnails for documents and images.
+///
+/// macOS renders app and file icons asynchronously: the first time an icon is drawn it can
+/// come out as an empty placeholder while the real one is still being made. Icons here are
+/// drawn into bitmaps, and `settledIcon` redraws an icon a couple of times shortly after it
+/// was first requested, so callers can swap the placeholder for the real thing.
 @MainActor
 final class IconProvider {
     static let shared = IconProvider()
 
-    private var icons: [String: NSImage] = [:]
+    private struct Entry {
+        var image: NSImage
+        var created: Date
+        var draws: Int
+    }
+
+    private var icons: [String: Entry] = [:]
+    private var linkIcons: [String: Entry] = [:]
     private var thumbnails: [String: NSImage] = [:]
     private var failedThumbnails = Set<String>()
     private var waiting: [String: [(NSImage) -> Void]] = [:]
+    private var appearanceName: NSAppearance.Name?
+
+    /// Drops cached icons when the system switches between light and dark.
+    private func checkAppearance() {
+        let name = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua])
+        if name != appearanceName {
+            appearanceName = name
+            icons.removeAll()
+            linkIcons.removeAll()
+        }
+    }
 
     /// The Finder icon for a path, or a generic icon with a question mark if it's missing.
     func icon(forPath path: String) -> NSImage {
-        if let cached = icons[path] { return cached }
-        let image: NSImage
-        if FileManager.default.fileExists(atPath: path) {
-            image = NSWorkspace.shared.icon(forFile: path)
-        } else {
-            image = missingIcon()
-        }
-        icons[path] = image
+        checkAppearance()
+        if let cached = icons[path] { return cached.image }
+        let image = draw(path)
+        icons[path] = Entry(image: image, created: Date(), draws: 1)
         return image
     }
 
+    /// Redraws an icon that was first drawn in the last few seconds, in case the first
+    /// draw was a placeholder.
+    func settledIcon(forPath path: String) -> NSImage {
+        checkAppearance()
+        guard var entry = icons[path] else { return icon(forPath: path) }
+        if entry.draws < 3 && Date().timeIntervalSince(entry.created) < 12 {
+            entry.image = draw(path)
+            entry.draws += 1
+            icons[path] = entry
+        }
+        return entry.image
+    }
+
     func icon(for item: PopItem) -> NSImage {
-        switch item.kind {
-        case .link: return linkIcon(for: item.target)
-        default: return icon(forPath: item.target)
+        item.kind == .link ? linkIcon(for: item.target) : icon(forPath: item.target)
+    }
+
+    func settledIcon(for item: PopItem) -> NSImage {
+        item.kind == .link ? settledLinkIcon(for: item.target) : settledIcon(forPath: item.target)
+    }
+
+    private func draw(_ path: String) -> NSImage {
+        // Follow symlinks (e.g. /Applications/Safari.app) so icons don't get an alias badge.
+        let resolved = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
+        guard FileManager.default.fileExists(atPath: resolved) else { return missingIcon() }
+        let source = NSWorkspace.shared.icon(forFile: resolved)
+        return Self.flatten(source)
+    }
+
+    /// Draws an image into a bitmap using the app's current appearance.
+    static func flatten(_ source: NSImage, pixels: Int = 256) -> NSImage {
+        NSImage.rendered(pixels: pixels, points: CGFloat(pixels) / 2) { rect in
+            NSApp.effectiveAppearance.performAsCurrentDrawingAppearance {
+                source.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
+            }
         }
     }
+
+    // MARK: Thumbnails
 
     /// Cached thumbnail if one was made already.
     func cachedThumbnail(forPath path: String) -> NSImage? {
@@ -41,7 +93,10 @@ final class IconProvider {
     /// Requests a Quick Look thumbnail for a file. `completion` runs on the main thread only
     /// when a thumbnail exists.
     func thumbnail(forPath path: String, size: CGFloat, completion: @escaping (NSImage) -> Void) {
-        if let t = thumbnails[path] { completion(t); return }
+        if let t = thumbnails[path] {
+            completion(t)
+            return
+        }
         guard !failedThumbnails.contains(path), Self.wantsThumbnail(path) else { return }
         if waiting[path] != nil {
             waiting[path]?.append(completion)
@@ -88,34 +143,49 @@ final class IconProvider {
 
     // MARK: Links
 
-    private var linkIcons: [String: NSImage] = [:]
-
     /// The default browser's icon with a small link badge.
     func linkIcon(for target: String) -> NSImage {
-        if let cached = linkIcons[target] { return cached }
+        checkAppearance()
+        if let cached = linkIcons[target] { return cached.image }
+        let image = drawLinkIcon(target)
+        linkIcons[target] = Entry(image: image, created: Date(), draws: 1)
+        return image
+    }
+
+    func settledLinkIcon(for target: String) -> NSImage {
+        guard var entry = linkIcons[target] else { return linkIcon(for: target) }
+        if entry.draws < 3 && Date().timeIntervalSince(entry.created) < 12 {
+            entry.image = drawLinkIcon(target)
+            entry.draws += 1
+            linkIcons[target] = entry
+        }
+        return entry.image
+    }
+
+    private func drawLinkIcon(_ target: String) -> NSImage {
         var base: NSImage?
         if let url = URL(string: target), let app = NSWorkspace.shared.urlForApplication(toOpen: url) {
-            base = NSWorkspace.shared.icon(forFile: app.path)
+            base = NSWorkspace.shared.icon(forFile: app.resolvingSymlinksInPath().path)
         }
-        let badge = NSImage(systemSymbolName: "link.circle.fill", accessibilityDescription: nil)
-        let image = NSImage.rendered(pixels: 256, points: 128) { rect in
-            if let base = base {
-                base.draw(in: rect)
-            } else {
-                let body = rect.insetBy(dx: 22, dy: 22)
-                NSColor.systemBlue.setFill()
-                NSBezierPath(roundedRect: body, xRadius: 44, yRadius: 44).fill()
-            }
-            if let badge = badge?.withSymbolConfiguration(.init(pointSize: 80, weight: .bold)
-                .applying(.init(paletteColors: [.white, .systemBlue]))) {
-                let b = CGRect(x: rect.maxX - 104, y: rect.minY + 8, width: 96, height: 96)
-                NSColor.white.setFill()
-                NSBezierPath(ovalIn: b.insetBy(dx: 8, dy: 8)).fill()
-                badge.draw(in: b)
+        let badge = NSImage(systemSymbolName: "link.circle.fill", accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(pointSize: 80, weight: .bold)
+                .applying(.init(paletteColors: [.white, .systemBlue])))
+        return NSImage.rendered(pixels: 256, points: 128) { rect in
+            NSApp.effectiveAppearance.performAsCurrentDrawingAppearance {
+                if let base = base {
+                    base.draw(in: rect)
+                } else {
+                    NSColor.systemBlue.setFill()
+                    NSBezierPath(roundedRect: rect.insetBy(dx: 22, dy: 22), xRadius: 44, yRadius: 44).fill()
+                }
+                if let badge = badge {
+                    let b = CGRect(x: rect.maxX - 104, y: rect.minY + 8, width: 96, height: 96)
+                    NSColor.white.setFill()
+                    NSBezierPath(ovalIn: b.insetBy(dx: 8, dy: 8)).fill()
+                    badge.draw(in: b)
+                }
             }
         }
-        linkIcons[target] = image
-        return image
     }
 
     private func missingIcon() -> NSImage {

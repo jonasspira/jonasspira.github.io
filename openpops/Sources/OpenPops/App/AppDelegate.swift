@@ -50,6 +50,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         updateDockIcon()
+        // Item icons can be placeholders on the first draw; redraw once they've settled.
+        for delay in [1.5, 4.0] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                MainActor.assumeIsolated { self?.updateDockIcon() }
+            }
+        }
         model.$library
             .dropFirst()
             .debounce(for: .milliseconds(120), scheduler: RunLoop.main)
@@ -59,7 +65,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .store(in: &cancellables)
 
         didFinishLaunching = true
-        let showWelcome = mode.isMain && !model.library.settings.hasCompletedOnboarding
+        // The very first launch opens the Organizer's welcome page; later launches from the
+        // Dock open the Pops.
+        let showWelcome = mode.isMain && !model.store.fileExisted
         if showWelcome {
             openOrganizer(nil)
         } else if !launchedToOpenSomething && !launchedAsLoginItem {
@@ -306,7 +314,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let controller = OrganizerWindowController(model: model, tiles: tiles)
             controller.onClose = { [weak self] in self?.organizerClosed() }
             controller.onPreviewPop = { [weak self] id in
-                self?.popover.show(anchor: .centered, popIDs: nil, initial: id)
+                guard let self = self else { return }
+                // Hidden Pops aren't in the carousel, so show them on their own.
+                let ids: [UUID]? = self.model.carouselPopIDs.contains(id) ? nil : [id]
+                self.popover.show(anchor: .centered, popIDs: ids, initial: id)
             }
             organizer = controller
         }

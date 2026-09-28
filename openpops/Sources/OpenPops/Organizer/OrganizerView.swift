@@ -47,8 +47,6 @@ struct OrganizerView: View {
     }
 }
 
-/// List selection is optional, so row tags must be optional too.
-private func sel(_ s: OrganizerState.Selection) -> OrganizerState.Selection? { s }
 
 struct OrganizerSidebar: View {
     @EnvironmentObject var model: AppModel
@@ -59,7 +57,7 @@ struct OrganizerSidebar: View {
             Section("Pops") {
                 ForEach(model.library.pops) { pop in
                     PopRow(pop: pop)
-                        .tag(sel(.pop(pop.id)))
+                        .tag(OrganizerState.Selection.pop(pop.id))
                         .contextMenu { popMenu(pop) }
                 }
                 .onMove { from, to in
@@ -69,7 +67,7 @@ struct OrganizerSidebar: View {
             Section("Groups") {
                 ForEach(model.library.groups) { group in
                     GroupRow(group: group)
-                        .tag(sel(.group(group.id)))
+                        .tag(OrganizerState.Selection.group(group.id))
                         .contextMenu {
                             Button("Delete Group", role: .destructive) { state.deleteGroup(group.id) }
                         }
@@ -79,9 +77,9 @@ struct OrganizerSidebar: View {
                 }
             }
             Section {
-                Label("Themes", systemImage: "paintpalette").tag(sel(.themes))
-                Label("Settings", systemImage: "gearshape").tag(sel(.settings))
-                Label("Getting Started", systemImage: "questionmark.circle").tag(sel(.welcome))
+                Label("Themes", systemImage: "paintpalette").tag(OrganizerState.Selection.themes)
+                Label("Settings", systemImage: "gearshape").tag(OrganizerState.Selection.settings)
+                Label("Getting Started", systemImage: "questionmark.circle").tag(OrganizerState.Selection.welcome)
             }
         }
         .listStyle(.sidebar)

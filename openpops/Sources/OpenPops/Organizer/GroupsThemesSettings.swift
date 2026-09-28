@@ -19,6 +19,7 @@ struct GroupEditorView: View {
                         TextField("Name", text: group.name)
                             .textFieldStyle(.plain)
                             .font(.title2.bold())
+                            .labelsHidden()
                     }
                     Text("A group puts several Pops behind one Dock icon. Clicking it opens those Pops, and you swipe between them.")
                         .font(.caption)

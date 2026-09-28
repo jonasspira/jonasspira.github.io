@@ -12,6 +12,7 @@ final class PopOutWindow: NSObject, NSWindowDelegate, PopGridViewDelegate {
     private let scroll = NSScrollView()
     private let grid = PopGridView()
     private var entries: [GridEntry] = []
+    private var lastSignature: Int?
     var onClose: ((UUID) -> Void)?
     var onOpenOrganizer: ((UUID) -> Void)?
 
@@ -80,7 +81,7 @@ final class PopOutWindow: NSObject, NSWindowDelegate, PopGridViewDelegate {
             panel.center()
         }
         panel.orderFrontRegardless()
-        render()
+        render(force: true)
         model.update { lib in
             if !lib.settings.openPopOuts.contains(self.popID) { lib.settings.openPopOuts.append(self.popID) }
         }
@@ -104,14 +105,25 @@ final class PopOutWindow: NSObject, NSWindowDelegate, PopGridViewDelegate {
     }
 
     @objc private func resized() {
-        render()
+        render(force: true)
     }
 
-    func render() {
+    func render(force: Bool = false) {
         guard let pop = model.pop(popID) else {
             close()
             return
         }
+        var h = Hasher()
+        h.combine(pop)
+        var relevant = model.library.settings
+        relevant.lastActivePopID = nil
+        relevant.popOutFrames = [:]
+        relevant.openPopOuts = []
+        h.combine(relevant)
+        let signature = h.finalize()
+        if !force && signature == lastSignature { return }
+        guard !grid.isInteracting else { return }
+        lastSignature = signature
         let appearance = PopAppearance(style: pop.style)
         panel.appearance = appearance.nsAppearance
         background.apply(style: pop.style, appearance: appearance)

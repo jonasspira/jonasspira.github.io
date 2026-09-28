@@ -17,8 +17,19 @@ rm -rf "$OUT"
 mkdir -p "$OUT"
 
 echo "==> In-app self-test"
-"$APP/Contents/MacOS/OpenPops" --self-test "$OUT" 2>&1 | tee "$OUT/self-test.log"
-if [ "${PIPESTATUS[0]}" -ne 0 ]; then status=1; fi
+"$APP/Contents/MacOS/OpenPops" --self-test "$OUT" > "$OUT/self-test.log" 2>&1 &
+pid=$!
+# Don't let a stuck app hold up CI.
+( sleep 300; kill -9 "$pid" 2>/dev/null && echo "self-test timed out" >> "$OUT/self-test.log" ) &
+watchdog=$!
+wait "$pid"
+rc=$?
+kill "$watchdog" 2>/dev/null
+cat "$OUT/self-test.log"
+if [ "$rc" -ne 0 ]; then
+  echo "self-test exited with $rc"
+  status=1
+fi
 
 echo "==> Launch and reopen smoke test"
 mkdir -p "$SUPPORT"

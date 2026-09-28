@@ -15,6 +15,8 @@ final class OrganizerState: ObservableObject {
     }
 
     @Published var selection: Selection? = .welcome
+    /// The Pop editor's tab, kept here so it survives switching between Pops.
+    @Published var editorTab: PopEditorView.EditorTab = .items
     @Published var installedApps: [InstalledApp] = []
     @Published var isScanning = false
     @Published var alertMessage: String?

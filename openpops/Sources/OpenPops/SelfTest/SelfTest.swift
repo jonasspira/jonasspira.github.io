@@ -186,6 +186,36 @@ enum SelfTest {
         controller.previousPage()
         await wait(0.6)
 
+        // What drops, drag-reordering and dragging an item off the Pop do to the library.
+        if let grid = controller.grid, let pop = controller.currentPop {
+            let before = pop.items.map(\.id)
+            let extra = out.appendingPathComponent("sample-files/Projects/Plan.md")
+            controller.grid(grid, didDrop: [extra], titles: [:], at: 0)
+            await wait(0.4)
+            let afterDrop = model.pop(pop.id)?.items ?? []
+            check(afterDrop.count == before.count + 1 && afterDrop.first?.target == extra.path,
+                  "dropping a file into the Pop adds it where it was dropped")
+            if let g = controller.grid, controller.entries.count >= 2 {
+                var order = Array(controller.entries.indices)
+                order.swapAt(0, 1)
+                let expected = order.compactMap { controller.entries[$0].popItem?.id }
+                controller.grid(g, didReorder: order)
+                await wait(0.4)
+                check(model.pop(pop.id)?.items.map(\.id) == expected, "dragging an item reorders the Pop")
+            }
+            if let g = controller.grid, let index = controller.entries.firstIndex(where: { $0.popItem?.target == extra.path }) {
+                controller.grid(g, didDragOut: index)
+                await wait(0.4)
+                check(!(model.pop(pop.id)?.items.contains { $0.target == extra.path } ?? true),
+                      "dragging an item off the Pop removes it")
+            }
+            model.update(immediately: true) { lib in lib.updatePop(pop.id) { p in
+                p.items.sort { a, b in (before.firstIndex(of: a.id) ?? 0) < (before.firstIndex(of: b.id) ?? 0) }
+            } }
+            controller.render(transition: nil, animateFrame: false)
+            await wait(0.3)
+        }
+
         // Browse into a folder.
         if let folderIndex = controller.entries.firstIndex(where: { $0.popItem?.kind == .folder }) {
             controller.activate(folderIndex, modifiers: [])
@@ -272,6 +302,13 @@ enum SelfTest {
         organizer.state.selection = .pop(ids.sunset)
         await wait(1.0)
         snapshotWindow(of: organizer.contentView, "organizer-pop-sunset")
+        organizer.state.editorTab = .appearance
+        await wait(1.0)
+        snapshotWindow(of: organizer.contentView, "organizer-appearance")
+        organizer.state.editorTab = .dockIcon
+        await wait(1.0)
+        snapshotWindow(of: organizer.contentView, "organizer-dock-icon")
+        organizer.state.editorTab = .items
         organizer.state.selection = .group(ids.group)
         await wait(1.0)
         snapshotWindow(of: organizer.contentView, "organizer-group")
@@ -287,6 +324,19 @@ enum SelfTest {
         captureScreen("screen-organizer")
         organizer.contentView?.window?.close()
         await wait(0.5)
+
+        let popOuts = PopOutManager(model: model)
+        popOuts.open(ids.sunset)
+        await wait(1.0)
+        check(!popOuts.isEmpty, "Pop Out window opens")
+        let statusItem = StatusItemController(model: model)
+        statusItem.install()
+        await wait(0.8)
+        check(statusItem.isInstalled, "menu bar icon installs")
+        captureScreen("screen-popout-and-menubar")
+        statusItem.remove()
+        for window in NSApp.windows where window.isVisible && window.level == .floating { window.close() }
+        await wait(0.4)
     }
 
     // MARK: Tile app
@@ -376,7 +426,11 @@ enum SelfTest {
         runScreencapture(["-x", out.appendingPathComponent(name + ".png").path])
     }
 
+    /// Turned off after the first capture that fails or hangs (no screen recording permission).
+    private static var screencaptureWorks = true
+
     private static func runScreencapture(_ args: [String]) {
+        guard screencaptureWorks else { return }
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
         p.arguments = args
@@ -386,8 +440,15 @@ enum SelfTest {
         } catch {
             return
         }
-        let deadline = Date().addingTimeInterval(8)
+        let deadline = Date().addingTimeInterval(5)
         while p.isRunning && Date() < deadline { usleep(50_000) }
-        if p.isRunning { p.terminate() }
+        if p.isRunning {
+            p.terminate()
+            screencaptureWorks = false
+            print("note: screencapture hung; using AppKit snapshots only")
+        } else if p.terminationStatus != 0 {
+            screencaptureWorks = false
+            print("note: screencapture failed (\(p.terminationStatus)); using AppKit snapshots only")
+        }
     }
 }

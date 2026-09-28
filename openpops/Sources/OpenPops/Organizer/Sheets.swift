@@ -80,8 +80,7 @@ struct AppBrowserView: View {
                         toggle(app, isIn: isIn)
                     } label: {
                         HStack(spacing: 10) {
-                            Image(nsImage: IconProvider.shared.icon(forPath: app.path))
-                                .resizable()
+                            PathIconView(path: app.path)
                                 .frame(width: 26, height: 26)
                             Text(app.name)
                             Spacer()
@@ -166,8 +165,7 @@ struct SuggestionsSheet: View {
             } else {
                 List(suggestions) { app in
                     HStack(spacing: 10) {
-                        Image(nsImage: IconProvider.shared.icon(forPath: app.path))
-                            .resizable()
+                        PathIconView(path: app.path)
                             .frame(width: 26, height: 26)
                         Text(app.name)
                         if aiResults.contains(app) {
