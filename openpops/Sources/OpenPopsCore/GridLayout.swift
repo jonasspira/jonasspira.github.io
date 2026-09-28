@@ -148,6 +148,12 @@ public struct PopoverBodyLayout: Equatable, Sendable {
     /// Height of the visible grid area. Smaller than the grid when it scrolls.
     public var gridViewportHeight: Double
     public var scrolls: Bool
+
+    public init(size: CGSize, gridViewportHeight: Double, scrolls: Bool) {
+        self.size = size
+        self.gridViewportHeight = gridViewportHeight
+        self.scrolls = scrolls
+    }
 }
 
 extension GridLayoutEngine {

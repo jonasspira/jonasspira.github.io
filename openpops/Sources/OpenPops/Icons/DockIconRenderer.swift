@@ -5,7 +5,7 @@ import OpenPopsCore
 /// its item icons (like an iPhone folder), a glyph, or a custom image.
 @MainActor
 enum DockIconRenderer {
-    static let defaultPixels = 512
+    nonisolated static let defaultPixels = 512
 
     static func image(for pop: Pop, pixels: Int = defaultPixels) -> NSImage {
         NSImage.rendered(pixels: pixels) { canvas in

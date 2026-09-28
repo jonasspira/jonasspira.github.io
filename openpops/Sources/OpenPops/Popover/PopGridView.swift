@@ -237,7 +237,21 @@ final class PopGridView: NSView {
     private func finishDrag(_ index: Int) {
         let outside = dragOutside
         let target = dragTarget ?? index
-        dragWindow?.orderOut(nil)
+        if let floating = dragWindow {
+            if outside {
+                // Shrink and fade the dragged icon away, like removing something from the Dock.
+                let f = floating.frame
+                NSAnimationContext.runAnimationGroup({ ctx in
+                    ctx.duration = 0.18
+                    floating.animator().alphaValue = 0
+                    floating.animator().setFrame(f.insetBy(dx: f.width * 0.3, dy: f.height * 0.3), display: true)
+                }, completionHandler: {
+                    floating.orderOut(nil)
+                })
+            } else {
+                floating.orderOut(nil)
+            }
+        }
         dragWindow = nil
         dragIndex = nil
         dragTarget = nil
@@ -247,8 +261,6 @@ final class PopGridView: NSView {
         if cells.indices.contains(index) { cells[index].isHidden = false }
 
         if outside {
-            NSAnimationEffect.poof.show(centeredAt: NSEvent.mouseLocation, size: NSSize(width: 48, height: 48),
-                                        completionHandler: {})
             delegate?.grid(self, didDragOut: index)
         } else if target != index {
             var order = Array(entries.indices)

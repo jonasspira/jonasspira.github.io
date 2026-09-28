@@ -54,6 +54,7 @@ final class PopOutWindow: NSObject, NSWindowDelegate, PopGridViewDelegate {
         scroll.hasVerticalScroller = true
         scroll.autohidesScrollers = true
         scroll.scrollerStyle = .overlay
+        scroll.automaticallyAdjustsContentInsets = false
         scroll.documentView = grid
         scroll.frame = NSRect(x: 8, y: 8, width: content.bounds.width - 16, height: content.bounds.height - 44)
         scroll.autoresizingMask = [.width, .height]
