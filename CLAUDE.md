@@ -31,4 +31,4 @@ This repository is Jonas's website, www.spiiira.com. GitHub Pages builds it with
 
 ## Housekeeping
 
-- Delete a branch after its pull request is merged.
+- Claude sessions can push commits but can't delete branches or push tags. Merged branches get deleted on github.com; the repository's "Automatically delete head branches" setting (Settings > General > Pull Requests) does it on every merge.
