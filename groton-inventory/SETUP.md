@@ -1,3 +1,8 @@
+---
+# Keeps these instructions off www.spiiira.com. Jekyll skips pages marked unpublished.
+published: false
+---
+
 # Groton Inventory — setup
 
 The app is one static HTML file. Everything that needs a secret lives in a single

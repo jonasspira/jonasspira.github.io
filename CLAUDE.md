@@ -25,7 +25,7 @@ This repository is Jonas's website, www.spiiira.com. GitHub Pages builds it with
 
 ## Jekyll
 
-- Markdown files are published as pages (for example `groton-inventory/SETUP.md` is live at /groton-inventory/SETUP.html). `README.md` is skipped automatically, and this file is kept off by its front matter.
+- Markdown files are published as pages unless their front matter says `published: false`. `groton-inventory/SETUP.md` and this file use that to stay off the site. `README.md` is skipped automatically.
 - `plates/index.html` and `toronto26/index.html` have front matter and use Liquid to list their images. `_data/captions.yml` holds the toronto26 captions.
 - Don't write `{{` or `{%` in Markdown files or in pages with front matter unless you mean Liquid.
 
