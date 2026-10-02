@@ -1,0 +1,17 @@
+name: Link check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          # Check every page and Markdown file in the repo for broken links.
+          args: --verbose --no-progress './**/*.md' './**/*.html'
