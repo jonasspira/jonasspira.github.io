@@ -14,4 +14,9 @@ jobs:
         uses: lycheeverse/lychee-action@v2
         with:
           # Check every page and Markdown file in the repo for broken links.
-          args: --verbose --no-progress './**/*.md' './**/*.html'
+          # --root-dir: links starting with "/" (like /filters/) start at the
+          #   top of the repo, as they do on www.spiiira.com.
+          # --exclude '%7B%7B': skip links containing "{{". Those are Jekyll
+          #   placeholders (toronto26) that only become real paths when
+          #   GitHub Pages builds the site.
+          args: --verbose --no-progress --root-dir '${{ github.workspace }}' --exclude '%7B%7B' './**/*.md' './**/*.html'
