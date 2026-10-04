@@ -22,9 +22,9 @@ Other files:
 
 ## Mac apps
 
-Mac apps don't live here. Each one has its own repository:
+Mac apps don't live here. They share one repository, [mac-apps](https://github.com/jonasspira/mac-apps), with a folder per app:
 
-- [Nib](https://github.com/jonasspira/Nib): markdown editor
-- [Tally](https://github.com/jonasspira/Tally): notepad calculator
-- [Pasties](https://github.com/jonasspira/Pasties): menu bar clipboard queue
-- [OpenPops](https://github.com/jonasspira/openpops): folders of apps, files and links in the Dock
+- [Nib](https://github.com/jonasspira/mac-apps/tree/main/Nib): markdown editor
+- [Tally](https://github.com/jonasspira/mac-apps/tree/main/Tally): notepad calculator
+- [Pasties](https://github.com/jonasspira/mac-apps/tree/main/Pasties): menu bar clipboard queue
+- [OpenPops](https://github.com/jonasspira/mac-apps/tree/main/OpenPops): folders of apps, files and links in the Dock

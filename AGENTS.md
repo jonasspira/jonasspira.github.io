@@ -24,8 +24,8 @@ This repository is Jonas's website, www.spiiira.com. GitHub Pages builds it with
 
 ## What doesn't go here
 
-- Mac apps, and any other software that isn't a web page. Each Mac app has its own repository: `Nib`, `Tally`, `Pasties` and `OpenPops`.
-- If a session started on this repository is asked to build an app, stop before writing any code and say it needs its own repository. AI sessions can't create repositories, so Jonas has to create an empty one on github.com first, then either start a new session on it or have it attached to this session.
+- Mac apps, and any other software that isn't a web page. Mac apps live in `jonasspira/mac-apps`, one folder per app: `Nib`, `Tally`, `Pasties` and `OpenPops`.
+- If a session started on this repository is asked to build an app, stop before writing any code and say it belongs in `jonasspira/mac-apps`, where Jonas can start a new session or have that repository attached to this session.
 - Planning notes and project briefs. Keep them in the conversation. Markdown files here get published as pages on the site.
 - Separate repositories for web tools. The folder here is the only copy of each tool.
 
