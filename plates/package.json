@@ -1,0 +1,13 @@
+{
+  "name": "plates-dome",
+  "private": true,
+  "scripts": {
+    "build": "esbuild src/dome.js --bundle --minify --format=iife --outfile=assets/dome.js --legal-comments=linked"
+  },
+  "dependencies": {
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

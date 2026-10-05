@@ -33,6 +33,10 @@ This repository is Jonas's website, www.spiiira.com. GitHub Pages builds it with
 
 - Markdown files are published as pages unless their front matter says `published: false`. `groton-inventory/SETUP.md`, `AGENTS.md` and `CLAUDE.md` use that to stay off the site. `README.md` is skipped automatically.
 - `plates/index.html` and `toronto26/index.html` have front matter and use Liquid to list their images. `_data/captions.yml` holds the toronto26 captions.
+- Plates' dome source lives in `plates/src/`. After changing it, run
+  `npm ci --prefix plates` and `npm run build --prefix plates`. Commit the
+  generated `plates/assets/` files too; GitHub Pages serves these directly.
+  Adding plate photos still needs no JavaScript build or image manifest.
 - Don't write `{{` or `{%` in Markdown files or in pages with front matter unless you mean Liquid.
 
 ## Housekeeping

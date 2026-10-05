@@ -9,13 +9,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>MI Plates</title>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
 
 <!-- Link-preview card (Open Graph) -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="SPIIIRA">
 <meta property="og:title" content="MI Plates">
-<meta property="og:description" content="A random Michigan vanity plate, every time.">
+<meta property="og:description" content="Explore a collection of Michigan vanity plates.">
 <meta property="og:url" content="https://www.spiiira.com/plates/">
 <meta property="og:image" content="https://www.spiiira.com/plates/share.jpg">
 <meta property="og:image:secure_url" content="https://www.spiiira.com/plates/share.jpg">
@@ -25,87 +24,17 @@
 <meta property="og:image:alt" content="MI Plates — Michigan vanity plates, one at a time">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="MI Plates">
-<meta name="twitter:description" content="A random Michigan vanity plate, every time.">
+<meta name="twitter:description" content="Explore a collection of Michigan vanity plates.">
 <meta name="twitter:image" content="https://www.spiiira.com/plates/share.jpg">
 
-<style>
-  :root { color-scheme: dark; --bg: #101112; --ink: #f7f7f7; }
-  *, *::before, *::after { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); }
-  body { font-family: 'JetBrains Mono', ui-monospace, monospace; -webkit-tap-highlight-color: transparent; }
-  button { font: inherit; color: inherit; cursor: pointer; }
-  button:focus-visible { outline: 2px solid white; outline-offset: -4px; }
-  .board-screen { position: fixed; inset: 0; overflow: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: #63676b var(--bg); }
-  .board {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 5px;
-    padding: 5px;
-    transform: translate3d(var(--pan-x, 0px), 0, 0);
-    transition: transform 900ms cubic-bezier(.2,.7,.2,1), opacity 400ms ease;
-  }
-  .board-screen.is-viewing .board { opacity: .18; }
-  .plate-card {
-    display: block; width: 100%; aspect-ratio: .85;
-    padding: 0; border: 0; border-radius: 2px;
-    background: #202224 center / cover no-repeat;
-    transition: filter 400ms ease;
-  }
-  .board.is-hovering .plate-card { filter: brightness(.76); }
-  .hover-preview {
-    position: fixed; z-index: 10; pointer-events: none;
-    padding: 0; border: 0; cursor: pointer;
-    background: #151617 center / contain no-repeat;
-    border-radius: 3px; box-shadow: 0 18px 60px #0009;
-    opacity: 0; transform: scale(.93);
-    transition: opacity 260ms ease, transform 420ms cubic-bezier(.2,.7,.2,1);
-  }
-  .hover-preview.is-visible { opacity: 1; transform: scale(1); pointer-events: auto; }
-  .empty { padding: 48px 24px; text-align: center; color: #aaa; }
-  .viewer {
-    position: fixed; inset: 0; margin: 0; border: 0;
-    width: 100%; max-width: none; height: 100%; height: 100dvh; max-height: none;
-    padding: 72px 24px 92px; overflow: hidden;
-    color: var(--ink); background: #101112bf;
-    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-  }
-  .viewer[open] { display: grid; place-items: center; }
-  .viewer::backdrop { background: transparent; }
-  .viewer-frame { width: 100%; height: 100%; min-height: 0; display: grid; place-items: center; pointer-events: none; }
-  .viewer-image { width: 100%; height: 100%; min-height: 0; object-fit: contain; pointer-events: auto; opacity: 1; transition: opacity 180ms ease; }
-  .viewer.is-loading .viewer-image, .viewer.has-error .viewer-image { opacity: 0; }
-  .viewer-status { position: absolute; inset: 45% 20px auto; text-align: center; font-size: 13px; pointer-events: none; }
-  .icon-button {
-    display: grid; place-items: center; width: 48px; height: 48px;
-    padding: 0; border: 1px solid #ffffff38; border-radius: 4px;
-    background: #191b1ded; transition: background 180ms ease;
-  }
-  .icon-button:hover { background: #45484c; }
-  .icon-button:disabled { opacity: .3; cursor: default; }
-  .icon-button svg { width: 24px; height: 24px; }
-  .close { position: absolute; top: max(16px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); }
-  .viewer-nav {
-    position: absolute; bottom: max(18px, env(safe-area-inset-bottom)); left: 50%;
-    transform: translateX(-50%); display: flex; align-items: center; gap: 16px;
-  }
-  .viewer-count { min-width: 100px; text-align: center; font-size: 12px; font-variant-numeric: tabular-nums; color: #dedfe1; }
-  @media (min-width: 1800px) { .board { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
-  @media (max-width: 1000px) { .board { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-  @media (max-width: 700px) {
-    .board { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; transform: none; }
-    .viewer { padding: 76px 10px 88px; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { transition: none !important; }
-    .board { transform: none; }
-  }
-</style>
+<link rel="stylesheet" href="./assets/dome.css">
 </head>
 <body>
-  <main class="board-screen" id="screen" aria-label="Michigan vanity plates">
-    <div class="board" id="board"></div>
-    <button class="hover-preview" id="hoverPreview" type="button" tabindex="-1" aria-hidden="true"></button>
+  <main class="dome" id="screen" tabindex="0" aria-label="Michigan vanity plates. Drag or use arrow keys to explore.">
+    <div class="stage" id="stage"></div>
+    <div class="edge-shade" aria-hidden="true"></div>
   </main>
+  <noscript><p class="empty">JavaScript is needed to view the photo gallery.</p></noscript>
   <dialog class="viewer" id="viewer" aria-label="Plate viewer">
     <!--
     Navigation icons: Lucide v0.468.0, ISC License.
@@ -159,203 +88,6 @@
     ];
   </script>
 
-  <script>
-  (function () {
-    var screen = document.getElementById('screen');
-    var board = document.getElementById('board');
-    var preview = document.getElementById('hoverPreview');
-    var viewer = document.getElementById('viewer');
-    var viewerImage = document.getElementById('viewerImage');
-    var status = document.getElementById('viewerStatus');
-    var count = document.getElementById('viewerCount');
-    var close = document.getElementById('close');
-    var previous = document.getElementById('previous');
-    var next = document.getElementById('next');
-    var plates = (window.PLATES || []).filter(Boolean);
-    var reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    var finePointer = window.matchMedia('(hover: hover) and (pointer: fine)');
-    var order = plates.slice();
-    var currentIndex = 0;
-    var origin = null;
-    var hoverTimer;
-    var hovered = null;
-    var hoverVersion = 0;
-    var touchStart = null;
-    var preloads = [];
-
-    // Keep one order throughout browsing and resizing.
-    for (var i = order.length - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
-      var temp = order[i]; order[i] = order[j]; order[j] = temp;
-    }
-
-    function loadTile(card) {
-      if (card.dataset.loaded) return;
-      card.style.backgroundImage = 'url(' + JSON.stringify(card.dataset.src) + ')';
-      card.dataset.loaded = 'true';
-    }
-
-    var observer = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        if (entry.isIntersecting) {
-          loadTile(entry.target);
-          observer.unobserve(entry.target);
-        }
-      });
-    }, { root: screen, rootMargin: '500px' });
-
-    function clearHover() {
-      window.clearTimeout(hoverTimer);
-      hoverVersion++;
-      hovered = null;
-      preview.classList.remove('is-visible');
-      board.classList.remove('is-hovering');
-    }
-
-    function showHover(card) {
-      if (viewer.open || hovered === card) return;
-      clearHover();
-      hovered = card;
-      var version = hoverVersion;
-      hoverTimer = window.setTimeout(function () {
-        var image = new Image();
-        image.onload = function () {
-          if (version !== hoverVersion || viewer.open) return;
-          var rect = card.getBoundingClientRect();
-          // Reveal the full photograph, with room around it even at screen edges.
-          var width = Math.min(rect.width * 1.85, window.innerWidth - 24);
-          var height = width * image.naturalHeight / image.naturalWidth;
-          var maxHeight = window.innerHeight - 32;
-          if (height > maxHeight) { width *= maxHeight / height; height = maxHeight; }
-          preview.style.width = width + 'px';
-          preview.style.height = height + 'px';
-          preview.style.left = Math.max(12, Math.min(window.innerWidth - width - 12, rect.left + (rect.width - width) / 2)) + 'px';
-          preview.style.top = Math.max(16, Math.min(window.innerHeight - height - 16, rect.top + (rect.height - height) / 2)) + 'px';
-          preview.style.backgroundImage = 'url(' + JSON.stringify(card.dataset.src) + ')';
-          preview.classList.add('is-visible');
-          board.classList.add('is-hovering');
-        };
-        image.src = card.dataset.src;
-      }, 160);
-    }
-
-    order.forEach(function (src, index) {
-      var card = document.createElement('button');
-      card.className = 'plate-card';
-      card.type = 'button';
-      card.dataset.src = src;
-      card.dataset.index = index;
-      card.setAttribute('aria-label', 'Open plate ' + (index + 1));
-      board.appendChild(card);
-      observer.observe(card);
-      card.addEventListener('pointerenter', function (event) {
-        if (finePointer.matches && event.pointerType !== 'touch') showHover(card);
-      });
-      card.addEventListener('pointerleave', function (event) {
-        if (event.relatedTarget !== preview) clearHover();
-      });
-      card.addEventListener('focus', function () { loadTile(card); });
-    });
-
-    if (!order.length) {
-      var empty = document.createElement('p');
-      empty.className = 'empty';
-      empty.textContent = 'No plates available.';
-      screen.appendChild(empty);
-    }
-
-    screen.addEventListener('pointermove', function (event) {
-      if (viewer.open || reducedMotion.matches || !finePointer.matches || event.pointerType === 'touch') return;
-      // A small drift keeps the field responsive without moving the target away.
-      board.style.setProperty('--pan-x', ((.5 - event.clientX / window.innerWidth) * 12).toFixed(2) + 'px');
-    });
-    screen.addEventListener('pointerleave', function () {
-      clearHover();
-      board.style.setProperty('--pan-x', '0px');
-    });
-    screen.addEventListener('scroll', clearHover, { passive: true });
-    preview.addEventListener('pointerleave', clearHover);
-    window.addEventListener('resize', clearHover);
-    window.addEventListener('blur', clearHover);
-
-    viewerImage.addEventListener('load', function () {
-      viewer.classList.remove('is-loading', 'has-error');
-      status.textContent = '';
-    });
-    viewerImage.addEventListener('error', function () {
-      viewer.classList.remove('is-loading');
-      viewer.classList.add('has-error');
-      status.textContent = 'This photo could not load. Try the next plate.';
-    });
-
-    function displayPlate(index) {
-      currentIndex = (index + order.length) % order.length;
-      viewer.classList.remove('has-error');
-      viewer.classList.add('is-loading');
-      status.textContent = 'Loading photo...';
-      viewerImage.alt = 'Michigan vanity license plate ' + (currentIndex + 1);
-      viewerImage.src = order[currentIndex];
-      count.textContent = (currentIndex + 1) + ' / ' + order.length;
-      previous.disabled = next.disabled = order.length < 2;
-      preloads = [-1, 1].map(function (offset) {
-        var image = new Image();
-        image.src = order[(currentIndex + offset + order.length) % order.length];
-        return image;
-      });
-    }
-
-    function openPlate(card) {
-      if (!card) return;
-      origin = card;
-      clearHover();
-      displayPlate(Number(card.dataset.index));
-      viewer.showModal();
-      screen.classList.add('is-viewing');
-      screen.inert = true;
-      close.focus({ preventScroll: true });
-    }
-    board.addEventListener('click', function (event) {
-      openPlate(event.target.closest('.plate-card'));
-    });
-    preview.addEventListener('click', function () {
-      openPlate(hovered);
-    });
-
-    function closePlate() { viewer.close(); }
-    viewer.addEventListener('close', function () {
-      screen.classList.remove('is-viewing');
-      screen.inert = false;
-      touchStart = null;
-      if (origin) origin.focus({ preventScroll: true });
-    });
-    close.addEventListener('click', closePlate);
-    previous.addEventListener('click', function () { displayPlate(currentIndex - 1); });
-    next.addEventListener('click', function () { displayPlate(currentIndex + 1); });
-    viewer.addEventListener('click', function (event) {
-      if (event.target === viewer) closePlate();
-    });
-    viewer.addEventListener('keydown', function (event) {
-      if (event.altKey || event.ctrlKey || event.metaKey) return;
-      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-        event.preventDefault();
-        displayPlate(currentIndex + (event.key === 'ArrowRight' ? 1 : -1));
-      } else if (event.key.toLowerCase() === 'x') {
-        event.preventDefault();
-        closePlate();
-      }
-    });
-    viewerImage.addEventListener('touchstart', function (event) {
-      touchStart = event.touches.length === 1 ? { x: event.touches[0].clientX, y: event.touches[0].clientY } : null;
-    }, { passive: true });
-    viewerImage.addEventListener('touchend', function (event) {
-      if (!touchStart || event.touches.length) return;
-      var dx = event.changedTouches[0].clientX - touchStart.x;
-      var dy = event.changedTouches[0].clientY - touchStart.y;
-      touchStart = null;
-      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) displayPlate(currentIndex + (dx < 0 ? 1 : -1));
-    }, { passive: true });
-    viewerImage.addEventListener('touchcancel', function () { touchStart = null; });
-  })();
-  </script>
+  <script src="./assets/dome.js" defer></script>
 </body>
 </html>
