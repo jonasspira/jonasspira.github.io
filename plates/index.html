@@ -9,7 +9,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>MI Plates</title>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
 
 <!-- Link-preview card (Open Graph) -->
 <meta property="og:type" content="website">
@@ -29,252 +29,117 @@
 <meta name="twitter:image" content="https://www.spiiira.com/plates/share.jpg">
 
 <style>
-  @font-face {
-    font-family: 'Milky Vintage';
-    src: url('fonts/MilkyVintage-Regular.ttf') format('truetype');
-    font-weight: normal;
-    font-style: normal;
-    font-display: swap;
+  :root { color-scheme: dark; --bg: #101112; --ink: #f7f7f7; }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); }
+  body { font-family: 'JetBrains Mono', ui-monospace, monospace; -webkit-tap-highlight-color: transparent; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible { outline: 2px solid white; outline-offset: -4px; }
+  .board-screen { position: fixed; inset: 0; overflow: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: #63676b var(--bg); }
+  .board {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 5px;
+    padding: 5px;
+    transform: translate3d(var(--pan-x, 0px), 0, 0);
+    transition: transform 900ms cubic-bezier(.2,.7,.2,1), opacity 400ms ease;
   }
-
-  :root {
-    --bg: #0d0d0c;
-    --ink: #ebe2cf;
-    --ink-body: #c9bfa9;
-    --ink-dim: #8a8270;
-    --teal: #1E5663;
-    --orange: #FF4A14;
-    --amber: #F28C00;
-    --sand: #D6C2A7;
+  .board-screen.is-viewing .board { opacity: .18; }
+  .plate-card {
+    display: block; width: 100%; aspect-ratio: .85;
+    padding: 0; border: 0; border-radius: 2px;
+    background: #202224 center / cover no-repeat;
+    transition: filter 400ms ease;
   }
-
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  html, body {
-    height: 100%;
-    background: var(--bg);
-    overflow: hidden;
-    overscroll-behavior: none;
+  .board.is-hovering .plate-card { filter: brightness(.76); }
+  .hover-preview {
+    position: fixed; z-index: 10; pointer-events: none;
+    padding: 0; border: 0; cursor: pointer;
+    background: #151617 center / contain no-repeat;
+    border-radius: 3px; box-shadow: 0 18px 60px #0009;
+    opacity: 0; transform: scale(.93);
+    transition: opacity 260ms ease, transform 420ms cubic-bezier(.2,.7,.2,1);
   }
-
-  body {
-    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-    -webkit-tap-highlight-color: transparent;
-    user-select: none;
+  .hover-preview.is-visible { opacity: 1; transform: scale(1); pointer-events: auto; }
+  .empty { padding: 48px 24px; text-align: center; color: #aaa; }
+  .viewer {
+    position: fixed; inset: 0; margin: 0; border: 0;
+    width: 100%; max-width: none; height: 100%; height: 100dvh; max-height: none;
+    padding: 72px 24px 92px; overflow: hidden;
+    color: var(--ink); background: #101112bf;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
   }
-
-  /* The stage fills the whole viewport. Two stacked "slides" crossfade between
-     plates so there's never a flash of empty background. */
-  .stage {
-    position: fixed;
-    inset: 0;
-    background: var(--bg);
+  .viewer[open] { display: grid; place-items: center; }
+  .viewer::backdrop { background: transparent; }
+  .viewer-frame { width: 100%; height: 100%; min-height: 0; display: grid; place-items: center; pointer-events: none; }
+  .viewer-image { width: 100%; height: 100%; min-height: 0; object-fit: contain; pointer-events: auto; opacity: 1; transition: opacity 180ms ease; }
+  .viewer.is-loading .viewer-image, .viewer.has-error .viewer-image { opacity: 0; }
+  .viewer-status { position: absolute; inset: 45% 20px auto; text-align: center; font-size: 13px; pointer-events: none; }
+  .icon-button {
+    display: grid; place-items: center; width: 48px; height: 48px;
+    padding: 0; border: 1px solid #ffffff38; border-radius: 4px;
+    background: #191b1ded; transition: background 180ms ease;
   }
-
-  .slide {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    transition: opacity 0.55s ease, transform 0.7s cubic-bezier(0.22, 1, 0.36, 1),
-                filter 0.7s cubic-bezier(0.22, 1, 0.36, 1);
-    transform: scale(1.06);
-    filter: blur(14px);
-    will-change: opacity, transform, filter;
+  .icon-button:hover { background: #45484c; }
+  .icon-button:disabled { opacity: .3; cursor: default; }
+  .icon-button svg { width: 24px; height: 24px; }
+  .close { position: absolute; top: max(16px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); }
+  .viewer-nav {
+    position: absolute; bottom: max(18px, env(safe-area-inset-bottom)); left: 50%;
+    transform: translateX(-50%); display: flex; align-items: center; gap: 16px;
   }
-
-  /* The active plate: fully visible, settled, sharp. */
-  .slide.active {
-    opacity: 1;
-    transform: scale(1);
-    filter: blur(0);
+  .viewer-count { min-width: 100px; text-align: center; font-size: 12px; font-variant-numeric: tabular-nums; color: #dedfe1; }
+  @media (min-width: 1800px) { .board { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+  @media (max-width: 1000px) { .board { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  @media (max-width: 700px) {
+    .board { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; transform: none; }
+    .viewer { padding: 76px 10px 88px; }
   }
-
-  /* A blurred, zoomed copy of the same photo fills any letterbox gaps so the
-     image always covers the full viewport while the real plate stays uncropped. */
-  .slide .bg {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    filter: blur(34px) brightness(0.55) saturate(1.1);
-    transform: scale(1.18);
-  }
-
-  .slide .fg {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-  }
-
-  /* The "Next" button, overlaid bottom-center. */
-  .next {
-    position: fixed;
-    left: 50%;
-    bottom: max(28px, env(safe-area-inset-bottom));
-    transform: translateX(-50%);
-    z-index: 10;
-    border: none;
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 14px;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--bg);
-    background: var(--ink);
-    padding: 15px 34px;
-    border-radius: 999px;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
-    transition: transform 0.12s ease, background 0.2s ease, box-shadow 0.2s ease;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .next:hover { background: #fff; box-shadow: 0 10px 38px rgba(0, 0, 0, 0.6); }
-  .next:active { transform: translateX(-50%) scale(0.94); }
-  .next:disabled { opacity: 0.45; cursor: default; }
-
-  /* Persistent "Home" button — returns to the intro/explainer. Sits behind the
-     intro overlay, so it's only visible once you're in the gallery. */
-  .home {
-    position: fixed;
-    top: max(20px, env(safe-area-inset-top));
-    left: max(20px, env(safe-area-inset-left));
-    z-index: 10;
-    border: 1px solid rgba(235, 226, 207, 0.35);
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--ink);
-    background: rgba(13, 12, 12, 0.5);
-    -webkit-backdrop-filter: blur(6px);
-    backdrop-filter: blur(6px);
-    padding: 9px 16px;
-    border-radius: 999px;
-    transition: transform 0.12s ease, background 0.2s ease, border-color 0.2s ease;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .home:hover { background: rgba(13, 12, 12, 0.8); border-color: rgba(235, 226, 207, 0.7); }
-  .home:active { transform: scale(0.94); }
-
-  /* --- Intro / landing screen (shown first; fades out on "Begin") --- */
-  .intro {
-    position: fixed;
-    inset: 0;
-    z-index: 20;
-    background: var(--bg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 40px 28px;
-    overflow-y: auto;
-    transition: opacity 0.55s ease;
-  }
-  .intro.hide { opacity: 0; pointer-events: none; }
-
-  .intro-inner {
-    max-width: 540px;
-    text-align: center;
-    margin: auto;
-  }
-
-  .intro .accent-strip {
-    height: 6px;
-    width: 116px;
-    margin: 0 auto 30px;
-    background: linear-gradient(90deg, var(--teal) 0% 60%, var(--orange) 60% 75%, var(--amber) 75% 88%, var(--sand) 88% 100%);
-  }
-
-  .intro h1 {
-    font-family: 'Milky Vintage', 'Gasoek One', sans-serif;
-    font-size: clamp(52px, 13vw, 86px);
-    line-height: 1.0;
-    color: var(--sand);
-    letter-spacing: 0.01em;
-    margin-bottom: 26px;
-  }
-
-  .intro p {
-    color: var(--ink-body);
-    font-size: 14px;
-    line-height: 1.75;
-    margin-bottom: 16px;
-  }
-  .intro p .em { color: var(--ink); }
-  .intro p.note { color: var(--ink-dim); font-size: 12.5px; }
-
-  .begin {
-    margin-top: 26px;
-    border: none;
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--bg);
-    background: var(--ink);
-    padding: 16px 44px;
-    border-radius: 999px;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
-    transition: transform 0.12s ease, background 0.2s ease, box-shadow 0.2s ease;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .begin:hover { background: #fff; box-shadow: 0 10px 38px rgba(0, 0, 0, 0.6); }
-  .begin:active { transform: scale(0.95); }
-
   @media (prefers-reduced-motion: reduce) {
-    .slide { transition: opacity 0.3s ease; transform: none; filter: none; }
-    .slide .bg { transform: scale(1.18); }
-    .intro { transition: opacity 0.3s ease; }
+    *, *::before, *::after { transition: none !important; }
+    .board { transform: none; }
   }
-
-  /* Empty state — shown when /plates/images/ has no photos yet. */
-  .empty {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 32px;
-    color: var(--ink-dim);
-    font-size: 13px;
-    line-height: 1.6;
-  }
-  .empty b { display: block; color: var(--ink); font-size: 18px; margin-bottom: 12px; }
-  .empty code { color: var(--amber); }
 </style>
 </head>
 <body>
+  <main class="board-screen" id="screen" aria-label="Michigan vanity plates">
+    <div class="board" id="board"></div>
+    <button class="hover-preview" id="hoverPreview" type="button" tabindex="-1" aria-hidden="true"></button>
+  </main>
+  <dialog class="viewer" id="viewer" aria-label="Plate viewer">
+    <!--
+    Navigation icons: Lucide v0.468.0, ISC License.
+    Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022
+    as part of Feather (MIT). All other copyright (c) for Lucide are held
+    by Lucide Contributors 2022.
 
-  <div class="stage" id="stage"></div>
+    Permission to use, copy, modify, and/or distribute this software for any
+    purpose with or without fee is hereby granted, provided that the above
+    copyright notice and this permission notice appear in all copies.
 
-  <button class="home" id="home" type="button">← Home</button>
-  <button class="next" id="next" type="button">Next</button>
-
-  <div class="intro" id="intro">
-    <div class="intro-inner">
-      <div class="accent-strip"></div>
-      <h1>MI Plates</h1>
-      <p>It feels like Michigan has more custom vanity plates <span class="em">per
-         capita</span> than just about anywhere else.</p>
-      <p>Why? Michigan's Secretary of State vehicle registration forms include a
-         line for personalizing new plates — something I've not seen in other
-         states. While plenty of states offer vanity plates, they have to be
-         requested explicitly.</p>
-      <p>It stands to reason that when people are presented with the option up
-         front, many take it.</p>
-      <p class="note">A growing collection spotted around the state, June 2024 to
-         today — about 200 plates so far, with more added regularly.</p>
-      <button class="begin" id="begin" type="button">Begin</button>
-    </div>
-  </div>
+    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+    MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+    ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+    -->
+    <button class="icon-button close" id="close" type="button" aria-label="Close plate" title="Close plate (Esc)">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+    </button>
+    <div class="viewer-frame"><img class="viewer-image" id="viewerImage" alt="Michigan vanity license plate"></div>
+    <div class="viewer-status" id="viewerStatus" role="status"></div>
+    <nav class="viewer-nav" aria-label="Plate navigation">
+      <button class="icon-button" id="previous" type="button" aria-label="Previous plate" title="Previous plate (Left arrow)">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+      </button>
+      <span class="viewer-count" id="viewerCount" aria-live="polite"></span>
+      <button class="icon-button" id="next" type="button" aria-label="Next plate" title="Next plate (Right arrow)">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+      </button>
+    </nav>
+  </dialog>
 
   {%- comment -%}
     Build a JS array of every image in /plates/images/, sorted by filename.
@@ -296,102 +161,200 @@
 
   <script>
   (function () {
-    var stage  = document.getElementById('stage');
-    var btn    = document.getElementById('next');
-    var intro  = document.getElementById('intro');
-    var begin  = document.getElementById('begin');
-    var home   = document.getElementById('home');
-    var plates = (window.PLATES || []).slice();
+    var screen = document.getElementById('screen');
+    var board = document.getElementById('board');
+    var preview = document.getElementById('hoverPreview');
+    var viewer = document.getElementById('viewer');
+    var viewerImage = document.getElementById('viewerImage');
+    var status = document.getElementById('viewerStatus');
+    var count = document.getElementById('viewerCount');
+    var close = document.getElementById('close');
+    var previous = document.getElementById('previous');
+    var next = document.getElementById('next');
+    var plates = (window.PLATES || []).filter(Boolean);
+    var reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    var finePointer = window.matchMedia('(hover: hover) and (pointer: fine)');
+    var order = plates.slice();
+    var currentIndex = 0;
+    var origin = null;
+    var hoverTimer;
+    var hovered = null;
+    var hoverVersion = 0;
+    var touchStart = null;
+    var preloads = [];
 
-    // "Home" re-shows the intro/explainer over the current plate.
-    home.addEventListener('click', function () { intro.classList.remove('hide'); });
-
-    if (!plates.length) {
-      btn.remove();
-      var e = document.createElement('div');
-      e.className = 'empty';
-      e.innerHTML = '<b>No plates yet</b>Drop JPGs into <code>/plates/images/</code><br>and they\'ll show up here automatically.';
-      stage.appendChild(e);
-      begin.addEventListener('click', function () { intro.classList.add('hide'); });
-      return;
+    // Keep one order throughout browsing and resizing.
+    for (var i = order.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var temp = order[i]; order[i] = order[j]; order[j] = temp;
     }
 
-    // Fisher–Yates shuffle: a session plays through every plate once, in a
-    // random order, before any repeats. When the deck runs out we reshuffle
-    // (avoiding an immediate back-to-back repeat across the seam).
-    function shuffle(a) {
-      for (var i = a.length - 1; i > 0; i--) {
-        var j = Math.floor(Math.random() * (i + 1));
-        var t = a[i]; a[i] = a[j]; a[j] = t;
-      }
-      return a;
+    function loadTile(card) {
+      if (card.dataset.loaded) return;
+      card.style.backgroundImage = 'url(' + JSON.stringify(card.dataset.src) + ')';
+      card.dataset.loaded = 'true';
     }
 
-    var deck = shuffle(plates.slice());
-    var pos  = 0;
-    var last = null;
-
-    function nextSrc() {
-      if (pos >= deck.length) {
-        deck = shuffle(plates.slice());
-        if (deck.length > 1 && deck[0] === last) {           // dodge a seam repeat
-          deck.push(deck.shift());
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          loadTile(entry.target);
+          observer.unobserve(entry.target);
         }
-        pos = 0;
-      }
-      last = deck[pos++];
-      return last;
+      });
+    }, { root: screen, rootMargin: '500px' });
+
+    function clearHover() {
+      window.clearTimeout(hoverTimer);
+      hoverVersion++;
+      hovered = null;
+      preview.classList.remove('is-visible');
+      board.classList.remove('is-hovering');
     }
 
-    // Two slides we crossfade between, so swapping never flashes the backdrop.
-    function makeSlide() {
-      var s = document.createElement('div');
-      s.className = 'slide';
-      var bg = document.createElement('img'); bg.className = 'bg'; bg.setAttribute('aria-hidden', 'true'); bg.alt = '';
-      var fg = document.createElement('img'); fg.className = 'fg'; fg.alt = 'Michigan vanity license plate';
-      s.appendChild(bg); s.appendChild(fg);
-      stage.appendChild(s);
-      return { el: s, bg: bg, fg: fg };
+    function showHover(card) {
+      if (viewer.open || hovered === card) return;
+      clearHover();
+      hovered = card;
+      var version = hoverVersion;
+      hoverTimer = window.setTimeout(function () {
+        var image = new Image();
+        image.onload = function () {
+          if (version !== hoverVersion || viewer.open) return;
+          var rect = card.getBoundingClientRect();
+          // Reveal the full photograph, with room around it even at screen edges.
+          var width = Math.min(rect.width * 1.85, window.innerWidth - 24);
+          var height = width * image.naturalHeight / image.naturalWidth;
+          var maxHeight = window.innerHeight - 32;
+          if (height > maxHeight) { width *= maxHeight / height; height = maxHeight; }
+          preview.style.width = width + 'px';
+          preview.style.height = height + 'px';
+          preview.style.left = Math.max(12, Math.min(window.innerWidth - width - 12, rect.left + (rect.width - width) / 2)) + 'px';
+          preview.style.top = Math.max(16, Math.min(window.innerHeight - height - 16, rect.top + (rect.height - height) / 2)) + 'px';
+          preview.style.backgroundImage = 'url(' + JSON.stringify(card.dataset.src) + ')';
+          preview.classList.add('is-visible');
+          board.classList.add('is-hovering');
+        };
+        image.src = card.dataset.src;
+      }, 160);
     }
 
-    var slideA = makeSlide();
-    var slideB = makeSlide();
-    var front  = slideA;
-    var back   = slideB;
-
-    function show(src) {
-      btn.disabled = true;
-      var img = new Image();
-      img.onload = img.onerror = function () {
-        back.bg.src = src;
-        back.fg.src = src;
-        back.el.classList.add('active');
-        front.el.classList.remove('active');
-        var tmp = front; front = back; back = tmp;     // swap roles
-        btn.disabled = false;
-      };
-      img.src = src;
-    }
-
-    btn.addEventListener('click', function () { if (!btn.disabled) show(nextSrc()); });
-    document.addEventListener('keydown', function (e) {
-      if (intro.classList.contains('hide') &&
-          (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') && !btn.disabled) {
-        e.preventDefault(); show(nextSrc());
-      }
+    order.forEach(function (src, index) {
+      var card = document.createElement('button');
+      card.className = 'plate-card';
+      card.type = 'button';
+      card.dataset.src = src;
+      card.dataset.index = index;
+      card.setAttribute('aria-label', 'Open plate ' + (index + 1));
+      board.appendChild(card);
+      observer.observe(card);
+      card.addEventListener('pointerenter', function (event) {
+        if (finePointer.matches && event.pointerType !== 'touch') showHover(card);
+      });
+      card.addEventListener('pointerleave', function (event) {
+        if (event.relatedTarget !== preview) clearHover();
+      });
+      card.addEventListener('focus', function () { loadTile(card); });
     });
 
-    // Quietly preload the first plate behind the intro so it's instant on "Begin".
-    var firstSrc = nextSrc();
-    new Image().src = firstSrc;
-
-    var started = false;
-    function start() {
-      intro.classList.add('hide');
-      show(started ? nextSrc() : firstSrc);   // first entry shows the preloaded plate; later ones advance
-      started = true;
+    if (!order.length) {
+      var empty = document.createElement('p');
+      empty.className = 'empty';
+      empty.textContent = 'No plates available.';
+      screen.appendChild(empty);
     }
-    begin.addEventListener('click', start);
+
+    screen.addEventListener('pointermove', function (event) {
+      if (viewer.open || reducedMotion.matches || !finePointer.matches || event.pointerType === 'touch') return;
+      // A small drift keeps the field responsive without moving the target away.
+      board.style.setProperty('--pan-x', ((.5 - event.clientX / window.innerWidth) * 12).toFixed(2) + 'px');
+    });
+    screen.addEventListener('pointerleave', function () {
+      clearHover();
+      board.style.setProperty('--pan-x', '0px');
+    });
+    screen.addEventListener('scroll', clearHover, { passive: true });
+    preview.addEventListener('pointerleave', clearHover);
+    window.addEventListener('resize', clearHover);
+    window.addEventListener('blur', clearHover);
+
+    viewerImage.addEventListener('load', function () {
+      viewer.classList.remove('is-loading', 'has-error');
+      status.textContent = '';
+    });
+    viewerImage.addEventListener('error', function () {
+      viewer.classList.remove('is-loading');
+      viewer.classList.add('has-error');
+      status.textContent = 'This photo could not load. Try the next plate.';
+    });
+
+    function displayPlate(index) {
+      currentIndex = (index + order.length) % order.length;
+      viewer.classList.remove('has-error');
+      viewer.classList.add('is-loading');
+      status.textContent = 'Loading photo...';
+      viewerImage.alt = 'Michigan vanity license plate ' + (currentIndex + 1);
+      viewerImage.src = order[currentIndex];
+      count.textContent = (currentIndex + 1) + ' / ' + order.length;
+      previous.disabled = next.disabled = order.length < 2;
+      preloads = [-1, 1].map(function (offset) {
+        var image = new Image();
+        image.src = order[(currentIndex + offset + order.length) % order.length];
+        return image;
+      });
+    }
+
+    function openPlate(card) {
+      if (!card) return;
+      origin = card;
+      clearHover();
+      displayPlate(Number(card.dataset.index));
+      viewer.showModal();
+      screen.classList.add('is-viewing');
+      screen.inert = true;
+      close.focus({ preventScroll: true });
+    }
+    board.addEventListener('click', function (event) {
+      openPlate(event.target.closest('.plate-card'));
+    });
+    preview.addEventListener('click', function () {
+      openPlate(hovered);
+    });
+
+    function closePlate() { viewer.close(); }
+    viewer.addEventListener('close', function () {
+      screen.classList.remove('is-viewing');
+      screen.inert = false;
+      touchStart = null;
+      if (origin) origin.focus({ preventScroll: true });
+    });
+    close.addEventListener('click', closePlate);
+    previous.addEventListener('click', function () { displayPlate(currentIndex - 1); });
+    next.addEventListener('click', function () { displayPlate(currentIndex + 1); });
+    viewer.addEventListener('click', function (event) {
+      if (event.target === viewer) closePlate();
+    });
+    viewer.addEventListener('keydown', function (event) {
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        event.preventDefault();
+        displayPlate(currentIndex + (event.key === 'ArrowRight' ? 1 : -1));
+      } else if (event.key.toLowerCase() === 'x') {
+        event.preventDefault();
+        closePlate();
+      }
+    });
+    viewerImage.addEventListener('touchstart', function (event) {
+      touchStart = event.touches.length === 1 ? { x: event.touches[0].clientX, y: event.touches[0].clientY } : null;
+    }, { passive: true });
+    viewerImage.addEventListener('touchend', function (event) {
+      if (!touchStart || event.touches.length) return;
+      var dx = event.changedTouches[0].clientX - touchStart.x;
+      var dy = event.changedTouches[0].clientY - touchStart.y;
+      touchStart = null;
+      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) displayPlate(currentIndex + (dx < 0 ? 1 : -1));
+    }, { passive: true });
+    viewerImage.addEventListener('touchcancel', function () { touchStart = null; });
   })();
   </script>
 </body>
