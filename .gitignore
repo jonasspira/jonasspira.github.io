@@ -1,2 +1,4 @@
 .DS_Store
 .claude/settings.local.json
+_data/plates_order.json
+_site/

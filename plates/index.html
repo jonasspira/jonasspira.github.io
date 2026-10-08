@@ -1,6 +1,5 @@
 ---
-# This empty "front matter" block tells GitHub Pages (Jekyll) to process the
-# page so it can auto-list whatever images live in /plates/images/.
+# This front matter tells Jekyll to embed the photo list generated at publish time.
 # You never need to edit this file to add plates — just drop JPGs in that folder.
 ---
 <!DOCTYPE html>
@@ -71,21 +70,11 @@
   </dialog>
 
   {%- comment -%}
-    Build a JS array of every image in /plates/images/, sorted by filename.
-    Jekyll fills this in at build time — no manifest file to maintain.
+    The publishing workflow generates this list from Git addition dates.
+    New photos come first, with no hand-maintained dates or manifest.
   {%- endcomment -%}
   <script>
-    window.PLATES = [
-      {%- assign files = site.static_files | sort: 'path' -%}
-      {%- for file in files -%}
-        {%- if file.path contains '/plates/images/' -%}
-          {%- assign ext = file.extname | downcase -%}
-          {%- if ext == '.jpg' or ext == '.jpeg' or ext == '.png' or ext == '.webp' -%}
-      {{ file.path | jsonify }},
-          {%- endif -%}
-        {%- endif -%}
-      {%- endfor -%}
-    ];
+    window.PLATES = {{ site.data.plates_order | jsonify }};
   </script>
 
   <script src="./assets/dome.js" defer></script>

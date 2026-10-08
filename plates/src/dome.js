@@ -16,10 +16,6 @@ const previous = document.getElementById('previous');
 const next = document.getElementById('next');
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 const order = (window.PLATES || []).filter(Boolean).slice();
-for (let i = order.length - 1; i > 0; i--) {
-  const j = Math.floor(Math.random() * (i + 1));
-  [order[i], order[j]] = [order[j], order[i]];
-}
 
 const scene = new Scene();
 const sphere = new Group();
@@ -52,11 +48,18 @@ const normal = new Vector3();
 const toCamera = new Vector3();
 const clamp = MathUtils.clamp;
 
-order.forEach((src, index) => {
+// Place the newest photos nearest the front, with the newest exactly centered.
+// Viewer navigation retains date order independently of the spherical layout.
+const slots = Array.from({ length: columns * rows }, (_, index) => {
   const col = Math.floor(index / rows);
   const row = index % rows;
   const longitude = col * Math.PI * 2 / columns;
-  const latitude = MathUtils.degToRad((row - (rows - 1) / 2 + (col % 2 ? .25 : -.25)) * latitudeStep);
+  const latitude = MathUtils.degToRad((row - Math.floor(rows / 2) + (col % 2 ? .5 : 0)) * latitudeStep);
+  return { longitude, latitude, depth: Math.cos(longitude) * Math.cos(latitude) };
+}).sort((a, b) => b.depth - a.depth);
+
+order.forEach((src, index) => {
+  const { longitude, latitude } = slots[index];
   const element = document.createElement('div');
   element.className = 'dome-tile';
   const button = document.createElement('button');

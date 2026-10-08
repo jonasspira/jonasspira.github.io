@@ -5,7 +5,7 @@ published: false
 
 # jonasspira.github.io
 
-This repository is Jonas's website, www.spiiira.com. GitHub Pages builds it with Jekyll and publishes the `main` branch automatically, usually within a minute or two. The only workflow of our own is `.github/workflows/link-check.yml`, which checks every page and Markdown file for broken links on each push. The repository holds web tools only.
+This repository is Jonas's website, www.spiiira.com. GitHub Pages builds it with Jekyll and publishes the `main` branch automatically through `.github/workflows/pages.yml`. The separate `.github/workflows/link-check.yml` checks every page and Markdown file for broken links on each push. The repository holds web tools only.
 
 ## Working with Jonas
 
@@ -37,6 +37,12 @@ This repository is Jonas's website, www.spiiira.com. GitHub Pages builds it with
   `npm ci --prefix plates` and `npm run build --prefix plates`. Commit the
   generated `plates/assets/` files too; GitHub Pages serves these directly.
   Adding plate photos still needs no JavaScript build or image manifest.
+- The publishing workflow generates Plates' newest-first image list from each
+  photo's Git addition date, then builds and checks the entire site. Photos added
+  in the same commit use filename order. Newest photos occupy the dome's center.
+  Keep Pages configured for GitHub Actions, not legacy branch publishing.
+  For local Jekyll previews, run `node _scripts/plate-order.mjs` first; it needs
+  full Git history and committed photos. Do not commit `_data/plates_order.json`.
 - Don't write `{{` or `{%` in Markdown files or in pages with front matter unless you mean Liquid.
 
 ## Housekeeping
