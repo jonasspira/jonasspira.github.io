@@ -45,6 +45,10 @@ button:focus-visible { outline: 2px solid white; outline-offset: -4px; }
 .icon-button:hover { background: #45484c; }
 .icon-button:disabled { opacity: .3; cursor: default; }
 .icon-button svg { width: 24px; height: 24px; }
+.zoom-controls { position: absolute; z-index: 2; bottom: max(18px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: calc(100% - 24px); cursor: default; }
+.zoom-slider { width: 112px; min-width: 64px; height: 48px; margin: 0; accent-color: #f7f7f7; cursor: pointer; }
+.zoom-controls .icon-button { flex: 0 0 48px; }
+.dome.is-viewing .zoom-controls { visibility: hidden; }
 .close { position: absolute; top: max(16px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); }
 .viewer-nav { position: absolute; bottom: max(18px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; }
 .viewer-count { min-width: 100px; text-align: center; font-size: 12px; font-variant-numeric: tabular-nums; color: #dedfe1; }

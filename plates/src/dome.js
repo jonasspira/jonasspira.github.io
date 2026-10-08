@@ -14,8 +14,12 @@ const count = document.getElementById('viewerCount');
 const close = document.getElementById('close');
 const previous = document.getElementById('previous');
 const next = document.getElementById('next');
+const zoomSlider = document.getElementById('zoom');
+const zoomOut = document.getElementById('zoomOut');
+const zoomIn = document.getElementById('zoomIn');
+const resetView = document.getElementById('resetView');
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
-const order = (window.PLATES || []).filter(Boolean).slice();
+const order = [...new Set((window.PLATES || []).filter(Boolean))];
 
 const scene = new Scene();
 const sphere = new Group();
@@ -30,7 +34,11 @@ const maxPitch = MathUtils.degToRad(Math.min(65, rows * latitudeStep / 2));
 const tiles = [];
 const rotation = { x: 0, y: 0, tx: 0, ty: 0 };
 const velocity = { x: 0, y: 0 };
+const zoom = { value: 1, target: 1 };
+const touches = new Map();
+let pinch = null;
 let radius = 600;
+let overviewDistance = 3000;
 let frame = 0;
 let lastTime = 0;
 let drag = null;
@@ -82,6 +90,7 @@ if (!order.length) {
 }
 
 function render() {
+  camera.position.z = radius * 2.2 * Math.pow(overviewDistance / (radius * 2.2), 1 - zoom.value);
   sphere.rotation.set(rotation.x, rotation.y, 0, 'XYZ');
   scene.updateMatrixWorld(true);
   camera.updateMatrixWorld(true);
@@ -111,8 +120,10 @@ function resize() {
   camera.fov = MathUtils.radToDeg(2 * Math.atan(height / (4 * radius)));
   camera.aspect = width / height;
   camera.near = 1;
-  camera.far = radius * 6;
-  camera.position.set(0, 0, radius * 2.2);
+  // Fit the whole sphere inside the narrower viewport dimension at overview.
+  const halfAngle = Math.atan(Math.tan(MathUtils.degToRad(camera.fov / 2)) * Math.min(1, camera.aspect));
+  overviewDistance = Math.max(radius * 2.2, radius / Math.sin(halfAngle) * 1.15);
+  camera.far = overviewDistance + radius * 3;
   camera.updateProjectionMatrix();
   for (const tile of tiles) {
     const { longitude: lon, latitude: lat, object } = tile;
@@ -139,14 +150,16 @@ function tick(now) {
   const ease = reducedMotion.matches ? 1 : 1 - Math.exp(-dt / 95);
   rotation.x += (rotation.tx - rotation.x) * ease;
   rotation.y += (rotation.ty - rotation.y) * ease;
+  zoom.value += (zoom.target - zoom.value) * ease;
   render();
-  if (Math.abs(rotation.tx - rotation.x) + Math.abs(rotation.ty - rotation.y) > .00005 ||
+  if (Math.abs(rotation.tx - rotation.x) + Math.abs(rotation.ty - rotation.y) + Math.abs(zoom.target - zoom.value) > .00005 ||
       Math.abs(velocity.x) + Math.abs(velocity.y) > .000002) {
     frame = requestAnimationFrame(tick);
   } else {
     rotation.x = rotation.tx;
     rotation.y = rotation.ty;
     velocity.x = velocity.y = 0;
+    zoom.value = zoom.target;
     render();
   }
 }
@@ -162,14 +175,61 @@ function stopMotion() {
   velocity.x = velocity.y = 0;
   rotation.tx = rotation.x;
   rotation.ty = rotation.y;
+  zoom.target = zoom.value;
+  syncZoomControls();
+}
+
+function syncZoomControls() {
+  zoomSlider.value = Math.round(zoom.target * 100);
+  zoomSlider.setAttribute('aria-valuetext', zoom.target === 0 ? 'Overview' : zoom.target === 1 ? 'Close-up' : zoomSlider.value + '%');
+  zoomOut.disabled = zoom.target <= 0;
+  zoomIn.disabled = zoom.target >= 1;
+}
+function setZoom(value) {
+  zoom.target = clamp(value, 0, 1);
+  velocity.x = velocity.y = 0;
+  syncZoomControls();
+  wake();
+}
+zoomOut.addEventListener('click', () => setZoom(zoom.target - .15));
+zoomIn.addEventListener('click', () => setZoom(zoom.target + .15));
+zoomSlider.addEventListener('input', () => setZoom(Number(zoomSlider.value) / 100));
+resetView.addEventListener('click', () => {
+  stopMotion();
+  // Return by the shortest turn, even after several full rotations.
+  rotation.y = MathUtils.euclideanModulo(rotation.y + Math.PI, Math.PI * 2) - Math.PI;
+  rotation.tx = rotation.ty = 0;
+  setZoom(1);
+});
+function touchDistance() {
+  const [a, b] = touches.values();
+  return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
 dome.addEventListener('pointerdown', event => {
-  if (viewer.open || event.button !== 0 || !event.isPrimary) return;
+  if (viewer.open || event.button !== 0 || event.target.closest('.zoom-controls')) return;
+  if (event.pointerType === 'touch') {
+    touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (touches.size === 2) {
+      stopMotion();
+      drag = null;
+      pinch = { distance: Math.max(1, touchDistance()), zoom: zoom.target };
+      dome.classList.add('is-dragging');
+      for (const id of touches.keys()) dome.setPointerCapture(id);
+      return;
+    }
+    if (pinch || touches.size > 2) return;
+  }
+  if (!event.isPrimary) return;
   stopMotion();
   drag = { id: event.pointerId, x: event.clientX, y: event.clientY, lastX: event.clientX, lastY: event.clientY, time: performance.now(), moved: false };
 });
 dome.addEventListener('pointermove', event => {
+  if (touches.has(event.pointerId)) touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  if (pinch) {
+    if (touches.size === 2) setZoom(pinch.zoom + Math.log(Math.max(1, touchDistance()) / pinch.distance) * .8);
+    return;
+  }
   if (!drag || drag.id !== event.pointerId) return;
   const now = performance.now();
   const dx = event.clientX - drag.lastX;
@@ -193,6 +253,17 @@ dome.addEventListener('pointermove', event => {
   drag.time = now;
 });
 function endDrag(event) {
+  touches.delete(event.pointerId);
+  if (event.pointerId === undefined) touches.clear();
+  if (pinch) {
+    suppressClickUntil = performance.now() + 400;
+    if (event.pointerId !== undefined && dome.hasPointerCapture(event.pointerId)) dome.releasePointerCapture(event.pointerId);
+    if (!touches.size) {
+      pinch = null;
+      dome.classList.remove('is-dragging');
+    }
+    return;
+  }
   if (!drag || (event.pointerId !== undefined && event.pointerId !== drag.id)) return;
   if (drag.moved) suppressClickUntil = performance.now() + 220;
   if (performance.now() - drag.time > 80 || event.type === 'pointercancel' || reducedMotion.matches) velocity.x = velocity.y = 0;
@@ -206,8 +277,12 @@ dome.addEventListener('pointercancel', endDrag);
 dome.addEventListener('lostpointercapture', endDrag);
 window.addEventListener('pointerup', endDrag);
 dome.addEventListener('wheel', event => {
-  if (viewer.open || event.ctrlKey) return;
+  if (viewer.open || event.target.closest('.zoom-controls')) return;
   event.preventDefault();
+  if (event.ctrlKey) {
+    setZoom(zoom.target - clamp(event.deltaY, -100, 100) * .004);
+    return;
+  }
   velocity.x = velocity.y = 0;
   const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? innerHeight : 1;
   if (event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
@@ -289,6 +364,7 @@ previous.addEventListener('click', () => { opening = false; displayPlate(current
 next.addEventListener('click', () => { opening = false; displayPlate(currentIndex + 1); });
 document.addEventListener('keydown', event => {
   if (event.altKey || event.ctrlKey || event.metaKey) return;
+  if (!viewer.open && event.target === zoomSlider) return;
   if (viewer.open) {
     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       event.preventDefault();
@@ -327,4 +403,5 @@ window.addEventListener('blur', () => { endDrag({ type: 'pointercancel' }); stop
 document.addEventListener('visibilitychange', () => { if (document.hidden) stopMotion(); });
 reducedMotion.addEventListener('change', stopMotion);
 new ResizeObserver(resize).observe(dome);
+syncZoomControls();
 resize();

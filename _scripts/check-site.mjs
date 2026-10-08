@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 
 for (const page of ['', 'breaker-map/', 'filters/', 'groton-inventory/', 'plates/', 'tinfoil/', 'toronto26/']) {
   assert(existsSync('_site/' + page + 'index.html'), 'Missing built page: ' + page);
@@ -13,7 +14,13 @@ assert.deepEqual(actual, expected, 'Published photos must retain newest-first or
 assert(actual.length > 0, 'Gallery cannot be empty');
 assert.equal(new Set(actual).size, actual.length, 'Photos must not be duplicated');
 assert(!/id=["'](?:intro|begin)["']/.test(html), 'The gallery must open without an intro');
-for (const path of actual) assert(existsSync('_site' + path), 'Missing image: ' + path);
+const hashes = new Set();
+for (const path of actual) {
+  assert(existsSync('_site' + path), 'Missing image: ' + path);
+  const hash = createHash('sha256').update(readFileSync('_site' + path)).digest('hex');
+  assert(!hashes.has(hash), 'Duplicate photo content: ' + path);
+  hashes.add(hash);
+}
 for (const asset of ['dome.js', 'dome.css']) {
   assert(existsSync('_site/plates/assets/' + asset), 'Missing gallery asset: ' + asset);
 }

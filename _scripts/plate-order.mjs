@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { resolve, dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -18,7 +19,15 @@ export function plateOrder(root, progress = () => {}) {
     return { path: '/' + path, added };
   });
   photos.sort((a, b) => b.added - a.added || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
-  return photos.map(photo => photo.path);
+  // Renamed copies can have different paths but identical photo content.
+  // Keep the newest copy without removing any source files.
+  const seen = new Set();
+  return photos.filter(photo => {
+    const hash = createHash('sha256').update(readFileSync(resolve(root, '.' + photo.path))).digest('hex');
+    if (seen.has(hash)) return false;
+    seen.add(hash);
+    return true;
+  }).map(photo => photo.path);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

@@ -43,6 +43,12 @@ This repository is Jonas's website, www.spiiira.com. GitHub Pages builds it with
   Keep Pages configured for GitHub Actions, not legacy branch publishing.
   For local Jekyll previews, run `node _scripts/plate-order.mjs` first; it needs
   full Git history and committed photos. Do not commit `_data/plates_order.json`.
+- The photo list filters identical file content using SHA-256, keeping the
+  newest copy. Never delete source photos as part of this filtering. The built
+  site check also rejects duplicate photo content. Run
+  `node --test _scripts/plate-order.test.mjs` after changing this behavior.
+- Plates supports a zoom slider, zoom buttons, phone/trackpad pinch, and a reset
+  to the newest photos. Ordinary wheel movement still rotates the gallery.
 - Don't write `{{` or `{%` in Markdown files or in pages with front matter unless you mean Liquid.
 
 ## Housekeeping

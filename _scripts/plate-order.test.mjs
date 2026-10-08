@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync, utimesSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, utimesSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { plateOrder } from './plate-order.mjs';
@@ -15,7 +15,7 @@ test('new additions lead regardless of filename or filesystem dates; edits keep 
   git(['config', 'user.name', 'Plates test']);
   git(['config', 'user.email', 'plates-test@example.invalid']);
   mkdirSync(join(root, 'plates/images'), { recursive: true });
-  const add = name => writeFileSync(join(root, 'plates/images', name), 'fixture');
+  const add = (name, content = name) => writeFileSync(join(root, 'plates/images', name), content);
   const commit = date => {
     git(['add', '.']);
     git(['commit', '-qm', 'Test image batch'], { GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date });
@@ -35,4 +35,13 @@ test('new additions lead regardless of filename or filesystem dates; edits keep 
   add('000-latest.jpeg');
   commit('2026-04-01T12:00:00Z');
   assert.equal(plateOrder(root)[0], '/plates/images/000-latest.jpeg');
+  add('renamed-copy.jpeg', '000-latest.jpeg');
+  add('same-batch-copy.jpeg', '000-latest.jpeg');
+  commit('2026-05-01T12:00:00Z');
+  assert.deepEqual(plateOrder(root), [
+    '/plates/images/renamed-copy.jpeg', '/plates/images/a-new.png',
+    '/plates/images/b-new.webp', '/plates/images/z-old.JPG'
+  ], 'Identical files appear once, even across filenames and upload batches');
+  assert.equal(readFileSync(join(root, 'plates/images/000-latest.jpeg'), 'utf8'), '000-latest.jpeg',
+    'Filtering must leave the original file intact');
 });

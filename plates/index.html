@@ -32,6 +32,18 @@
   <main class="dome" id="screen" tabindex="0" aria-label="Michigan vanity plates. Drag or use arrow keys to explore.">
     <div class="stage" id="stage"></div>
     <div class="edge-shade" aria-hidden="true"></div>
+    <nav class="zoom-controls" aria-label="Gallery view">
+      <button class="icon-button" id="zoomOut" type="button" aria-label="Zoom out" title="Zoom out">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3M8 11h6"/></svg>
+      </button>
+      <input id="zoom" class="zoom-slider" type="range" min="0" max="100" value="100" step="1" aria-label="Gallery zoom" title="Gallery zoom">
+      <button class="icon-button" id="zoomIn" type="button" aria-label="Zoom in" title="Zoom in">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3M8 11h6M11 8v6"/></svg>
+      </button>
+      <button class="icon-button" id="resetView" type="button" aria-label="Reset view to newest photos" title="Reset view to newest photos">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2.7 6.4M3 3v8h8"/></svg>
+      </button>
+    </nav>
   </main>
   <noscript><p class="empty">JavaScript is needed to view the photo gallery.</p></noscript>
   <dialog class="viewer" id="viewer" aria-label="Plate viewer">
