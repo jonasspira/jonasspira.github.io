@@ -37,6 +37,10 @@ This repository is Jonas's website, www.spiiira.com. GitHub Pages builds it with
   `npm ci --prefix plates` and `npm run build --prefix plates`. Commit the
   generated `plates/assets/` files too; GitHub Pages serves these directly.
   Adding plate photos still needs no JavaScript build or image manifest.
+- Jonas drops full-size plate photos straight into `plates/images/`. Before
+  committing them, run `plates/resize-plates.sh`. It works in place: shrinks
+  to 1600px, converts HEIC/PNG to JPEG, makes names URL-safe and removes GPS
+  locations. Never commit full-size camera files.
 - The publishing workflow generates Plates' newest-first image list from each
   photo's Git addition date, then builds and checks the entire site. Photos added
   in the same commit use filename order. Newest photos occupy the dome's center.
