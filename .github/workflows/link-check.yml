@@ -19,4 +19,7 @@ jobs:
           # --exclude '%7B%7B': skip links containing "{{". Those are Jekyll
           #   placeholders (toronto26) that only become real paths when
           #   GitHub Pages builds the site.
-          args: --verbose --no-progress --root-dir '${{ github.workspace }}' --exclude '%7B%7B' './**/*.md' './**/*.html'
+          # --exclude 'goatcounter\.com/count': the visit counter's address in
+          #   every page. It only accepts visits from the counter script, so a
+          #   plain check of it always fails.
+          args: --verbose --no-progress --root-dir '${{ github.workspace }}' --exclude '%7B%7B' --exclude 'goatcounter\.com/count' './**/*.md' './**/*.html'
