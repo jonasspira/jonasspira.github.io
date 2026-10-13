@@ -18,7 +18,8 @@ This repository is Jonas's website, www.spiiira.com. GitHub Pages builds it with
 - Tools that run in the browser. Each tool is a top-level folder with an `index.html`, and the folder name is its address: www.spiiira.com/<folder>/.
 - When you add a tool, also:
   - add a card for it to the homepage, `index.html`, in the same format as the existing cards;
-  - add a row for it to the table in `README.md`.
+  - add a row for it to the table in `README.md`;
+  - add the visit counter: copy the two GoatCounter lines (a comment and a `<script>`) from just before `</head>` in `index.html` to the same place in the new page. Every page has them, so visits show up at spiiira.goatcounter.com.
 - Build new tools in the spiiira-ui house style (the spiiira-ui skill) unless Jonas asks for something else.
 - Pages are plain static files and everything in this repository is public. Anything that needs a secret goes in a separate service, never in the page (see `groton-inventory/worker.js` and `groton-inventory/SETUP.md`).
 
