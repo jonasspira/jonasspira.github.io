@@ -23,6 +23,7 @@ const GOOGLE_CLIENT_ID = '994773724656-dht15sn4cq190nr2v9sgmn0ki5nqj86p.apps.goo
 const MAX_BODY_BYTES = 300 * 1024;
 const MAX_UPSTREAM_BYTES = 1024 * 1024;
 const TIMEOUT_MS = 55000;
+const BUILD = '2026-10-19.2';
 const PROD_ORIGINS = new Set([
   'https://www.spiiira.com', 'https://spiiira.com', 'https://jonasspira.github.io',
 ]);
@@ -60,6 +61,10 @@ function json(data, status, origin) {
 
 class ServiceError extends Error {
   constructor(status, code, detail) { super(detail); this.status = status; this.code = code; }
+}
+
+async function cancelQuietly(response) {
+  try { await response.body?.cancel(); } catch { /* Never expose cancellation errors or upstream content. */ }
 }
 
 async function readJSON(response, maxBytes = MAX_BODY_BYTES) {
@@ -129,8 +134,9 @@ async function authenticate(request, env, fetchImpl, timeoutMs) {
     return await withTimeout(async signal => {
       const url = new URL('https://oauth2.googleapis.com/tokeninfo');
       url.searchParams.set('access_token', token);
-      const response = await fetchImpl(url.href, { signal, redirect: 'error' });
-      if (!response.ok) return false;
+      // workerd supports manual/follow, not redirect:'error'. Do not follow redirects.
+      const response = await fetchImpl(url.href, { signal, redirect: 'manual' });
+      if (!response.ok) { await cancelQuietly(response); return false; }
       const info = await readJSON(response, 16 * 1024);
       return info.aud === (env.GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID) &&
         (info.email_verified === true || info.email_verified === 'true') &&
@@ -200,10 +206,18 @@ function normalizedUsage(usage) {
   return result;
 }
 
-async function analyze(body, env, fetchImpl, timeoutMs) {
+const SAFE_ERROR_TYPES = new Set(['Error', 'TypeError', 'RangeError', 'ReferenceError', 'SyntaxError', 'DOMException', 'AbortError', 'TimeoutError']);
+function safeErrorType(error) {
+  return SAFE_ERROR_TYPES.has(error?.name) ? error.name : 'Error';
+}
+
+async function analyze(body, env, fetchImpl, timeoutMs, setStage) {
+  setStage('provider_request');
   const provider = body.provider;
-  const key = provider === 'anthropic' ? env.ANTHROPIC_API_KEY : env.OPENAI_API_KEY;
+  const label = provider === 'anthropic' ? 'Claude' : 'OpenAI';
+  const key = String((provider === 'anthropic' ? env.ANTHROPIC_API_KEY : env.OPENAI_API_KEY) || '').trim();
   if (!key) throw new ServiceError(400, 'provider_unavailable', 'That AI provider has not been configured. Choose the other provider.');
+  if (/[^\x21-\x7e]/.test(key)) throw new ServiceError(400, 'provider_configuration', `${label}'s API key contains invalid characters. Replace its Cloudflare secret with a single-line API key.`);
   const model = provider === 'anthropic' ? ANTHROPIC_MODEL : OPENAI_MODEL;
   return withTimeout(async signal => {
     const payload = provider === 'anthropic' ? {
@@ -216,20 +230,31 @@ async function analyze(body, env, fetchImpl, timeoutMs) {
       instructions: body.system, input: body.prompt,
       text: { format: { type: 'json_schema', name: 'filter_analysis', schema: body.schema, strict: true } },
     };
-    const response = await fetchImpl(provider === 'anthropic' ? 'https://api.anthropic.com/v1/messages' : 'https://api.openai.com/v1/responses', {
-      method: 'POST', redirect: 'error', signal,
-      headers: provider === 'anthropic' ? {
-        'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01',
-      } : { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-      body: JSON.stringify(payload),
-    });
+    let response;
+    try {
+      response = await fetchImpl(provider === 'anthropic' ? 'https://api.anthropic.com/v1/messages' : 'https://api.openai.com/v1/responses', {
+        method: 'POST', redirect: 'manual', signal,
+        headers: provider === 'anthropic' ? {
+          'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01',
+        } : { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+        body: JSON.stringify(payload),
+      });
+    } catch (error) {
+      throw new ServiceError(502, 'provider_connection', `${label} could not be reached from the AI service. [stage:provider_request, type:${safeErrorType(error)}]`);
+    }
+    setStage('provider_response');
+    if (response.status >= 300 && response.status < 400) {
+      await cancelQuietly(response);
+      throw new ServiceError(502, 'provider_redirect', `${label} returned an unexpected redirect. The AI service did not follow it.`);
+    }
     if (!response.ok) {
-      await response.body?.cancel();
+      await cancelQuietly(response);
       throw upstreamError(response.status);
     }
     let result;
     try { result = await readJSON(response, MAX_UPSTREAM_BYTES); }
     catch { throw new ServiceError(502, 'invalid_response', 'The AI provider returned an unreadable response.'); }
+    setStage('response_validation');
     let text;
     if (provider === 'anthropic') {
       if (result.stop_reason !== 'end_turn') {
@@ -253,13 +278,16 @@ async function analyze(body, env, fetchImpl, timeoutMs) {
 export async function handleRequest(request, env = {}, { fetchImpl = fetch, timeoutMs = TIMEOUT_MS } = {}) {
   const origin = request.headers.get('Origin');
   const path = new URL(request.url).pathname;
+  // Fixed stage names only. Never include raw exception messages or request data.
+  let stage = 'auth';
+  const setStage = value => { stage = value; };
   try {
     if (request.method === 'OPTIONS') {
       if (!isAllowedOrigin(origin)) throw new ServiceError(403, 'origin_forbidden', 'This website is not allowed to use the service.');
       return new Response(null, { status: 204, headers: { ...corsHeaders(origin), 'Cache-Control': 'no-store' } });
     }
     if (path === '/health' && request.method === 'GET') {
-      return json({ anthropic: Boolean(env.ANTHROPIC_API_KEY), openai: Boolean(env.OPENAI_API_KEY),
+      return json({ build: BUILD, anthropic: Boolean(env.ANTHROPIC_API_KEY), openai: Boolean(env.OPENAI_API_KEY),
         accessCode: Boolean(env.ACCESS_CODE), allowedEmails: allowedEmails(env).size }, 200, origin);
     }
     if (path !== '/analyze') throw new ServiceError(404, 'not_found', 'That service address does not exist.');
@@ -269,12 +297,13 @@ export async function handleRequest(request, env = {}, { fetchImpl = fetch, time
       throw new ServiceError(400, 'invalid_request', 'Send the request as JSON.');
     }
     if (!await authenticate(request, env, fetchImpl, timeoutMs)) throw new ServiceError(401, 'unauthorized', 'Enter your access code in Settings, or reconnect an allowed Google account.');
+    setStage('request_body');
     const body = validateRequest(await withTimeout(() => readJSON(request), Math.min(timeoutMs, 10000)));
-    return json(await analyze(body, env, fetchImpl, timeoutMs), 200, origin);
+    return json(await analyze(body, env, fetchImpl, timeoutMs, setStage), 200, origin);
   } catch (error) {
     if (error instanceof ServiceError) return json({ ok: false, error: error.code, detail: error.message }, error.status, origin);
     // Do not return/log raw upstream errors: they may contain credentials or mail.
-    return json({ ok: false, error: 'service_error', detail: 'The AI service could not complete the request. Try again.' }, 502, origin);
+    return json({ ok: false, error: 'service_error', detail: `The AI service could not complete the request. [stage:${stage}, type:${safeErrorType(error)}]` }, 502, origin);
   }
 }
 

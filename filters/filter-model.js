@@ -407,6 +407,24 @@ export function mergeFilters(filters) {
   return emptyFilter({ source: 'new', position: first.position, key: `merge-${normalized.map(filter => filter.key).join('-')}`, criteria: { hasTheWord: query }, actions: first.actions });
 }
 
+// AI merge criteria are advisory. Rebuild compatible merges from the actual originals,
+// retaining each complete AND group and every action regardless of AI query formatting.
+export function normalizeProposal(proposal, filters) {
+  if (!proposal || proposal.kind !== 'merge' || !Array.isArray(proposal.replacesPositions) || proposal.replacesPositions.length < 2) return proposal;
+  const positions = proposal.replacesPositions;
+  if (new Set(positions).size !== positions.length || positions.some(position => !Number.isInteger(position))) return proposal;
+  const originals = positions.map(position => filters.find(filter => filter.position === position));
+  if (originals.some(filter => !filter)) return proposal;
+  const actions = proposal.actions;
+  if (!actions || typeof actions !== 'object' || Array.isArray(actions)) return proposal;
+  if (Object.entries(actions).some(([key, value]) => !Object.hasOwn(ACTION_DEFAULTS, key) || typeof value !== typeof ACTION_DEFAULTS[key])) return proposal;
+  if (signature({ actions }, 'actions') !== signature(originals[0], 'actions')) return proposal;
+  try {
+    const merged = mergeFilters(originals);
+    return { ...proposal, criteria: merged.criteria, actions: merged.actions, gmailSearchQuery: buildQuery(merged) };
+  } catch { return proposal; }
+}
+
 export function validateProposal(proposal, filters, emails = []) {
   const warnings = [];
   if (!proposal || typeof proposal !== 'object') return ['The AI did not return a filter object.'];
@@ -463,7 +481,6 @@ export function validateProposal(proposal, filters, emails = []) {
     })) warnings.push('A list: criterion needs a List-Id header on every cited example.');
   } else warnings.push('Missing exampleEmailIndexes list.');
   if (/\blist\s*:/.test(query) && !exampleIndexes.length) warnings.push('A list: criterion needs a cited email with a List-Id header.');
-  if (typeof proposal.gmailSearchQuery === 'string' && proposal.gmailSearchQuery.trim() !== query.trim()) warnings.push('The supplied preview differs from the generated filter query; the tool uses the generated query.');
   return [...new Set(warnings)];
 }
 

@@ -1,4 +1,4 @@
-import { emptyFilter, parseXml, fromGmail, toXml, buildQuery, checkFilters, mergeFilters, validateProposal, describeActions, getReplacementPlan } from './filter-model.js';
+import { emptyFilter, parseXml, fromGmail, toXml, buildQuery, checkFilters, mergeFilters, normalizeProposal, validateProposal, describeActions, getReplacementPlan } from './filter-model.js';
 import { DEFAULT_RULES, buildAnalysisRequest, callAI, getHealth } from './ai.js';
 import { connectGoogle, readGoogleFilters, readInbox, signOutGoogle } from './gmail.js';
 
@@ -166,7 +166,8 @@ function readBuildDraft() {
 }
 function addProposals(proposals, {summary='', findings=[], unmatched=[], append=false}={}) {
   const cards = proposals.map(raw => {
-    const p=raw && typeof raw==='object' ? {...raw} : {};
+    const normalized=normalizeProposal(raw,state.filters);
+    const p=normalized && typeof normalized==='object' ? {...normalized} : {};
     const warnings = validateProposal(p,state.filters,state.emails);
     const positions=Array.isArray(p.replacesPositions)?p.replacesPositions:[];
     const blocking = !['new','fix','extend','merge'].includes(p.kind) || !Array.isArray(p.replacesPositions) || positions.some(n=>!state.filters.some(f=>f.position===n)) || !p.criteria || !p.actions || !buildQuery(emptyFilter(p)) || state.filters.some(f=>positions.includes(f.position) && (f.preservation?.blockers?.length || f.preservation?.xmlProperties?.length));

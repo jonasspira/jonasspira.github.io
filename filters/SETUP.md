@@ -51,10 +51,12 @@ If Cloudflare gives you a different address, have Codex update the single `AI_UR
 Open that address with `/health` added. A successful setup looks like:
 
 ```json
-{"anthropic":true,"openai":true,"accessCode":true,"allowedEmails":1}
+{"build":"2026-10-19.2","anthropic":true,"openai":true,"accessCode":true,"allowedEmails":1}
 ```
 
 `false` for an unused provider is fine. This endpoint confirms configuration only; it does not spend API credits or validate the provider keys. The first analysis tests the actual provider connection. The page disables a provider when its key is absent.
+
+The `build` value confirms which source version was deployed. If it is absent or differs from `2026-10-19.2`, deploy the latest `worker.js` before diagnosing a connection problem. This build uses Cloudflare's supported manual redirect mode and rejects redirects; no provider key or Google token follows a redirect.
 
 ## 3. Set up personal Gmail, if wanted
 
@@ -116,6 +118,10 @@ Only after the new live service works, retire the old `spiiira-claude-proxy` Wor
 | Provider unavailable | Add that provider's API key as a Cloudflare Secret and deploy, or choose the configured provider. |
 | Enter access code | Check the saved code. Connecting Google only authorizes AI when its verified address is in `ALLOWED_EMAILS`. |
 | Provider rejects API key | Check the API account, key and billing. `/health` does not validate keys. |
+| API key contains invalid characters | Replace that provider's Cloudflare Secret with the original single-line key. The Worker trims surrounding whitespace and rejects internal whitespace or non-ASCII characters without showing the value. |
+| Provider could not be reached | The failure happened before a provider HTTP response. Check Cloudflare connectivity and deployment; an included stage/type marker contains no prompt, token or key. |
+| Provider returned an unexpected redirect | The Worker rejected it without following the destination. Check the deployed source and provider availability. |
+| A message includes `stage:...` and `type:...` | Share only that marker with Codex. It identifies a fixed processing step and error class; never share your secrets, raw request or email content. |
 | Result too long / request too large | Use fewer sample emails or a smaller export. Requests are capped at 300 KB and output at 16,000 tokens. |
 | Google origin error | Add the exact page origin, including the local port, to the OAuth client. |
 | Sign in again | The temporary Google token expired. Reconnect; tokens are never stored. |

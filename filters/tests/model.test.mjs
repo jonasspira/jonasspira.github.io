@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
   emptyFilter, parseXml, fromGmail, toXml, buildQuery, checkFilters, mergeFilters,
-  validateProposal, describeActions, getReplacementPlan, CRITERIA_DEFAULTS, ACTION_DEFAULTS,
+  validateProposal, normalizeProposal, describeActions, getReplacementPlan, CRITERIA_DEFAULTS, ACTION_DEFAULTS,
 } from '../filter-model.js';
 
 const fixture = await readFile(new URL('./fixtures/example.xml', import.meta.url), 'utf8');
@@ -223,6 +223,14 @@ test('valid replacement is accepted and retained actions cannot silently disappe
   for (const key of ['archive', 'star', 'forwardTo']) assert.ok(warnings.some(warning => warning.includes(key)));
 });
 
+test('AI preview formatting cannot gate a valid fix because previews are generated locally', () => {
+  const filters = [make(1, { from: 'old@example.com' }, { label: 'Bills' })];
+  const value = { ...proposal('fix', [1], { from: 'a@example.com' }, filters[0].actions), gmailSearchQuery: 'from:a@example.com' };
+  assert.deepEqual(validateProposal(value, filters), []);
+  assert.equal(buildQuery(emptyFilter(value)), 'from:(a@example.com)');
+  assert.equal(normalizeProposal(value, filters), value);
+});
+
 test('proposal validation rejects invented numbers, missing replacements, empty criteria, types, and punctuation', () => {
   const filters = [make(1, { from: 'x@example.com' })];
   assert.ok(validateProposal(proposal('fix', [99], { from: 'y@example.com' }, {}), filters).some(warning => warning.includes('does not exist')));
@@ -249,6 +257,45 @@ test('AI merge validation blocks the old broad-OR bug and accepts the generated 
   assert.ok(validateProposal(unsafe, filters).some(warning => warning.includes('complete AND group')));
   const safe = { ...unsafe, criteria: mergeFilters(filters).criteria };
   assert.deepEqual(validateProposal(safe, filters), []);
+});
+
+test('equivalent AI merge formatting normalizes to deterministic complete AND groups', () => {
+  const filters = [make(1, { from: 'a@example.com', subject: 'invoice' }, { label: 'Bills', archive: true }), make(2, { from: 'b@example.com' }, { label: 'Bills', archive: true })];
+  const value = { ...proposal('merge', [1, 2], { hasTheWord: '(from:a@example.com subject:invoice) OR from:b@example.com' }, filters[0].actions), gmailSearchQuery: '(from:a@example.com subject:invoice) OR from:b@example.com' };
+  const normalized = normalizeProposal(value, filters), expected = mergeFilters(filters);
+  assert.notEqual(normalized, value);
+  assert.deepEqual(normalized.criteria, expected.criteria);
+  assert.deepEqual(normalized.actions, expected.actions);
+  assert.equal(normalized.gmailSearchQuery, buildQuery(expected));
+  assert.deepEqual(validateProposal(normalized, filters), []);
+  assert.equal(value.criteria.hasTheWord, '(from:a@example.com subject:invoice) OR from:b@example.com');
+});
+
+test('unsafe AI broad-OR merge is replaced by canonical safe criteria from originals', () => {
+  const filters = [make(1, { from: 'a@example.com', subject: 'invoice' }, { label: 'Bills' }), make(2, { from: 'b@example.com', doesNotHaveTheWord: 'draft' }, { label: 'Bills' })];
+  const value = proposal('merge', [1, 2], { hasTheWord: 'from:(a@example.com OR b@example.com) OR subject:invoice' }, filters[0].actions);
+  const normalized = normalizeProposal(value, filters);
+  assert.equal(normalized.criteria.hasTheWord, '(from:(a@example.com) subject:(invoice)) OR (from:(b@example.com) -(draft))');
+  assert.deepEqual(validateProposal(normalized, filters), []);
+  assert.ok(validateProposal(value, filters).some(warning => warning.includes('complete AND group')));
+});
+
+test('incompatible or unsupported merges never silently change proposed actions', () => {
+  const filters = [make(1, { from: 'a@example.com' }, { label: 'Bills', archive: true }), make(2, { from: 'b@example.com' }, { label: 'Bills', star: true })];
+  const value = proposal('merge', [1, 2], { hasTheWord: 'from:a@example.com OR from:b@example.com' }, filters[0].actions);
+  assert.equal(normalizeProposal(value, filters), value);
+  assert.ok(validateProposal(value, filters).some(warning => warning.includes('changes the actions')));
+  const compatible = [filters[0], make(2, { from: 'b@example.com' }, filters[0].actions)];
+  const changedActions = { ...value, actions: { label: 'Bills', trash: true } };
+  assert.equal(normalizeProposal(changedActions, compatible), changedActions);
+  assert.ok(validateProposal(changedActions, compatible).some(warning => warning.includes('changes the actions')));
+  const unknown = parseXml(xmlWith(property('from', 'x@example.com') + property('label', 'Bills') + property('shouldArchive', 'true') + property('futureAction', 'keep')))[0];
+  const unsupported = [compatible[0], { ...unknown, position: 2 }];
+  assert.equal(normalizeProposal(value, unsupported), value);
+  for (const positions of [[1, 1], [1, 9], [1, 2.5]]) {
+    const invalid = { ...value, replacesPositions: positions };
+    assert.equal(normalizeProposal(invalid, compatible), invalid);
+  }
 });
 
 test('replacement plan contains unchanged filters plus replacements and the precise deletion list', () => {

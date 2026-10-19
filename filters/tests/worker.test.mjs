@@ -28,10 +28,10 @@ test('origin allowlist uses exact hosts and valid local origins', () => {
 
 test('health exposes booleans and counts, with no key values', async () => {
   const res = await run(new Request('https://worker.example/health'), {}, { ...env, ALLOWED_EMAILS: 'a@example.com, A@example.com, b@example.com' });
-  assert.deepEqual(await res.json(), { anthropic: true, openai: true, accessCode: true, allowedEmails: 2 });
+  assert.deepEqual(await res.json(), { build: '2026-10-19.2', anthropic: true, openai: true, accessCode: true, allowedEmails: 2 });
   assert.equal(res.headers.get('Cache-Control'), 'no-store');
   const empty = await run(new Request('https://worker.example/health'), {}, {});
-  assert.deepEqual(await empty.json(), { anthropic: false, openai: false, accessCode: false, allowedEmails: 0 });
+  assert.deepEqual(await empty.json(), { build: '2026-10-19.2', anthropic: false, openai: false, accessCode: false, allowedEmails: 0 });
 });
 
 test('preflight echoes an allowed origin and auth header names', async () => {
@@ -64,8 +64,9 @@ test('verified unexpired Google access token must match audience and allowed ema
   const config = { ...env, ALLOWED_EMAILS: 'Allowed@example.com', GOOGLE_CLIENT_ID: 'test-client' };
   let calls = 0;
   const res = await run(request(body(), { 'X-Access-Code': '', Authorization: 'Bearer invented-google-token' }), {
-    fetchImpl: async (url) => {
+    fetchImpl: async (url, options) => {
       calls++;
+      assert.equal(options.redirect, 'manual');
       if (url.startsWith('https://oauth2.googleapis.com/tokeninfo?')) {
         assert.equal(new URL(url).searchParams.get('access_token'), 'invented-google-token');
         return response({ aud: 'test-client', email_verified: 'true', email: 'allowed@example.com', expires_in: '3500' });
@@ -102,6 +103,7 @@ test('OpenAI uses pinned model, strict Responses output, no stored response and 
   const res = await run(request({ ...body(), model: 'caller-expensive-model', maxTokens: 999999 }), {
     fetchImpl: async (url, options) => {
       assert.equal(url, 'https://api.openai.com/v1/responses');
+      assert.equal(options.redirect, 'manual');
       assert.equal(options.headers.Authorization, `Bearer ${env.OPENAI_API_KEY}`);
       sent = JSON.parse(options.body);
       return openai(data, { usage: { input_tokens: 40, output_tokens: 12, total_tokens: 52, private_prompt: 'must not leak' } });
@@ -130,6 +132,7 @@ test('Claude uses current native structured outputs and pinned model', async () 
   const res = await run(request({ ...body(), provider: 'anthropic' }), {
     fetchImpl: async (url, options) => {
       assert.equal(url, 'https://api.anthropic.com/v1/messages');
+      assert.equal(options.redirect, 'manual');
       assert.equal(options.headers['anthropic-version'], '2023-06-01');
       const sent = JSON.parse(options.body);
       assert.equal(sent.model, ANTHROPIC_MODEL);
@@ -146,6 +149,109 @@ test('missing provider key gives a useful error without calling any provider', a
   const res = await run(request(), { fetchImpl: unexpectedFetch }, { ACCESS_CODE: env.ACCESS_CODE });
   assert.equal(res.status, 400);
   assert.equal((await res.json()).error, 'provider_unavailable');
+});
+
+test('provider keys trim surrounding whitespace and reject invalid header characters safely', async () => {
+  const trimmed = await run(request(), { fetchImpl: async (_, options) => {
+    assert.equal(options.headers.Authorization, 'Bearer invented-key');
+    return openai();
+  } }, { ...env, OPENAI_API_KEY: '  invented-key\n' });
+  assert.equal(trimmed.status, 200);
+  for (const key of ['secret-marker\ninside-key', 'secret-marker\u0000', 'secret-markeré']) {
+    const res = await run(request(), { fetchImpl: unexpectedFetch }, { ...env, OPENAI_API_KEY: key });
+    assert.equal(res.status, 400);
+    const result = await res.json();
+    assert.equal(result.error, 'provider_configuration');
+    assert.match(result.detail, /OpenAI.*single-line/);
+    assert.doesNotMatch(JSON.stringify(result), /secret-marker|inside-key/);
+  }
+});
+
+test('provider fetch exceptions identify a fixed provider stage and redact raw errors', async () => {
+  for (const provider of ['openai', 'anthropic']) {
+    const res = await run(request({ ...body(), provider }), { fetchImpl: async () => {
+      throw new TypeError('secret-marker in URL, prompt, or authorization');
+    } });
+    assert.equal(res.status, 502);
+    const result = await res.json();
+    assert.equal(result.error, 'provider_connection');
+    assert.match(result.detail, /\[stage:provider_request, type:TypeError\]/);
+    assert.match(result.detail, provider === 'openai' ? /OpenAI/ : /Claude/);
+    assert.doesNotMatch(JSON.stringify(result), /secret-marker|authorization|invented-/);
+  }
+});
+
+test('all provider redirects are rejected once without revealing Location or upstream content', async () => {
+  for (const provider of ['openai', 'anthropic']) for (const status of [301, 302, 303, 307, 308]) {
+    let calls = 0;
+    const res = await run(request({ ...body(), provider }), { fetchImpl: async (url, options) => {
+      calls++;
+      assert.equal(url, provider === 'openai' ? 'https://api.openai.com/v1/responses' : 'https://api.anthropic.com/v1/messages');
+      assert.equal(options.redirect, 'manual');
+      return new Response('secret-marker upstream body', { status, headers: { Location: 'https://secret-marker.example/leak?key=secret-marker' } });
+    } });
+    assert.equal(calls, 1);
+    assert.equal(res.status, 502);
+    const result = await res.json();
+    assert.equal(result.error, 'provider_redirect');
+    assert.doesNotMatch(JSON.stringify(result), /secret-marker|invented-/);
+    assert.match(result.detail, /did not follow/);
+  }
+});
+
+test('redirect response cancellation failures do not hide the safe redirect error', async () => {
+  const res = await run(request(), { fetchImpl: async () => ({
+    status: 302, ok: false, body: { cancel() { throw new TypeError('secret-marker cancellation'); } },
+  }) });
+  assert.equal(res.status, 502);
+  const result = await res.json();
+  assert.equal(result.error, 'provider_redirect');
+  assert.doesNotMatch(JSON.stringify(result), /secret-marker|TypeError/);
+});
+
+test('Google tokeninfo redirects fail authentication without following or leaking destination', async () => {
+  let calls = 0;
+  const res = await run(request(body(), { 'X-Access-Code': '', Authorization: 'Bearer invented-google-token' }), {
+    fetchImpl: async (url, options) => {
+      calls++;
+      assert.match(url, /^https:\/\/oauth2\.googleapis\.com\/tokeninfo\?/);
+      assert.equal(options.redirect, 'manual');
+      return new Response('secret-marker token response', { status: 302, headers: { Location: 'https://secret-marker.example/' } });
+    },
+  }, { ...env, ALLOWED_EMAILS: 'allowed@example.com' });
+  assert.equal(calls, 1);
+  assert.equal(res.status, 401);
+  assert.doesNotMatch(await res.text(), /secret-marker|invented-/);
+});
+
+test('unexpected request-body failures expose only fixed stage and safe error class', async () => {
+  const broken = request();
+  Object.defineProperty(broken, 'body', { value: { getReader() { throw new TypeError('secret-marker body'); } } });
+  const res = await run(broken, { fetchImpl: unexpectedFetch });
+  assert.equal(res.status, 502);
+  assert.deepEqual(await res.json(), { ok: false, error: 'service_error', detail: 'The AI service could not complete the request. [stage:request_body, type:TypeError]' });
+});
+
+test('unexpected authentication failures never expose secret conversion errors', async () => {
+  const code = { toString() { throw new RangeError('secret-marker code'); } };
+  const res = await run(request(), { fetchImpl: unexpectedFetch }, { ...env, ACCESS_CODE: code });
+  assert.equal(res.status, 502);
+  const result = await res.json();
+  assert.match(result.detail, /\[stage:auth, type:RangeError\]/);
+  assert.doesNotMatch(JSON.stringify(result), /secret-marker/);
+});
+
+test('unexpected response failures identify fixed stages and whitelist the error class', async () => {
+  const headerFailure = await run(request(), { fetchImpl: async () => ({ get ok() { throw new RangeError('secret-marker headers'); } }) });
+  assert.match((await headerFailure.json()).detail, /\[stage:provider_response, type:RangeError\]/);
+  const malformed = await run(request(), { fetchImpl: async () => openai(data, { output: {} }) });
+  assert.match((await malformed.json()).detail, /\[stage:response_validation, type:TypeError\]/);
+  const arbitraryName = await run(request(), { fetchImpl: async () => {
+    const error = new Error('secret-marker'); error.name = 'secret-marker'; throw error;
+  } });
+  const result = await arbitraryName.json();
+  assert.match(result.detail, /\[stage:provider_request, type:Error\]/);
+  assert.doesNotMatch(JSON.stringify(result), /secret-marker/);
 });
 
 test('body limit applies to declared and streamed sizes', async () => {
