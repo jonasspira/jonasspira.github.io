@@ -1,0 +1,53 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns='http://www.w3.org/2005/Atom' xmlns:apps='http://schemas.google.com/apps/2006'>
+  <title>Mail Filters</title>
+  <entry>
+    <category term='filter'/><title>Mail Filter</title><content/>
+    <apps:property name='from' value='billing@example.com'/>
+    <apps:property name='subject' value='&quot;Terms &amp; Conditions&quot;'/>
+    <apps:property name='label' value='Bills &amp; receipts'/>
+    <apps:property name='shouldStar' value='true'/>
+    <apps:property name='sizeOperator' value='s_sl'/><apps:property name='sizeUnit' value='s_smb'/>
+  </entry>
+  <entry>
+    <category term='filter'/><title>Mail Filter</title><content/>
+    <apps:property name='from' value='billing@example.com'/>
+    <apps:property name='subject' value='&quot;Terms &amp; Conditions&quot;'/>
+    <apps:property name='label' value='Bills &amp; receipts'/>
+    <apps:property name='shouldStar' value='true'/>
+    <apps:property name='sizeOperator' value='s_sl'/><apps:property name='sizeUnit' value='s_smb'/>
+  </entry>
+  <entry>
+    <category term='filter'/><title>Mail Filter</title><content/>
+    <apps:property name='from' value='billing@example.com OR offers@example.net'/>
+    <apps:property name='shouldTrash' value='true'/>
+    <apps:property name='sizeOperator' value='s_sl'/><apps:property name='sizeUnit' value='s_smb'/>
+  </entry>
+  <entry>
+    <category term='filter'/><title>Mail Filter</title><content/>
+    <apps:property name='from' value='&quot; noreply@notify.example.org&quot;'/>
+    <apps:property name='hasTheWord' value='&quot;track your order&quot;'/>
+    <apps:property name='label' value='Orders'/>
+    <apps:property name='sizeOperator' value='s_sl'/><apps:property name='sizeUnit' value='s_smb'/>
+  </entry>
+  <entry>
+    <category term='filter'/><title>Mail Filter</title><content/>
+    <apps:property name='from' value='notice@et.example.com'/>
+    <apps:property name='label' value='Bills'/>
+    <apps:property name='sizeOperator' value='s_sl'/><apps:property name='sizeUnit' value='s_smb'/>
+  </entry>
+  <entry>
+    <category term='filter'/><title>Mail Filter</title><content/>
+    <apps:property name='from' value='notice@e.example.com'/>
+    <apps:property name='label' value='Bills'/>
+    <apps:property name='sizeOperator' value='s_sl'/><apps:property name='sizeUnit' value='s_smb'/>
+  </entry>
+  <entry>
+    <category term='filter'/><title>Mail Filter</title><content/>
+    <apps:property name='from' value='files@example.org'/>
+    <apps:property name='doesNotHaveTheWord' value='&quot;O&apos;Brien&quot; &lt;internal&gt;'/>
+    <apps:property name='hasAttachment' value='true'/><apps:property name='excludeChats' value='true'/>
+    <apps:property name='size' value='2'/><apps:property name='sizeOperator' value='s_ss'/><apps:property name='sizeUnit' value='s_smb'/>
+    <apps:property name='label' value='Files'/><apps:property name='forwardTo' value='archive@example.org'/>
+  </entry>
+</feed>
