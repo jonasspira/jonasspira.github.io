@@ -31,7 +31,7 @@ An uploaded work export can include company domains and filter text. AI sends th
 
 You only need **one** provider to start. API use is billed separately from a ChatGPT or Claude subscription.
 
-1. For OpenAI, open the [API keys page](https://platform.openai.com/api-keys). For Claude, open the [Claude Console](https://console.anthropic.com/).
+1. For OpenAI, paste `https://platform.openai.com/api-keys` into your browser to open the API keys page. For Claude, open the [Claude Console](https://console.anthropic.com/).
 2. Create an API key. Save it in your password manager.
 3. Set the provider account's available spending controls and usage alerts. An alert may not be a hard cap, so check its wording.
 
@@ -39,7 +39,7 @@ The code currently uses **GPT-6 Luna** and **Claude Haiku 5.5**, efficient model
 
 ## 2. Create the new Cloudflare service
 
-1. Open the [Cloudflare dashboard](https://dash.cloudflare.com/) and select **Workers & Pages**.
+1. Paste `https://dash.cloudflare.com/` into your browser to open the Cloudflare dashboard, then select **Workers & Pages**.
 2. Choose **Create application**, then the Worker / starter option. Name the Worker **spiiira-filters-ai** and deploy the starter.
 3. Open **Edit code**. Replace the starter code with the entire contents of `filters/worker.js`, then click **Deploy**.
 4. Open the Worker's **Settings > Variables and Secrets > Add**. Select **Secret** for each value below.
@@ -96,7 +96,7 @@ cd ~/Projects/"SPIIIRA Tools"/jonasspira.github.io
 python3 -m http.server 8000
 ```
 
-Open [the local Filters page](http://localhost:8000/filters/). Manual building and downloads work immediately. For optional AI, open **Settings**, select your configured provider and enter the access code. The access code is saved in that browser; keep it private and use a separate browser profile on a shared machine.
+Paste `http://localhost:8000/filters/` into your browser to open the local Filters page. Manual building and downloads work immediately. For optional AI, open **Settings**, select your configured provider and enter the access code. The access code is saved in that browser; keep it private and use a separate browser profile on a shared machine.
 
 1. Without connecting Gmail or loading an export, build a harmless filter from `nobody@example.com`, label it `zz-test`, and download its import file. Reopen that file in the tool and check its matching rules and actions.
 2. Load `filters/tests/fixtures/example.xml` or another invented export. Run the local checks.
