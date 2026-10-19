@@ -4,7 +4,19 @@ published: false
 
 # Filters setup
 
-The page can load an XML export, check filters, build filters and download Gmail import files without an AI service. AI suggestions need the new Cloudflare service below. Reading your personal Gmail also needs the Google setup. You can use work exports without connecting work Gmail.
+The page can build filters, load an XML export, check filters and download Gmail import files without signing in or using AI. Optional AI suggestions use the Cloudflare service below. Direct Gmail connection is optional and deferred; it is not needed to build or import filters on another laptop.
+
+## Use from another laptop
+
+Once this version is published:
+
+1. Open [www.spiiira.com/filters/](https://www.spiiira.com/filters/) on the laptop. No local server or installation is needed.
+2. Use **Build a filter > Build it myself** to enter matching rules and actions. This needs no Gmail login or access code. Uploading an existing Gmail XML export is optional.
+3. For optional AI help, open **Settings** and enter the same private access code used for the Cloudflare service. Claude is the default provider. The code is saved separately in each browser; it does not transfer from this Mac. API keys stay in Cloudflare.
+4. Review the proposed filter, choose **Review download**, then **Save import file**.
+5. In the destination Gmail account, open **Settings > See all settings > Filters and Blocked Addresses > Import filters**. Choose the downloaded file, review it, then click **Create filters**. Create any labels named in the download instructions first. Applying the filters to existing email is optional.
+
+Nothing changes in Gmail until you import the file yourself. The page keeps drafts and loaded filters in memory, so save the import file before refreshing or closing it.
 
 ## What runs where
 
@@ -58,7 +70,9 @@ Open that address with `/health` added. A successful setup looks like:
 
 The `build` value confirms which source version was deployed. If it is absent or differs from `2026-10-19.2`, deploy the latest `worker.js` before diagnosing a connection problem. This build uses Cloudflare's supported manual redirect mode and rejects redirects; no provider key or Google token follows a redirect.
 
-## 3. Set up personal Gmail, if wanted
+## 3. Optional later: connect personal Gmail
+
+Skip this section for building filters on another laptop. Direct Gmail connection can be finished separately.
 
 1. Open the [Google Cloud Console](https://console.cloud.google.com/), and select the project containing the existing Filters OAuth client.
 2. Under **APIs & Services > Library**, confirm **Gmail API** is enabled.
@@ -82,15 +96,13 @@ cd ~/Projects/"SPIIIRA Tools"/jonasspira.github.io
 python3 -m http.server 8000
 ```
 
-Open [the local Filters page](http://localhost:8000/filters/). In **Settings**, select your configured provider and enter the access code. The access code is saved in that browser; keep it private and use a separate browser profile on a shared machine.
+Open [the local Filters page](http://localhost:8000/filters/). Manual building and downloads work immediately. For optional AI, open **Settings**, select your configured provider and enter the access code. The access code is saved in that browser; keep it private and use a separate browser profile on a shared machine.
 
-1. Load `filters/tests/fixtures/example.xml` or another invented export. Run the local checks.
-2. Try a missed-email diagnosis with an invented sender and subject. Review its proposed change. Repeat with the second provider if you configured one.
-3. Connect personal Gmail and load its filters. Confirm label names appear. Explicitly request an inbox sample and check that reconnecting works after a token expires.
-4. Download a backup before changing anything in Gmail.
-5. Build one harmless filter from `nobody@example.com`, label it `zz-test`, and download its import file. In Gmail, create `zz-test` first, then import the file and check that its criteria and actions match.
+1. Without connecting Gmail or loading an export, build a harmless filter from `nobody@example.com`, label it `zz-test`, and download its import file. Reopen that file in the tool and check its matching rules and actions.
+2. Load `filters/tests/fixtures/example.xml` or another invented export. Run the local checks.
+3. If using AI, describe a filter with an invented sender and review the draft. A missed-email diagnosis and testing a second provider are optional.
 
-The real Gmail import remains a manual acceptance check. No real filter export or inbox data belongs in this public repository.
+Importing a harmless filter into Gmail remains a separate manual acceptance check. When ready, create `zz-test` in Gmail first, import the file, and check its criteria and actions. Direct Gmail loading, inbox sampling and token-expiry checks can wait until connection work resumes. No real filter export or inbox data belongs in this public repository.
 
 ## Import a reviewed change
 
@@ -106,7 +118,7 @@ The tool's 1,500-character merge ceiling is a conservative application limit, no
 
 ## Publish and retire the old service
 
-After the local checks and harmless Gmail import pass, ask Codex to publish. Then verify the same AI analysis on the live site.
+After the local builder and download checks pass, ask Codex to publish. Verify that the public page builds and downloads filters without a Gmail connection. If using AI, verify a draft on the live site too. Finishing the direct Gmail connection is not a publishing prerequisite.
 
 Only after the new live service works, retire the old `spiiira-claude-proxy` Worker in Cloudflare. It is the old service described in the handoff; this rebuild does not change or delete it. Keep its retirement separate from publishing so a failed setup does not take away the current service prematurely.
 

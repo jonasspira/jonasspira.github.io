@@ -191,6 +191,16 @@ p+p {
   gap:22px;
 }
 
+.source>summary {
+  color:var(--dim);
+  font-size:13px;
+  cursor:pointer;
+}
+
+.source[open]>summary {
+  margin-bottom:20px;
+}
+
 .source h2 {
   font-size:18px;
   margin:5px 0;
