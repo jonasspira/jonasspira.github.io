@@ -359,6 +359,59 @@ details p {
   border-color:var(--green);
 }
 
+.tool-switcher {display:flex;align-items:flex-start;gap:12px;margin-bottom:24px;flex-wrap:wrap;}
+.tool-switcher .task {padding:12px 16px;}
+.other-tools {position:relative;align-self:center;}
+.other-tools>summary {font-size:12px;padding:10px;color:var(--dim);}
+.other-tool-buttons {display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;}
+.gmail-optional {font-size:11px;}
+.gmail-optional>summary {color:var(--dim);}
+.editor-workspace {display:grid;grid-template-columns:250px minmax(0,1fr);gap:20px;align-items:start;}
+.editor-picker {padding:20px 15px;position:sticky;top:18px;}
+.editor-picker>label {margin-top:14px;}
+.editor-list {max-height:560px;overflow:auto;margin:14px -5px 12px;padding:0 5px;}
+.editor-filter {display:block;width:100%;background:transparent;border:1px solid transparent;border-radius:6px;text-align:left;padding:12px 10px;color:var(--ink);margin-bottom:5px;}
+.editor-filter:hover {background:var(--green-light);}
+.editor-filter.active {border-color:var(--green);background:var(--green-light);}
+.editor-filter-name {font-size:13px;font-weight:650;display:flex;gap:8px;align-items:baseline;justify-content:space-between;overflow-wrap:anywhere;}
+.editor-filter-name small {font:9px var(--mono);color:var(--dim);white-space:nowrap;font-weight:400;}
+.editor-filter-rule {display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font:10px/1.6 var(--mono);color:var(--dim);overflow-wrap:anywhere;margin-top:5px;}
+.editor-heading {display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:20px;}
+.editor-heading h2 {margin-top:7px;}
+.editor-heading .quiet {font-size:11px;white-space:nowrap;}
+.editor-add {padding:18px;background:var(--green-light);border-radius:7px;margin-bottom:23px;}
+.editor-add>label {font-size:15px;}
+.editor-add>.muted {font-size:12px;margin-bottom:12px;}
+.editor-add textarea {background:var(--paper);}
+.editor-add .inline-actions {margin-top:10px;align-items:center;}
+.editor-add .field-hint {flex:1;min-width:150px;}
+.editor-feedback {font-size:12px;color:var(--orange);margin-top:10px;}
+.editor-feedback:empty {display:none;}
+.editor-detail textarea {font-family:var(--mono);font-size:12px;min-height:66px;}
+.editor-fields>summary,.editor-actions>summary,.editor-other-copy>summary,.editor-search>summary {font-size:12px;}
+.editor-actions {border-top:1px solid var(--line);padding-top:18px;margin-top:22px;}
+.editor-actions>summary {overflow-wrap:anywhere;}
+.editor-actions .actions-grid {grid-template-columns:repeat(2,minmax(0,1fr));}
+.editor-size {display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.editor-size label {margin:0;}
+.editor-size input {width:140px;}
+.editor-size select {width:auto;}
+.editor-copy {margin-top:24px;border-top:1px solid var(--line);padding-top:24px;}
+.editor-copy h3 {margin:6px 0 10px;}
+.editor-copy>.muted {font-size:12px;line-height:1.7;}
+.editor-copy-row {margin:20px 0;}
+.editor-copy-label {display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
+.editor-copy-label label {margin:0;font-size:12px;}
+.editor-copy-label button {padding:8px 12px;white-space:nowrap;font-size:12px;}
+.editor-copy textarea {background:var(--green-light);color:var(--green);}
+.editor-other-copy {margin-top:16px;}
+.editor-search {margin-top:18px;padding-top:15px;border-top:1px solid var(--line);}
+.editor-action-change {font-size:12px;margin-top:15px;color:var(--green);}
+.editor-empty {max-width:none;text-align:left;}
+.editor-empty h2 {margin-bottom:12px;}
+@media(max-width:900px) {.editor-workspace{grid-template-columns:210px minmax(0,1fr);gap:14px;}.editor-detail{padding:22px 20px;}.editor-filter-name{display:block;}.editor-filter-name small{display:block;margin-top:4px;}}
+@media(max-width:760px) {.editor-workspace{grid-template-columns:minmax(0,1fr);}.editor-picker{position:static;}.editor-list{max-height:240px;}.editor-filter-name{display:flex;}.editor-filter-name small{margin-top:0;}.editor-heading h2{font-size:20px;}.editor-add{padding:15px;}.editor-add .inline-actions{align-items:stretch;}.editor-add .primary{width:100%;}.editor-actions .actions-grid{grid-template-columns:1fr;}.editor-size input{width:110px;}.tool-switcher{gap:6px;}.tool-switcher .task{padding:11px 12px;}.other-tool-buttons{flex-direction:column;}.editor-copy-label{align-items:flex-start;}}
+
 .task-number {
   font:10px var(--mono);
   padding-top:3px;

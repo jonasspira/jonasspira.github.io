@@ -6,7 +6,7 @@ Each web tool is a folder. The folder name is its address on the site, and the h
 
 | Folder | Tool | Live at |
 | --- | --- | --- |
-| `filters/` | Gmail Filter Builder: build or review filters and download Gmail import files, with optional AI help | [spiiira.com/filters](https://www.spiiira.com/filters/) |
+| `filters/` | Gmail filters: extend existing rules from XML and copy revised fields back into Gmail; other building and review tools remain available | [spiiira.com/filters](https://www.spiiira.com/filters/) |
 | `groton-inventory/` | Home Inventory: records appliances, systems and assets at Groton Rd and syncs them to Notion through a Cloudflare Worker (see `SETUP.md` in the folder) | [spiiira.com/groton-inventory](https://www.spiiira.com/groton-inventory/) |
 | `breaker-map/` | Breaker Map: fill in an electrical panel's circuits, then export them to PDF | [spiiira.com/breaker-map](https://www.spiiira.com/breaker-map/) |
 | `toronto26/` | Toronto: photo gallery | [spiiira.com/toronto26](https://www.spiiira.com/toronto26/) |

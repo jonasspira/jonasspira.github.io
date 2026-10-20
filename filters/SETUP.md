@@ -4,23 +4,31 @@ published: false
 
 # Filters setup
 
-The page can build filters, load an XML export, check filters and download Gmail import files without signing in or using AI. Optional AI suggestions use the Cloudflare service below. Direct Gmail connection is optional and deferred; it is not needed to build or import filters on another laptop.
+The main flow updates the filters you already use: upload a Gmail XML export, choose a filter, extend its sender list or configure its fields, and copy the revised values into that existing filter in Gmail. This happens in your browser without signing in or using AI. New-filter building, AI reviews and import-file downloads remain under **Other tools**. Direct Gmail connection can wait.
 
-## Use from another laptop
+## Update an existing filter
 
 Once this version is published:
 
-1. Open [www.spiiira.com/filters/](https://www.spiiira.com/filters/) on the laptop. No local server or installation is needed.
-2. Use **Build a filter > Build it myself** to enter matching rules and actions. This needs no Gmail login or access code. Uploading an existing Gmail XML export is optional.
-3. For optional AI help, open **Settings** and enter the same private access code used for the Cloudflare service. Claude is the default provider. The code is saved separately in each browser; it does not transfer from this Mac. API keys stay in Cloudflare.
-4. Review the proposed filter, choose **Review download**, then **Save import file**.
-5. In the destination Gmail account, open **Settings > See all settings > Filters and Blocked Addresses > Import filters**. Choose the downloaded file, review it, then click **Create filters**. Create any labels named in the download instructions first. Applying the filters to existing email is optional.
+1. Open [www.spiiira.com/filters/](https://www.spiiira.com/filters/) on any laptop. No local server, installation or access code is needed for editing.
+2. Choose **Upload XML** and load your current Gmail filter export. To get one in Gmail, open **Settings > See all settings > Filters and Blocked Addresses**, select the filters, and choose **Export**.
+3. Find and select the existing filter by label or sender, such as Jira or Confluence.
+4. Enter new senders or domains in **Add senders or domains**, then click **Add to this filter**. Use the matching fields and optional actions below to make other changes.
+5. Copy each changed field using its **Copy** button. In Gmail, find the same filter under **Filters and Blocked Addresses** and click **Edit**. Replace the matching field values, click **Continue**, check the actions, then click **Update filter**. [Google's editing instructions](https://support.google.com/mail/answer/6579).
 
-Nothing changes in Gmail until you import the file yourself. The page keeps drafts and loaded filters in memory, so save the import file before refreshing or closing it.
+This edits the existing Gmail filter rather than creating another one. The tool keeps other matching fields and actions in place as you add senders. If sender rules are embedded in a complex search, it asks you to edit that field directly rather than silently changing its meaning. Use **Full search preview** to check matching mail; paste individual field values when editing the filter.
+
+Drafts stay in this tab as you switch between filters. Refreshing or closing it clears them. Nothing changes in Gmail until you apply the copied values yourself.
+
+## Other tools and optional AI
+
+**Other tools** contains **Build a new filter**, **Review filters** and **Fix missed mail**. New filters and AI proposals can still be reviewed and downloaded as Gmail import files; importing adds filters, so use the edit-and-copy flow above when expanding an existing rule.
+
+For AI help, open **Settings** and enter the private access code used for the Cloudflare service. Claude is the default provider. The code is saved separately in each browser and does not transfer from this Mac. API keys stay in Cloudflare. AI and direct Gmail connection are optional for the main editing flow.
 
 ## What runs where
 
-- **Your browser:** reads an uploaded export, checks rules, shows the filter map, creates downloads and holds the current filters and email examples in memory. Refreshing clears those filters and examples. Settings save only your AI provider, access code and written rules in that browser.
+- **Your browser:** reads an uploaded export, edits copies of existing filters, prepares values to copy, checks rules, creates downloads and holds filters and email examples in memory. Refreshing clears those filters and examples. Settings save only your AI provider, access code and written rules in that browser.
 - **Google:** after you explicitly connect Gmail, the browser reads filters, label names and the inbox sample you request. The token stays in memory. This version does not create or delete filters in Gmail.
 - **Cloudflare:** when you request AI analysis, the browser sends the loaded filter criteria/actions, your written rules and any supplied email details to the Worker. It checks your access code or validates an allowed Google token. It forwards the analysis text to the chosen AI provider. The Worker has no database, and its source does not log prompts or email content.
 - **OpenAI or Anthropic:** receives the analysis text and returns proposed changes. Provider account retention and billing settings still apply. API credentials and Google tokens are never part of the model's prompt.
@@ -96,11 +104,11 @@ cd ~/Projects/"SPIIIRA Tools"/jonasspira.github.io
 python3 -m http.server 8000
 ```
 
-Paste `http://localhost:8000/filters/` into your browser to open the local Filters page. Manual building and downloads work immediately. For optional AI, open **Settings**, select your configured provider and enter the access code. The access code is saved in that browser; keep it private and use a separate browser profile on a shared machine.
+Paste `http://localhost:8000/filters/` into your browser to open the local Filters page. XML editing and copying work immediately. For optional AI, open **Settings**, select your configured provider and enter the access code. The access code is saved in that browser; keep it private and use a separate browser profile on a shared machine.
 
-1. Without connecting Gmail or loading an export, build a harmless filter from `nobody@example.com`, label it `zz-test`, and download its import file. Reopen that file in the tool and check its matching rules and actions.
-2. Load `filters/tests/fixtures/example.xml` or another invented export. Run the local checks.
-3. If using AI, describe a filter with an invented sender and review the draft. A missed-email diagnosis and testing a second provider are optional.
+1. Load an invented XML export, choose a filter, add a sender, and confirm that the copied field retains the old sender rules and other matching fields. Switch filters and back to verify both drafts stay separate.
+2. Under **Other tools > Build a new filter**, build a harmless filter from `nobody@example.com`, label it `zz-test`, and download its import file. Reopen that file in the tool and check its matching rules and actions.
+3. Optional: run the existing example review or ask AI to draft a rule with an invented sender. No personal data is needed for these checks.
 
 Importing a harmless filter into Gmail remains a separate manual acceptance check. When ready, create `zz-test` in Gmail first, import the file, and check its criteria and actions. Direct Gmail loading, inbox sampling and token-expiry checks can wait until connection work resumes. No real filter export or inbox data belongs in this public repository.
 
@@ -118,7 +126,7 @@ The tool's 1,500-character merge ceiling is a conservative application limit, no
 
 ## Publish and retire the old service
 
-After the local builder and download checks pass, ask Codex to publish. Verify that the public page builds and downloads filters without a Gmail connection. If using AI, verify a draft on the live site too. Finishing the direct Gmail connection is not a publishing prerequisite.
+After the local XML editing and copy checks pass, ask Codex to publish. Verify that the public page loads an export and prepares updated field values without a Gmail connection. If using AI, verify a draft on the live site too. Finishing the direct Gmail connection is not a publishing prerequisite.
 
 Only after the new live service works, retire the old `spiiira-claude-proxy` Worker in Cloudflare. It is the old service described in the handoff; this rebuild does not change or delete it. Keep its retirement separate from publishing so a failed setup does not take away the current service prematurely.
 

@@ -1,6 +1,7 @@
 import { emptyFilter, parseXml, fromGmail, toXml, buildQuery, checkFilters, mergeFilters, normalizeProposal, validateProposal, describeActions, getReplacementPlan } from './filter-model.js';
 import { DEFAULT_RULES, buildAnalysisRequest, callAI, getHealth } from './ai.js';
 import { connectGoogle, readGoogleFilters, readInbox, signOutGoogle } from './gmail.js';
+import { createFilterEditor } from './filter-editor-ui.js';
 
 // Only the protected service is used. API keys belong in Cloudflare secrets.
 const AI_URL = 'https://spiiira-filters-ai.jonas-spira.workers.dev';
@@ -16,11 +17,12 @@ const initialSettings = () => {
 };
 const state = {
   settings:initialSettings(), health:null, healthError:'', filters:[], source:'none', sourceName:'', connection:null,
-  task:'build', fixMode:'paste', buildMode:'manual', findings:[], proposals:[], aiSummary:'', aiFindings:[], unmatched:[],
+  task:'edit', fixMode:'paste', buildMode:'manual', findings:[], proposals:[], aiSummary:'', aiFindings:[], unmatched:[],
   emails:[], missed:{from:'',subject:'',listId:'',snippet:''}, idea:'', examples:'',
   draft:emptyFilter({source:'new'}), busy:false, scanning:false, connecting:false, expired:false,
   revision:0, sourceOp:0, controller:null, download:null, filterSearch:'', filterView:'all', showFilters:false
 };
+const filterEditor = createFilterEditor({ notify, queryLink });
 let expiryTimer;
 function watchSessionExpiry(connection) {
   clearTimeout(expiryTimer);
@@ -54,8 +56,11 @@ function clearResults() {
 }
 function setSource(filters, source, name) {
   clearResults(); state.sourceOp++; state.filters = filters; state.source = source; state.sourceName = name;
+  filterEditor.setFilters(filters);
   state.emails = []; state.filterSearch = ''; state.filterView = 'all'; state.findings = checkFilters(filters);
   state.showFilters = false; notify(''); renderSource(); renderTask();
+  $('source-panel').open = state.source==='none' || state.task!=='edit';
+  if (state.task==='edit' && filters.length) $('task-content').scrollIntoView({block:'start'});
 }
 function beginSourceLoad() { clearResults(); return ++state.sourceOp; }
 function isLive() { return state.source === 'live' && state.connection && !state.expired && state.connection.expiresAt > Date.now(); }
@@ -66,11 +71,11 @@ function aiNote() {
   return `<p class="ai-note">Only when you click: your loaded filters, entered examples, and My rules go to ${state.settings.provider === 'anthropic' ? 'Anthropic' : 'OpenAI'} through your private connection. <button class="inline-link" data-action="settings">AI settings</button></p>`;
 }
 function renderSource() {
-  $('source-heading').textContent = state.source === 'none' ? 'Bring an existing set' : count(state.filters.length, 'filter') + ' ready to review';
-  $('source-summary').textContent = state.source === 'none' ? 'Existing filters (optional)' : count(state.filters.length, 'filter') + ' loaded';
-  if (state.source !== 'none' || state.connecting) $('source-panel').open = true;
+  $('source-heading').textContent = state.source === 'none' ? 'Start with your current XML' : count(state.filters.length, 'filter') + ' ready to edit';
+  $('source-summary').textContent = state.source === 'none' ? 'Upload your filters' : count(state.filters.length, 'filter') + ' loaded';
+  if (state.connecting) $('source-panel').open = true;
   const label = {live:'Connected Gmail',xml:'Uploaded export',example:'Example data',none:''}[state.source];
-  $('source-status').textContent = state.source === 'none' ? 'Upload an export to check for overlaps, or build new filters below.' : `${label} · ${state.sourceName}`;
+  $('source-status').textContent = state.source === 'none' ? 'Choose a Gmail filter export. Everything stays in this browser while you edit.' : `${label} · ${state.sourceName}`;
   $('connect').disabled = state.connecting;
   $('connect').textContent = state.connecting ? 'Connecting…' : state.expired ? 'Sign in again' : state.connection ? 'Reconnect Gmail' : 'Connect Gmail';
   const tools = $('source-tools'); tools.hidden = state.source === 'none' && !state.connection;
@@ -140,11 +145,12 @@ function renderBuild() {
   return `<div class="content-head"><div><h2>A place for the next email.</h2><p class="muted">Build and download filters without signing in. Add one yourself, or describe a few rules for AI to draft.</p></div></div><div class="mode-switch" aria-label="Build method"><button data-action="build-mode" data-mode="manual" class="${state.buildMode === 'manual' ? 'active' : ''}">Build it myself</button><button data-action="build-mode" data-mode="idea" class="${state.buildMode === 'idea' ? 'active' : ''}">Describe what I want</button></div><section class="panel">${state.buildMode === 'manual' ? `<form id="build-form"><div class="form-grid">${field('build-from','From',f.criteria.from,'Sender address or domain')}${field('build-subject','Subject includes',f.criteria.subject,'Optional subject words')}</div><details><summary>More matching options</summary><div class="form-grid spacer">${field('build-to','To / Cc / Bcc',f.criteria.to,'Recipient address')}${field('build-hasTheWord','Has words / Gmail search',f.criteria.hasTheWord,'Exact phrases or Gmail operators')}${field('build-doesNotHaveTheWord','Does not have',f.criteria.doesNotHaveTheWord,'Words or a search to exclude')}<div class="field"><label for="build-size">Message size in bytes</label><div class="toolbar"><select id="build-sizeComparison"><option value="larger"${f.criteria.sizeComparison === 'larger' ? ' selected' : ''}>Larger than</option><option value="smaller"${f.criteria.sizeComparison === 'smaller' ? ' selected' : ''}>Smaller than</option></select><input id="build-size" type="number" min="1" step="1" value="${f.criteria.size ?? ''}" placeholder="Optional"></div></div></div><div class="inline-actions"><label class="check-label"><input id="build-hasAttachment" type="checkbox"${f.criteria.hasAttachment ? ' checked' : ''}>Has an attachment</label><label class="check-label"><input id="build-excludeChats" type="checkbox"${f.criteria.excludeChats ? ' checked' : ''}>Exclude chats</label></div><p class="field-hint">Use OR inside a field for alternatives. Different fields must all match.</p></details><div class="form-section"><h3>Then do this</h3><label for="build-label">Apply label</label><input id="build-label" list="known-labels" value="${esc(f.actions.label)}" placeholder="Choose an existing label or enter a new one"><datalist id="known-labels">${knownLabels().map(l=>`<option value="${esc(l)}"></option>`).join('')}</datalist><div class="actions-grid">${actionOptions.map(([key,label])=>`<label class="check-label"><input id="build-action-${key}" type="checkbox"${f.actions[key] ? ' checked' : ''}>${label}</label>`).join('')}</div><details><summary>Forwarding & category</summary><div class="form-grid spacer">${field('build-forwardTo','Forward to',f.actions.forwardTo,'A forwarding address already verified in Gmail','', 'email')}<div class="field"><label for="build-category">Categorize as</label><select id="build-category"><option value="">Leave unchanged</option>${[['CATEGORY_PERSONAL','Primary'],['CATEGORY_SOCIAL','Social'],['CATEGORY_PROMOTIONS','Promotions'],['CATEGORY_UPDATES','Updates'],['CATEGORY_FORUMS','Forums']].map(([v,n])=>`<option value="${v}"${f.actions.category===v?' selected':''}>${n}</option>`).join('')}</select></div></div></details></div><div class="form-section"><h3>Your Gmail search</h3><code id="build-query" class="query">${esc(buildQuery(f)) || 'Add a sender, subject, or another matching rule.'}</code><p id="build-action-summary" class="action-summary">${esc(describeActions(f))}</p><div class="form-buttons"><button class="primary" type="submit">Add to review</button><span id="build-search-link">${queryLink(buildQuery(f))}</span></div></div></form>` : `<form id="idea-form"><div class="field"><label for="build-idea">What would you like your filters to do?</label><textarea id="build-idea" rows="4" placeholder="Archive receipts and label them Receipts. Star bills. Leave personal messages alone.">${esc(state.idea)}</textarea></div><div class="field"><label for="build-examples">Example emails (optional)</label><textarea id="build-examples" rows="3" placeholder="One per line: sender@example.com | subject line">${esc(state.examples)}</textarea></div><button class="primary" type="submit"${state.busy ? ' disabled' : ''}>${state.busy ? 'Drafting…' : 'Draft filters'}</button>${aiNote()}</form>`}</section>`;
 }
 function renderTask() {
-  for (const task of ['review','diagnose','build']) {
+  for (const task of ['edit','review','diagnose','build']) {
     $(`tab-${task}`).classList.toggle('active',state.task === task);
     if (state.task === task) $(`tab-${task}`).setAttribute('aria-current','page'); else $(`tab-${task}`).removeAttribute('aria-current');
   }
-  $('task-content').innerHTML = state.task === 'review' ? renderReview() : state.task === 'diagnose' ? renderDiagnose() : renderBuild();
+  $('task-content').innerHTML = state.task === 'edit' ? filterEditor.render() : state.task === 'review' ? renderReview() : state.task === 'diagnose' ? renderDiagnose() : renderBuild();
+  if (state.task==='edit') {$('results').hidden=true;$('download-panel').hidden=true;} else renderResults();
 }
 function queryLink(query) {
   if (!query) return '';
@@ -220,7 +226,7 @@ function downloadFile(text,name) {
 }
 async function loadXml(text,name) {
   if (new TextEncoder().encode(text).length > 5*1024*1024) throw new Error('This export is larger than 5 MB. Please export a smaller set of filters.');
-  const filters=parseXml(text); setSource(filters,'xml',name); notify(`Loaded ${count(filters.length,'filter')}. Local checks are ready.`, 'success');
+  const filters=parseXml(text); setSource(filters,'xml',name); notify(`Loaded ${count(filters.length,'filter')}. ${state.task==='edit'?'Choose a filter to edit.':'Local checks are ready.'}`, 'success');
 }
 async function loadExample() {
   const operation=beginSourceLoad();
@@ -319,7 +325,7 @@ document.addEventListener('click',event=> {
   const button=event.target.closest('[data-action]');if(!button || button.disabled)return;
   Promise.resolve().then(()=>handleAction(button.dataset.action,button)).catch(report);
 });
-for(const task of ['review','diagnose','build']) $(`tab-${task}`).addEventListener('click',()=>{state.task=task;renderTask();});
+for(const task of ['edit','review','diagnose','build']) $(`tab-${task}`).addEventListener('click',()=>{state.task=task;renderTask();});
 $('settings-toggle').addEventListener('click',toggleSettings);
 $('load-paste').addEventListener('click',()=>loadXml($('xml-paste').value,'Pasted export').catch(report));
 $('connect').addEventListener('click',()=>connect().catch(report));
