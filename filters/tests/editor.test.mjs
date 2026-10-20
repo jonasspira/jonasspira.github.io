@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { emptyFilter, parseXml, toXml, buildQuery } from '../filter-model.js';
 import {
   parseSenderAdditions, addSenderTerms, cloneForEditing, applyCriteriaEdit,
-  getSenderTarget, extendFilterSenders, getGmailFieldValues,
+  getSenderTarget, extendFilterSenders, getGmailFieldValues, getSenderTerms, getEditorChanges,
 } from '../filter-editor.js';
 
 const filter = (criteria = {}, actions = { label: 'Jira', archive: true }) => emptyFilter({
@@ -169,4 +169,78 @@ test('unknown export properties, blockers and unknown criteria never produce a f
   }
   assert.equal(getGmailFieldValues(filter()).queryAvailable, false);
   assert.equal(getGmailFieldValues(filter({ from: '(broken' })).queryAvailable, false);
+});
+
+test('sender display lists only complete plain alternatives, with duplicates normalized', () => {
+  for (const from of [
+    'JIRA.EXAMPLE.COM OR notice@jira.example.com OR jira.example.com',
+    '(JIRA.EXAMPLE.COM OR ("notice@jira.example.com"))',
+    '{JIRA.EXAMPLE.COM (notice@jira.example.com)}',
+    '({JIRA.EXAMPLE.COM notice@jira.example.com})',
+  ]) assert.deepEqual(getSenderTerms(filter({ from })), ['jira.example.com', 'notice@jira.example.com']);
+  assert.deepEqual(getSenderTerms(filter({ from: '@jira.example.com' })), ['@jira.example.com']);
+  assert.deepEqual(getSenderTerms(filter()), []);
+  assert.deepEqual(getSenderTerms(filter({ hasTheWord: 'from:(jira.example.com OR updates.example.net)' })), ['jira.example.com', 'updates.example.net']);
+  assert.deepEqual(getSenderTerms(filter({ hasTheWord: 'from:{jira.example.com updates.example.net}' })), ['jira.example.com', 'updates.example.net']);
+});
+
+test('sender display never flattens mixed, excluded, malformed or excessively nested expressions', () => {
+  for (const from of [
+    'jira.example.com AND other.example.com', '-jira.example.com',
+    '(jira.example.com -robot@example.com) OR new.example.com',
+    '"Jira team" OR jira.example.com', 'jira.example.com other.example.com',
+    'jira.example.com OR', 'OR jira.example.com', 'jira.example.com OR OR other.example.com',
+    'jira.example.com OR subject:urgent', '*.jira.example.com', '(broken', '()', '{}',
+    '('.repeat(34) + 'jira.example.com' + ')'.repeat(34),
+  ]) assert.equal(getSenderTerms(filter({ from })), null, from);
+  assert.equal(getSenderTerms(filter({ hasTheWord: 'from:(jira.example.com) subject:urgent' })), null);
+  assert.equal(getSenderTerms(filter({ from: 'jira.example.com', hasTheWord: 'from:other.example.com' })), null);
+  assert.equal(getSenderTerms(filter({ from: 'jira.example.com', doesNotHaveTheWord: 'from:robot@example.com' })), null);
+  assert.equal(getSenderTerms(filter({ hasTheWord: 'from:()' })), null);
+  assert.equal(getSenderTerms(null), null);
+  const unsupported = filter(); unsupported.criteria.from = ['jira.example.com'];
+  assert.equal(getSenderTerms(unsupported), null);
+});
+
+test('change summaries report additions and removals while separately tracking other conditions and actions', () => {
+  const original = filter({ from: 'JIRA.EXAMPLE.COM OR old.example.net', subject: 'Task', hasAttachment: true });
+  const edited = applyCriteriaEdit(original, { from: 'jira.example.com OR new.example.net', subject: 'Issue', size: 1000 });
+  assert.deepEqual(getEditorChanges(original, edited), {
+    addedSenders: ['new.example.net'], removedSenders: ['old.example.net'],
+    changedCriteria: ['from', 'subject', 'size', 'sizeComparison'], actionsChanged: false,
+  });
+  edited.actions.archive = false;
+  assert.equal(getEditorChanges(original, edited).actionsChanged, true);
+  const formattingOnly = applyCriteriaEdit(original, { from: '(jira.example.com OR OLD.EXAMPLE.NET)' });
+  assert.deepEqual(getEditorChanges(original, formattingOnly).addedSenders, []);
+  assert.deepEqual(getEditorChanges(original, formattingOnly).removedSenders, []);
+  assert.deepEqual(getEditorChanges(original, original), { addedSenders: [], removedSenders: [], changedCriteria: [], actionsChanged: false });
+});
+
+test('change summaries for Has words sender lists preserve unrelated matching fields and metadata', () => {
+  const original = filter({ hasTheWord: 'from:(jira.example.com)', to: 'team@example.com', doesNotHaveTheWord: 'internal' });
+  original.preservation = { xmlProperties: [{ name: 'futureOption', value: 'keep' }] };
+  const snapshot = structuredClone(original);
+  const edited = extendFilterSenders(original, 'updates.jira.example.com');
+  assert.deepEqual(getEditorChanges(original, edited), {
+    addedSenders: ['updates.jira.example.com'], removedSenders: [],
+    changedCriteria: ['hasTheWord'], actionsChanged: false,
+  });
+  assert.deepEqual(original, snapshot);
+  assert.deepEqual(edited.preservation, original.preservation);
+  assert.equal(edited.criteria.to, 'team@example.com');
+  assert.equal(edited.criteria.doesNotHaveTheWord, 'internal');
+});
+
+test('complex sender changes use an honest generic summary and include unknown criteria/action edits', () => {
+  const original = filter({ from: 'jira.example.com AND -robot@example.com', futureCriterion: { keep: ['one'] } });
+  original.actions.futureAction = { keep: ['one'] };
+  const edited = cloneForEditing(original);
+  edited.criteria.futureCriterion.keep.push('two');
+  edited.actions.futureAction.keep.push('two');
+  assert.deepEqual(getEditorChanges(original, edited), {
+    addedSenders: null, removedSenders: null, changedCriteria: ['futureCriterion'], actionsChanged: true,
+  });
+  assert.deepEqual(original.criteria.futureCriterion.keep, ['one']);
+  assert.deepEqual(original.actions.futureAction.keep, ['one']);
 });

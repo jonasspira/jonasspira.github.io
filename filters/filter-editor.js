@@ -181,6 +181,85 @@ export function getSenderTarget(filter) {
   return { field: 'from', value: from, prefix: '', suffix: '', reason: '' };
 }
 
+// Display chips only when every branch is a plain positive sender. Advanced
+// expressions remain raw text; showing only their easy branches would imply
+// conditions had been removed. These limits affect display, never editing.
+function simpleSenderTerms(text, depth = 0) {
+  if (depth > 32 || text.length > 16000) return null;
+  let value = text.trim();
+  if (!value) return null;
+  const pairs = groups(value);
+  if (value[0] === '(' && pairs.get(0) === value.length - 1) {
+    return simpleSenderTerms(value.slice(1, -1), depth + 1);
+  }
+  if (value[0] === '{' && pairs.get(0) === value.length - 1) {
+    const branches = splitOutsideGroups(value.slice(1, -1), true);
+    if (!branches.length) return null;
+    const result = [];
+    for (const branch of branches) {
+      const terms = simpleSenderTerms(branch, depth + 1);
+      if (!terms) return null;
+      result.push(...terms);
+    }
+    return result;
+  }
+  // Preserve empty OR branches so malformed text cannot look like a valid list.
+  const branches = []; let start = 0, quoted = false, escaped = false;
+  for (let i = 0; i < value.length; i++) {
+    const char = value[i];
+    if (escaped) { escaped = false; continue; }
+    if (char === '\\') { escaped = true; continue; }
+    if (char === '"') { quoted = !quoted; continue; }
+    if (quoted) continue;
+    if (pairs.has(i)) { i = pairs.get(i); continue; }
+    if (value.slice(i, i + 2) === 'OR' && (i === 0 || /\s/.test(value[i - 1])) &&
+      (i + 2 === value.length || /\s/.test(value[i + 2]))) {
+      branches.push(value.slice(start, i)); i++; start = i + 1;
+    }
+  }
+  if (branches.length) {
+    branches.push(value.slice(start));
+    const result = [];
+    for (const branch of branches) {
+      const terms = simpleSenderTerms(branch, depth + 1);
+      if (!terms) return null;
+      result.push(...terms);
+    }
+    return result;
+  }
+  const key = literalKey(value);
+  return key ? [key] : null;
+}
+
+export function getSenderTerms(filter) {
+  if (!filter?.criteria || typeof filter.criteria !== 'object' || Array.isArray(filter.criteria)) return null;
+  if (['from', 'hasTheWord', 'doesNotHaveTheWord'].some(key => filter.criteria[key] != null && typeof filter.criteria[key] !== 'string')) return null;
+  const target = getSenderTarget(filter);
+  if (!target.field) return null;
+  if (!target.value.trim()) return target.field === 'from' ? [] : null;
+  try {
+    const terms = simpleSenderTerms(target.value);
+    return terms ? [...new Set(terms)] : null;
+  } catch { return null; }
+}
+
+export function getEditorChanges(original, draft) {
+  const before = getSenderTerms(original), after = getSenderTerms(draft);
+  const comparable = before !== null && after !== null;
+  const beforeSet = comparable ? new Set(before) : null, afterSet = comparable ? new Set(after) : null;
+  const originalCriteria = original?.criteria || {}, draftCriteria = draft?.criteria || {};
+  const changedCriteria = [...new Set([...Object.keys(originalCriteria), ...Object.keys(draftCriteria)])]
+    .filter(key => JSON.stringify(originalCriteria[key]) !== JSON.stringify(draftCriteria[key]));
+  const originalActions = original?.actions || {}, draftActions = draft?.actions || {};
+  const actionsChanged = [...new Set([...Object.keys(originalActions), ...Object.keys(draftActions)])]
+    .some(key => JSON.stringify(originalActions[key]) !== JSON.stringify(draftActions[key]));
+  return {
+    addedSenders: comparable ? after.filter(term => !beforeSet.has(term)) : null,
+    removedSenders: comparable ? before.filter(term => !afterSet.has(term)) : null,
+    changedCriteria, actionsChanged,
+  };
+}
+
 export function extendFilterSenders(filter, addedText) {
   const target = getSenderTarget(filter);
   if (!target.field) throw new Error(target.reason);

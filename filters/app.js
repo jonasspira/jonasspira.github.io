@@ -59,7 +59,7 @@ function setSource(filters, source, name) {
   filterEditor.setFilters(filters);
   state.emails = []; state.filterSearch = ''; state.filterView = 'all'; state.findings = checkFilters(filters);
   state.showFilters = false; notify(''); renderSource(); renderTask();
-  $('source-panel').open = state.source==='none' || state.task!=='edit';
+  $('source-panel').open = !filters.length || state.task!=='edit';
   if (state.task==='edit' && filters.length) $('task-content').scrollIntoView({block:'start'});
 }
 function beginSourceLoad() { clearResults(); return ++state.sourceOp; }
@@ -71,11 +71,12 @@ function aiNote() {
   return `<p class="ai-note">Only when you click: your loaded filters, entered examples, and My rules go to ${state.settings.provider === 'anthropic' ? 'Anthropic' : 'OpenAI'} through your private connection. <button class="inline-link" data-action="settings">AI settings</button></p>`;
 }
 function renderSource() {
-  $('source-heading').textContent = state.source === 'none' ? 'Start with your current XML' : count(state.filters.length, 'filter') + ' ready to edit';
-  $('source-summary').textContent = state.source === 'none' ? 'Upload your filters' : count(state.filters.length, 'filter') + ' loaded';
+  document.body.classList.toggle('has-filters',state.filters.length>0);
+  $('source-heading').textContent = state.source === 'none' ? 'Open your Gmail filters' : state.filters.length ? count(state.filters.length, 'filter') + ' ready to edit' : 'No filters in this export';
+  $('source-summary').textContent = state.source === 'none' ? 'Your filter file' : count(state.filters.length, 'filter') + ' · ' + state.sourceName;
   if (state.connecting) $('source-panel').open = true;
   const label = {live:'Connected Gmail',xml:'Uploaded export',example:'Example data',none:''}[state.source];
-  $('source-status').textContent = state.source === 'none' ? 'Choose a Gmail filter export. Everything stays in this browser while you edit.' : `${label} · ${state.sourceName}`;
+  $('source-status').textContent = state.source === 'none' ? 'Choose the XML file you exported from Gmail.' : `${label} · ${state.sourceName}`;
   $('connect').disabled = state.connecting;
   $('connect').textContent = state.connecting ? 'Connecting…' : state.expired ? 'Sign in again' : state.connection ? 'Reconnect Gmail' : 'Connect Gmail';
   const tools = $('source-tools'); tools.hidden = state.source === 'none' && !state.connection;
@@ -226,10 +227,18 @@ function downloadFile(text,name) {
 }
 async function loadXml(text,name) {
   if (new TextEncoder().encode(text).length > 5*1024*1024) throw new Error('This export is larger than 5 MB. Please export a smaller set of filters.');
-  const filters=parseXml(text); setSource(filters,'xml',name); notify(`Loaded ${count(filters.length,'filter')}. ${state.task==='edit'?'Choose a filter to edit.':'Local checks are ready.'}`, 'success');
+  const filters=parseXml(text); setSource(filters,'xml',name); notify(filters.length ? `Loaded ${count(filters.length,'filter')}. ${state.task==='edit'?'Choose a filter to edit.':'Local checks are ready.'}` : 'This export has no filters. Choose another file or try the example.', filters.length?'success':'');
 }
 async function loadExample() {
   const operation=beginSourceLoad();
+  if(state.task==='edit') {
+    const examples=[
+      emptyFilter({position:1,criteria:{from:'jira.example.com OR issues.example.net'},actions:{label:'Jira',archive:true,neverSpam:true}}),
+      emptyFilter({position:2,criteria:{from:'confluence.example.com OR wiki.example.net'},actions:{label:'Confluence',archive:true,star:true}})
+    ];
+    setSource(parseXml(toXml(examples)),'example','Example filters · invented data');
+    return;
+  }
   const response=await fetch('./tests/fixtures/example.xml');
   if (!response.ok) throw new Error('The example could not be loaded. Try uploading an export.');
   const filters=parseXml(await response.text());

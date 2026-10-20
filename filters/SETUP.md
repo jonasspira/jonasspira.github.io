@@ -11,14 +11,16 @@ The main flow updates the filters you already use: upload a Gmail XML export, ch
 Once this version is published:
 
 1. Open [www.spiiira.com/filters/](https://www.spiiira.com/filters/) on any laptop. No local server, installation or access code is needed for editing.
-2. Choose **Upload XML** and load your current Gmail filter export. To get one in Gmail, open **Settings > See all settings > Filters and Blocked Addresses**, select the filters, and choose **Export**.
+2. Choose **Open filter export** and load your current Gmail filter export. To get one in Gmail, open **Settings > See all settings > Filters and Blocked Addresses**, select the filters, and choose **Export**.
 3. Find and select the existing filter by label or sender, such as Jira or Confluence.
-4. Enter new senders or domains in **Add senders or domains**, then click **Add to this filter**. Use the matching fields and optional actions below to make other changes.
-5. Copy each changed field using its **Copy** button. In Gmail, find the same filter under **Filters and Blocked Addresses** and click **Edit**. Replace the matching field values, click **Continue**, check the actions, then click **Update filter**. [Google's editing instructions](https://support.google.com/mail/answer/6579).
+4. Enter new senders or domains in **Add a sender or domain**, then click **Add sender**. New senders are marked **Added**. Open **Matching details** or **Actions** below to make other changes.
+5. Choose **Copy for Gmail’s From field** (or the other changed field named on the button). In Gmail, find the same filter under **Filters and Blocked Addresses** and click **Edit**. Replace the matching field values, click **Continue**, check the actions, then click **Update filter**. [Google's editing instructions](https://support.google.com/mail/answer/6579).
 
-This edits the existing Gmail filter rather than creating another one. The tool keeps other matching fields and actions in place as you add senders. If sender rules are embedded in a complex search, it asks you to edit that field directly rather than silently changing its meaning. Use **Full search preview** to check matching mail; paste individual field values when editing the filter.
+This edits the existing Gmail filter rather than creating another one. The tool keeps other matching fields and actions in place as you add senders. If sender rules are embedded in a complex search, it asks you to edit that field directly rather than silently changing its meaning. Use **Preview matching mail** to check matching mail; paste individual field values when editing the filter.
 
 Drafts stay in this tab as you switch between filters. Refreshing or closing it clears them. Nothing changes in Gmail until you apply the copied values yourself.
+
+The **Dark / Light** button at the top changes the appearance without clearing your edits. It follows your computer's appearance on the first visit, then remembers your choice in this browser.
 
 ## Other tools and optional AI
 
@@ -28,7 +30,7 @@ For AI help, open **Settings** and enter the private access code used for the Cl
 
 ## What runs where
 
-- **Your browser:** reads an uploaded export, edits copies of existing filters, prepares values to copy, checks rules, creates downloads and holds filters and email examples in memory. Refreshing clears those filters and examples. Settings save only your AI provider, access code and written rules in that browser.
+- **Your browser:** reads an uploaded export, edits copies of existing filters, prepares values to copy, checks rules, creates downloads and holds filters and email examples in memory. Refreshing clears those filters and examples. Settings save your AI provider, access code and written rules; your appearance preference is saved separately in that browser.
 - **Google:** after you explicitly connect Gmail, the browser reads filters, label names and the inbox sample you request. The token stays in memory. This version does not create or delete filters in Gmail.
 - **Cloudflare:** when you request AI analysis, the browser sends the loaded filter criteria/actions, your written rules and any supplied email details to the Worker. It checks your access code or validates an allowed Google token. It forwards the analysis text to the chosen AI provider. The Worker has no database, and its source does not log prompts or email content.
 - **OpenAI or Anthropic:** receives the analysis text and returns proposed changes. Provider account retention and billing settings still apply. API credentials and Google tokens are never part of the model's prompt.

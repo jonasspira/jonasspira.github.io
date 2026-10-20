@@ -8,31 +8,32 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="./theme.js"></script>
 <link rel="stylesheet" href="./styles.css">
 <!-- Visit counter: stats at spiiira.goatcounter.com -->
 <script data-goatcounter="https://spiiira.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 </head>
 <body>
 <div class="shell">
-  <header class="masthead"><a class="wordmark" href="/">SPIIIRA <span>/ TOOLS</span></a><button id="settings-toggle" class="quiet" aria-expanded="false" aria-controls="settings-panel">Settings</button></header>
+  <header class="masthead"><a class="wordmark" href="/">SPIIIRA <span>/ TOOLS</span></a><div class="masthead-actions"><button id="theme-toggle" type="button" class="quiet theme-toggle">Dark</button><button id="settings-toggle" class="quiet" aria-expanded="false" aria-controls="settings-panel">Settings</button></div></header>
   <section id="settings-panel" class="panel settings" hidden aria-label="Settings"></section>
   <main>
-    <section class="intro"><div><p class="eyebrow">GMAIL, WITH A LITTLE ORDER</p><h1>Filters<span class="period">.</span></h1><p class="lede">Keep your rules.<br>Make room for the next sender.</p></div><div class="intro-note"><span class="edition">FORM REV. 12</span><p>Upload XML. Choose a filter.<br>Edit, copy, and get on with your day.</p><p class="small">No sign-in or AI needed.</p></div></section>
+    <section class="intro"><div><h1>Filters<span class="period">.</span></h1><p class="lede">Add new senders to the rules you already use.</p></div></section>
     <details id="source-panel" class="source panel" open>
-      <summary id="source-summary">Upload your filters</summary>
-      <div class="source-top"><div><h2 id="source-heading">Start with your current XML</h2><p id="source-status" class="muted">Choose a Gmail filter export. Everything stays in this browser while you edit.</p></div><div class="source-buttons"><label class="button primary" for="xml-file">Upload XML<input id="xml-file" type="file" accept=".xml,text/xml,application/xml" class="file-input"></label><button id="example" class="quiet">Try an example</button><details class="gmail-optional"><summary>Gmail connection</summary><button id="connect" class="quiet">Connect Gmail</button></details></div></div>
+      <summary id="source-summary">Your filter file</summary>
+      <div class="source-top"><div class="source-intro"><span class="source-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 4H8a2 2 0 0 0-2 2v20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V11Z"/><path d="M19 4v7h7M11 17h10m-10 5h7"/></svg></span><div><h2 id="source-heading">Open your Gmail filters</h2><p id="source-status" class="source-caption">Choose the XML file you exported from Gmail.</p></div></div><div class="source-buttons"><label class="button primary" for="xml-file">Open filter export<input id="xml-file" type="file" accept=".xml,text/xml,application/xml" class="file-input"></label><button id="example" class="quiet">Try an example</button></div></div>
       <div id="source-tools" class="source-tools" hidden></div>
-      <details class="subtle-details"><summary>Paste an export or find the export instructions</summary><p class="muted">In Gmail on a computer: Settings → See all settings → Filters and Blocked Addresses → select your filters → Export. Your file stays in this browser until you ask AI to review it.</p><label for="xml-paste">Paste filter XML</label><textarea id="xml-paste" rows="3" placeholder="Paste the contents of your exported .xml file"></textarea><button id="load-paste" class="secondary">Load pasted export</button></details>
+      <details class="subtle-details"><summary>Get an export from Gmail</summary><p class="muted">In Gmail on a computer: Settings → See all settings → Filters and Blocked Addresses → select your filters → Export.</p><details class="subtle-details"><summary>Paste XML instead</summary><label for="xml-paste">Paste filter XML</label><textarea id="xml-paste" rows="3" placeholder="Paste the contents of your exported .xml file"></textarea><button id="load-paste" class="secondary">Load pasted export</button></details></details>
     </details>
     <div id="notice" class="notice" role="status" hidden></div>
-    <section class="workspace" aria-labelledby="task-heading"><div class="section-label"><p id="task-heading" class="eyebrow">YOUR EXISTING FILTERS</p><span class="privacy-note">Edit locally · copy back to Gmail</span></div>
-      <nav class="tool-switcher" aria-label="Choose a task"><button id="tab-edit" class="task active" aria-current="page"><strong>Update an existing filter</strong></button><details class="other-tools"><summary>Other tools</summary><div class="other-tool-buttons"><button id="tab-build" class="task"><strong>Build a new filter</strong></button><button id="tab-review" class="task"><strong>Review filters</strong></button><button id="tab-diagnose" class="task"><strong>Fix missed mail</strong></button></div></details></nav>
+    <section class="workspace" aria-label="Filter workspace">
+      <nav class="tool-switcher" aria-label="Choose a task"><button id="tab-edit" class="task active" aria-current="page"><strong>Edit filters</strong></button><details class="other-tools"><summary>Other tools</summary><div class="other-tool-buttons"><button id="tab-build" class="task"><strong>Build a new filter</strong></button><button id="tab-review" class="task"><strong>Review filters</strong></button><button id="tab-diagnose" class="task"><strong>Fix missed mail</strong></button><button id="connect" class="quiet">Connect Gmail</button></div></details></nav>
       <div id="task-content"></div>
     </section>
     <section id="results" aria-label="Suggested changes" hidden></section>
     <section id="download-panel" class="panel download-panel" aria-label="Import instructions" hidden></section>
   </main>
-  <footer><span>SPIIIRA / FILTERS</span><span>Filters and email details stay in memory. Settings stay in this browser.</span></footer>
+  <footer><span>SPIIIRA / FILTERS</span><span>Edits last until you close or refresh. Your appearance choice is remembered.</span></footer>
 </div>
 <noscript><p class="notice">This tool needs JavaScript enabled to read filters and build import files.</p></noscript>
 <script type="module" src="./app.js"></script>
