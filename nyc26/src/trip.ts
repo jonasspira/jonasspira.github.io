@@ -46,3 +46,21 @@ export function filterSaved(trip: Trip, q: string) {
     thoughts: trip.thoughts.filter((t) => t.text.toLocaleLowerCase().includes(s)),
   };
 }
+
+/** The three sections of the travel framework. */
+export const SECTIONS = ['Shopping', 'Food & Drink', 'Experiences'] as const;
+export type Section = (typeof SECTIONS)[number];
+export type Verdict = 'new' | 'keep' | 'skip';
+
+export type Find = {
+  id: string;
+  name: string;
+  section: Section;
+  neighborhood: string;
+  why: string;
+  source: string;
+  address: string;
+  verdict: Verdict;
+  onMap: boolean;
+};
+export type Research = { dataVersion: number; candidates: Find[] };

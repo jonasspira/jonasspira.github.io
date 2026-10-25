@@ -19,7 +19,7 @@
  * saved — the browser repeats none of it.
  */
 
-const BUILD = '2026-10-24.1';
+const BUILD = '2026-10-25.2';
 
 // The deployed Worker answers the live site and nothing else. DEV_ORIGINS adds
 // local addresses during development; it is set in worker/.dev.vars, which git
@@ -35,6 +35,12 @@ function allowedOrigins(env) {
 }
 
 const TRIP_ID = 'trip';
+const RESEARCH_ID = 'research';
+
+// The three sections of Jonas's travel framework. Candidates are filed under
+// one of these, and nothing else is accepted.
+const SECTIONS = ['Shopping', 'Food & Drink', 'Experiences'];
+const VERDICTS = ['new', 'keep', 'skip'];
 const DATA_VERSION = 2;
 const SESSION_DAYS = 90;
 const MAX_BODY = 600000;
@@ -76,10 +82,12 @@ export default {
           allowed,
         );
       }
-      if (path === '/session' && request.method === 'POST') return session(request, env, allowed);
-      if (path === '/trip' && request.method === 'GET') return getTrip(request, env, allowed);
-      if (path === '/trip' && request.method === 'PUT') return putTrip(request, env, allowed);
-      if (path === '/places' && request.method === 'GET') return places(request, env, url, allowed);
+      if (path === '/session' && request.method === 'POST') return await session(request, env, allowed);
+      if (path === '/trip' && request.method === 'GET') return await getTrip(request, env, allowed);
+      if (path === '/trip' && request.method === 'PUT') return await putTrip(request, env, allowed);
+      if (path === '/places' && request.method === 'GET') return await places(request, env, url, allowed);
+      if (path === '/research' && request.method === 'GET') return await getResearch(request, env, allowed);
+      if (path === '/research' && request.method === 'PUT') return await putResearch(request, env, allowed);
       return reply({ error: 'Not found.' }, 404, allowed);
     } catch {
       return reply({ error: 'Something went wrong. Please try again.' }, 503, allowed);
@@ -368,6 +376,120 @@ export function initialTrip() {
     thoughts: [],
     practical: { airport: EMPTY, subway: EMPTY, weather: EMPTY, bites: EMPTY },
   };
+}
+
+/**
+ * The research list: candidate places gathered by whichever AI tool did the
+ * searching, waiting for Jonas to keep, skip, or push onto the map.
+ */
+export function validateResearch(input) {
+  if (!input || typeof input !== 'object') return { error: 'Check the fields and try again.' };
+  if (input.dataVersion !== 1) {
+    return { error: 'This window is using an older version. Reload before saving.' };
+  }
+  if (!Array.isArray(input.candidates) || input.candidates.length > 500) {
+    return { error: 'Check the fields and try again.' };
+  }
+
+  for (const c of input.candidates) {
+    if (!c || typeof c !== 'object') return { error: 'Check the fields and try again.' };
+    if (!isText(c.id, 80) || !c.id.length) return { error: 'Check the fields and try again.' };
+    if (typeof c.name !== 'string' || !c.name.length || c.name.length > 200) {
+      return { error: 'Every find needs a name.' };
+    }
+    if (!SECTIONS.includes(c.section)) return { error: 'That section is not one of the three.' };
+    if (!VERDICTS.includes(c.verdict)) return { error: 'That verdict is not one we use.' };
+    for (const key of ['neighborhood', 'why', 'source', 'address']) {
+      if (!isText(c[key], 600)) return { error: 'Check the fields and try again.' };
+    }
+    if (typeof c.onMap !== 'boolean') return { error: 'Check the fields and try again.' };
+  }
+  if (new Set(input.candidates.map((c) => c.id)).size !== input.candidates.length) {
+    return { error: 'Duplicate find identifiers.' };
+  }
+
+  return {
+    research: {
+      dataVersion: 1,
+      candidates: input.candidates.map((c) => ({
+        id: c.id,
+        name: c.name,
+        section: c.section,
+        neighborhood: c.neighborhood,
+        why: c.why,
+        source: c.source,
+        address: c.address,
+        verdict: c.verdict,
+        onMap: c.onMap,
+      })),
+    },
+  };
+}
+
+export function initialResearch() {
+  return { dataVersion: 1, candidates: [] };
+}
+
+async function getResearch(request, env, allowed) {
+  const refused = await requireToken(request, env, allowed);
+  if (refused) return refused;
+
+  await env.DB.prepare(
+    'INSERT INTO trips (id, data, revision) VALUES (?, ?, 0) ON CONFLICT(id) DO NOTHING',
+  )
+    .bind(RESEARCH_ID, JSON.stringify(initialResearch()))
+    .run();
+
+  const row = await env.DB.prepare('SELECT data, revision FROM trips WHERE id = ?')
+    .bind(RESEARCH_ID)
+    .first();
+  if (!row) return reply({ error: 'The research list could not be loaded.' }, 503, allowed);
+
+  const checked = validateResearch(JSON.parse(row.data));
+  if (checked.error) return reply({ error: 'The research list could not be read.' }, 503, allowed);
+  return reply({ research: checked.research, revision: row.revision }, 200, allowed);
+}
+
+async function putResearch(request, env, allowed) {
+  const refused = await requireToken(request, env, allowed);
+  if (refused) return refused;
+
+  const raw = await request.text();
+  if (raw.length > MAX_BODY) return reply({ error: 'This list is too large to save.' }, 413, allowed);
+
+  let body;
+  try {
+    body = JSON.parse(raw);
+  } catch {
+    return reply({ error: 'Check the fields and try again.' }, 400, allowed);
+  }
+  if (!Number.isSafeInteger(body.revision) || body.revision < 0) {
+    return reply({ error: 'Check the fields and try again.' }, 400, allowed);
+  }
+
+  const checked = validateResearch(body.research);
+  if (checked.error) {
+    const stale = checked.error.startsWith('This window');
+    return reply({ error: checked.error }, stale ? 409 : 400, allowed);
+  }
+
+  const result = await env.DB.prepare(
+    'UPDATE trips SET data = ?, revision = ? WHERE id = ? AND revision = ?',
+  )
+    .bind(JSON.stringify(checked.research), body.revision + 1, RESEARCH_ID, body.revision)
+    .run();
+
+  if (!result.meta.changes) {
+    return reply(
+      {
+        error:
+          'This list changed in another window. Your edits are still here. Copy them, then reload to see the latest version.',
+      },
+      409,
+      allowed,
+    );
+  }
+  return reply({ research: checked.research, revision: body.revision + 1 }, 200, allowed);
 }
 
 /* --------------------------------------------------------------- the trip */

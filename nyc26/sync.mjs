@@ -6,12 +6,20 @@
 import { cp, mkdir, readdir, rm } from 'node:fs/promises';
 
 const published = ['index.html', 'favicon.svg'];
+const pages = ['research'];
 
 await rm('assets', { recursive: true, force: true });
 await mkdir('assets', { recursive: true });
 await cp('dist/assets', 'assets', { recursive: true });
 for (const name of published) await cp('dist/' + name, name);
 
+for (const page of pages) {
+  await mkdir(page, { recursive: true });
+  await cp('dist/' + page + '/index.html', page + '/index.html');
+}
+
 const assets = await readdir('assets');
 const bar = '[' + '#'.repeat(20) + ']';
-console.log(`${bar} nyc26 built: index.html, favicon.svg and ${assets.length} asset files.`);
+console.log(
+  `${bar} nyc26 built: index.html, ${pages.length} sub-page, favicon.svg and ${assets.length} asset files.`,
+);

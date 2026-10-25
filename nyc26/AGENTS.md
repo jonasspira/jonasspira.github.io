@@ -19,6 +19,7 @@ still live and must be left alone (see "The old Site" below).
 | The page | `src/` (React + TypeScript) | GitHub Pages, built into `index.html` and `assets/` |
 | The API | `worker/worker.js` | Cloudflare Worker `nyc26-api` |
 | The data | one row in Cloudflare D1 | database `nyc26` |
+| The research sub-page | `src/research/` and `src/research-app.tsx` | GitHub Pages, at `/nyc26/research/` |
 | The PIN | a Cloudflare secret | never in this repository |
 
 The page and the API are on different addresses, so every request crosses
@@ -41,6 +42,11 @@ else, unless `DEV_ORIGINS` is set locally.
   a stale phone tab replacing newer edits. Never replace it with a plain update.
 - **Never reset live data to the seed.** `initialTrip()` is only used when the
   row does not exist yet.
+- **The research sub-page is deliberate**, added at Jonas's request on
+  2026-10-25 so several AI tools can contribute trip research. It is a second
+  document in the same table, under the id `research`, with its own
+  `validateResearch()`. Do not fold it into the trip document and do not remove
+  it as out-of-scope. `RESEARCH.md` explains the paste formats.
 - **Keep the four sections**: the essentials, three evenings, places & thoughts,
   good to know. Do not redesign them, and do not add bookings, reservations,
   itinerary optimisation, recommendations, notifications or collaboration.
@@ -68,7 +74,7 @@ else, unless `DEV_ORIGINS` is set locally.
 npm install          # once
 npm run api          # terminal 1: the Worker and a local database
 npm run dev          # terminal 2: the page at localhost:5173/nyc26/
-npm test             # 20 checks; the live ones skip if the Worker is not running
+npm test             # 28 checks; the live ones skip if the Worker is not running
 npm run build        # type check, build, and copy into index.html + assets/
 ```
 
@@ -95,6 +101,7 @@ the way `groton-inventory/worker.js` is handled. A change to `worker/worker.js`
 has no effect until that is done.
 
 `SETUP.md` has the one-time account steps and how to check it is configured.
+`RESEARCH.md` covers the research sub-page and what to ask other tools for.
 
 ## Several tools work on this
 

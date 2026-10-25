@@ -8,7 +8,7 @@
 // The PIN itself is never stored. It is exchanged once for a signed token that
 // the Worker issues and can verify; only that token is kept in this browser.
 
-import type { Candidate, Trip } from './trip';
+import type { Candidate, Research, Trip } from './trip';
 
 // VITE_API_BASE lets a test build point at a Worker running on this machine.
 // Without it, `npm run dev` uses the local Worker and a real build uses the
@@ -138,4 +138,29 @@ export async function searchPlaces(q: string): Promise<Candidate[]> {
     'Place search is unavailable right now.',
   );
   return body.results as Candidate[];
+}
+
+export async function loadResearch(): Promise<{ research: Research; revision: number }> {
+  const body = await request(
+    '/research',
+    { cache: 'no-store' },
+    'The research list could not be loaded.',
+  );
+  return { research: body.research as Research, revision: body.revision as number };
+}
+
+export async function saveResearch(
+  research: Research,
+  revision: number,
+): Promise<{ research: Research; revision: number }> {
+  const body = await request(
+    '/research',
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ research, revision }),
+    },
+    'Could not save. Your finds are still here; please try again.',
+  );
+  return { research: body.research as Research, revision: body.revision as number };
 }

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 
-for (const page of ['', 'breaker-map/', 'filters/', 'groton-inventory/', 'nyc26/', 'plates/', 'tinfoil/', 'toronto26/']) {
+for (const page of ['', 'breaker-map/', 'filters/', 'groton-inventory/', 'nyc26/', 'nyc26/research/', 'plates/', 'tinfoil/', 'toronto26/']) {
   assert(existsSync('_site/' + page + 'index.html'), 'Missing built page: ' + page);
 }
 const html = readFileSync('_site/plates/index.html', 'utf8');
