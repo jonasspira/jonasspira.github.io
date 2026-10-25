@@ -1,0 +1,16 @@
+name = "nyc26-api"
+main = "worker.js"
+compatibility_date = "2026-10-24"
+workers_dev = true
+
+# Created with: wrangler d1 create nyc26
+# Paste the id it prints into database_id below before the first real deploy.
+# Local development ignores the id and uses a database file under .wrangler/.
+[[d1_databases]]
+binding = "DB"
+database_name = "nyc26"
+database_id = "TO BE FILLED IN"
+
+# ACCESS_PIN and SESSION_SECRET are secrets, not variables. They are set once
+# with `wrangler secret put`, or in the Cloudflare dashboard, and never appear
+# in this repository. Locally they come from worker/.dev.vars, which git ignores.
