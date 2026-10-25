@@ -9,7 +9,7 @@ workers_dev = true
 [[d1_databases]]
 binding = "DB"
 database_name = "nyc26"
-database_id = "TO BE FILLED IN"
+database_id = "93a38a42-06b6-49bf-8771-7921ff3d5419"
 
 # ACCESS_PIN and SESSION_SECRET are secrets, not variables. They are set once
 # with `wrangler secret put`, or in the Cloudflare dashboard, and never appear
