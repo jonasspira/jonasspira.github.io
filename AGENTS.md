@@ -21,6 +21,12 @@ This repository is Jonas's website, www.spiiira.com. GitHub Pages builds it with
   - add a row for it to the table in `README.md`;
   - add the visit counter: copy the two GoatCounter lines (a comment and a `<script>`) from just before `</head>` in `index.html` to the same place in the new page. Every page has them, so visits show up at spiiira.goatcounter.com.
 - Build new tools in the spiiira-ui house style (the spiiira-ui skill) unless Jonas asks for something else.
+- `nyc26/` is the exception to the two bullets above, on purpose. It is Jonas's
+  private trip hub: the page is public but its contents sit behind a PIN checked
+  by a Cloudflare Worker. It has **no homepage card and no README row**, because
+  both would advertise that the trip exists, and `README.md` is served at
+  www.spiiira.com/README.md. Do not add either unless Jonas asks. It also has a
+  build step and a Worker; read `nyc26/AGENTS.md` before touching it.
 - Pages are plain static files and everything in this repository is public. Anything that needs a secret goes in a separate service, never in the page (see `groton-inventory/worker.js` and `groton-inventory/SETUP.md`).
 
 ## What doesn't go here
@@ -32,7 +38,7 @@ This repository is Jonas's website, www.spiiira.com. GitHub Pages builds it with
 
 ## Jekyll
 
-- Markdown files are published as pages unless their front matter says `published: false`. `groton-inventory/SETUP.md`, `AGENTS.md` and `CLAUDE.md` use that to stay off the site. `README.md` is skipped automatically.
+- Markdown files are published as pages unless their front matter says `published: false`. `groton-inventory/SETUP.md`, `AGENTS.md` and `CLAUDE.md` use that to stay off the site. `README.md` has no front matter and **is** served, as raw Markdown, at www.spiiira.com/README.md — checked 2026-10-25. Treat anything written in it as public.
 - `plates/index.html` and `toronto26/index.html` have front matter and use Liquid to list their images. `_data/captions.yml` holds the toronto26 captions.
 - Plates' dome source lives in `plates/src/`. After changing it, run
   `npm ci --prefix plates` and `npm run build --prefix plates`. Commit the

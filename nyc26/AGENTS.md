@@ -104,9 +104,13 @@ one tool at a time, commit when the work is done, and push only when Jonas asks.
 
 ## The old Site
 
-The original lives at `~/Documents/Codex/2026-10-24/create-a-new-site-with-sites`
-and is published at `jonas-nyc-october-2026.jazzyknoll33.chatgpt.site`. It still
-holds Jonas's real saved trip. Do not redeploy it, change it, register a
-replacement, or copy credentials out of it. It stays until Jonas says otherwise.
-This folder's database holds disposable test data until he authorises a
-migration.
+The original lives on this Mac at
+`~/Documents/Codex/2026-10-24/create-a-new-site-with-sites` and is still
+published as a private ChatGPT Site. Its address is in that folder's own
+STATUS.md and in this folder's local STATUS.md; it is deliberately not written
+here, because this repository is public.
+
+That Site still holds Jonas's real saved trip. Do not redeploy it, change it,
+register a replacement, or copy credentials out of it. It stays until Jonas says
+otherwise. This folder's database holds disposable test data until he authorises
+a migration.
