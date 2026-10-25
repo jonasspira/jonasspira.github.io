@@ -57,7 +57,8 @@ database_id = "TO BE FILLED IN"
 
 and put the code between the quotes instead. Save the file.
 
-The id is not a secret, so it is fine to commit it.
+The id is not a secret, so it is fine to commit it. It is already filled in:
+the database was created on 25 October 2026.
 
 ## 3. Create the tables
 
@@ -89,17 +90,11 @@ cd ~/Projects/"SPIIIRA Tools"/jonasspira.github.io/nyc26 && npx wrangler secret 
 It waits for you to type the PIN. Type it and press Return. Nothing appears on
 screen as you type; that is normal.
 
-Then the signing key, which you never need to remember or type again:
+Then the signing key. This generates it and feeds it straight in, so there is
+nothing to read, copy or remember:
 
 ```bash
-cd ~/Projects/"SPIIIRA Tools"/jonasspira.github.io/nyc26 && npx wrangler secret put SESSION_SECRET --config worker/wrangler.toml
-```
-
-When it waits, paste a long random string. To get one, run this first and copy
-what it prints:
-
-```bash
-openssl rand -hex 32
+cd ~/Projects/"SPIIIRA Tools"/jonasspira.github.io/nyc26 && openssl rand -hex 32 | npx wrangler secret put SESSION_SECRET --config worker/wrangler.toml
 ```
 
 Do not set `DEV_ORIGINS` on the deployed Worker. It exists only for local work.
@@ -155,3 +150,18 @@ Nothing here is entangled with your other tools.
 3. Under Storage & Databases, delete the `nyc26` D1 database.
 
 Your other six tools, your domain and the original ChatGPT Site are unaffected.
+
+---
+
+## Two things that caught us out
+
+**Interactive prompts need the Terminal panel.** A command that stops to ask you
+something, like `wrangler secret put`, has to be typed into the Terminal tab. The
+Run button beside a command in the chat cannot pass your typing through, so such
+a command just appears to hang.
+
+**Cloudflare blocks script user-agents at the edge.** A command-line request that
+announces itself as `Python-urllib` gets `403` with `error code: 1010` before it
+ever reaches the Worker. That is Cloudflare, not this code. Use `curl` for
+command-line checks. Real browsers are unaffected, so it never shows up in normal
+use of the page.
