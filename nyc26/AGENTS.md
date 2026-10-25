@@ -67,7 +67,7 @@ else, unless `DEV_ORIGINS` is set locally.
 ```
 npm install          # once
 npm run api          # terminal 1: the Worker and a local database
-npm run dev          # terminal 2: the page at http://localhost:5173/nyc26/
+npm run dev          # terminal 2: the page at localhost:5173/nyc26/
 npm test             # 20 checks; the live ones skip if the Worker is not running
 npm run build        # type check, build, and copy into index.html + assets/
 ```
