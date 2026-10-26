@@ -157,9 +157,10 @@ export default function ResearchApp({ onSignedOut }: { onSignedOut: (notice: str
       const query = [find.name, find.address].filter(Boolean).join(' ').slice(0, 160);
       let located = null;
       try {
+        // Only an actual name match is accepted. Taking the nearest result
+        // pins the wrong building; a place with no pin is still useful.
         const results = await searchPlaces(query.length < 2 ? find.name : query);
-        const exact = results.find((r) => sameName(r.name) === sameName(find.name));
-        located = exact ?? results[0] ?? null;
+        located = results.find((r) => sameName(r.name) === sameName(find.name)) ?? null;
       } catch {
         located = null; // Search is optional; the place can go on by name.
       }

@@ -19,7 +19,7 @@
  * saved — the browser repeats none of it.
  */
 
-const BUILD = '2026-10-26.1';
+const BUILD = '2026-10-26.2';
 
 // The deployed Worker answers the live site and nothing else. DEV_ORIGINS adds
 // local addresses during development; it is set in worker/.dev.vars, which git
@@ -622,15 +622,7 @@ async function intake(request, env, allowed) {
     return reply({ ok: true, added: 'research', name }, 200, allowed);
   }
 
-  // Straight onto the map. A pin only if the lookup finds a real New York match.
-  let location = null;
-  try {
-    const found = await lookupPlaces([name, address].filter(Boolean).join(' ').slice(0, 160) || name);
-    const exact = found.find((r) => sameKey(r.name) === sameKey(name));
-    location = (exact ?? found[0] ?? null)?.location ?? null;
-  } catch {
-    location = null;
-  }
+  const location = await resolvePin(name, address);
 
   const category =
     section === 'Food & Drink' ? 'Food' : section === 'Shopping' ? 'Shops' : 'Other';
@@ -638,6 +630,61 @@ async function intake(request, env, allowed) {
   const added = await appendPlace(env, { name, category, note, location });
   if (!added) return reply({ error: 'Already on the map.', duplicate: true }, 200, allowed);
   return reply({ ok: true, added: 'map', name, pinned: Boolean(location) }, 200, allowed);
+}
+
+/**
+ * Work out where a place actually is, or decide it cannot be pinned.
+ *
+ * An address, when given, is geocoded against NYC GeoSearch, which is the city's
+ * own address service and returns the building itself. Only if there is no
+ * address do we fall back to searching the name on the map, and then only an
+ * actual name match counts.
+ *
+ * What this deliberately does NOT do is take the nearest search result. An
+ * earlier version did, and pinned a restaurant to a Citi Bike dock 748 metres
+ * away because the name matched nothing. No pin is far better than a wrong one;
+ * a place with no pin still shows in the list.
+ */
+async function resolvePin(name, address) {
+  if (address) {
+    try {
+      const url = new URL('https://geosearch.planninglabs.nyc/v2/search');
+      url.search = new URLSearchParams({ text: address + ' Manhattan', size: '1' }).toString();
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(12000),
+        headers: { Accept: 'application/json' },
+        redirect: 'manual',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const feature = (data.features || [])[0];
+        const [lon, lat] = feature?.geometry?.coordinates || [];
+        const label = feature?.properties?.label;
+        if (
+          Number.isFinite(lat) && Number.isFinite(lon) &&
+          lat >= 40.45 && lat <= 41 && lon >= -74.3 && lon <= -73.65 && label
+        ) {
+          return {
+            lat,
+            lon,
+            address: address.slice(0, 800),
+            source: 'https://geosearch.planninglabs.nyc/v2/search?' +
+              new URLSearchParams({ text: address + ' Manhattan', size: '1' }).toString(),
+          };
+        }
+      }
+    } catch {
+      // Fall through to the name search.
+    }
+  }
+
+  try {
+    const found = await lookupPlaces(name.slice(0, 160));
+    const exact = found.find((r) => sameKey(r.name) === sameKey(name));
+    return exact ? exact.location : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Case- and punctuation-insensitive key, matching the browser's sameName(). */
