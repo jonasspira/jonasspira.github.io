@@ -19,6 +19,7 @@ still live and must be left alone (see "The old Site" below).
 | The page | `src/` (React + TypeScript) | GitHub Pages, built into `index.html` and `assets/` |
 | The API | `worker/worker.js` | Cloudflare Worker `nyc26-api` |
 | The data | one row in Cloudflare D1 | database `nyc26` |
+| Outside tools' additions | `POST /intake`, append-only, key `INTAKE_KEY` | the same Worker |
 | The research sub-page | `src/research/` and `src/research-app.tsx` | GitHub Pages, at `/nyc26/research/` |
 | The PIN | a Cloudflare secret | never in this repository |
 
@@ -109,10 +110,12 @@ Read this whole file first. Then, before anything else, work out which kind of
 change is being asked for, because they are completely different jobs.
 
 **Trip content** — a place, a note, an evening, a flight, a thought. This needs
-**no code and no repository work at all**. Jonas edits it in the page itself, or
-pastes research into `/nyc26/research/`. If you are asked to "add a restaurant to
-the map", the answer is to tell him to add it on the page, or to paste the find
-into the research page and press Add to map. Do not touch this folder for that.
+**no code and no repository work at all**, and it never goes in this repository.
+
+If you can make HTTP requests, add it yourself through the intake endpoint
+(below) — do not make Jonas retype a place you already researched. If you
+cannot, hand him the details and tell him to use the place search on the hub.
+Either way, do not edit this folder for trip content.
 
 **Page or Worker changes** — layout, styling, a new field, a new rule. That is a
 code change, and these rules are not optional:
@@ -129,6 +132,43 @@ code change, and these rules are not optional:
    `npx wrangler deploy --config worker/wrangler.toml`. Only Jonas is signed in
    to Cloudflare, so tell him it needs deploying and do not claim it is live.
 
+### Adding a place yourself
+
+```
+POST https://nyc26-api.jonas-spira.workers.dev/intake
+X-Intake-Key: <the key Jonas gives you>
+Content-Type: application/json
+
+{
+  "name": "Narkara",
+  "section": "Food & Drink",
+  "neighborhood": "Union Square",
+  "why": "Thai, good for a quick dinner",
+  "address": "5 E 17th St, New York, NY 10003",
+  "target": "map",
+  "source": "Muse"
+}
+```
+
+- `name` is the only required field.
+- `section` is one of `Shopping`, `Food & Drink`, `Experiences`. It decides the
+  map category: Shops, Food, Other. An unrecognised section falls back to
+  Shopping rather than failing.
+- `target` is `map` to pin it on the trip straight away, or `research` (the
+  default) to park it on the research page for Jonas to review.
+- The Worker looks the name and address up itself and attaches a real pin when
+  it finds a New York match. **Do not send coordinates; it ignores them.** If
+  nothing matches, the place is saved by name with no pin, which is fine.
+- A name already on the map or the list is ignored, and the reply says
+  `"duplicate": true`. Adding the same place twice is harmless.
+- A success looks like `{"ok":true,"added":"map","name":"Narkara","pinned":true}`.
+  `pinned: false` means it went on without a pin.
+
+This endpoint can only add. It cannot read the trip, cannot change or delete
+anything, and never returns trip content, which is why it has its own key rather
+than Jonas's PIN. Treat the key as private: never print it, never commit it,
+never put it in this repository.
+
 Never do these:
 
 - Add a homepage card or a `README.md` row for nyc26. Both are public and would
@@ -138,6 +178,7 @@ Never do these:
 - Put trip content in this repository. It is public. Content belongs in D1.
 - Invent a coordinate, an address, an opening time or a flight detail. Unknowns
   stay `TO BE FILLED IN`. Pins come only from the place search or NYC GeoSearch.
+  Research a real address before sending one; do not guess at it.
 - Work here at the same time as another tool. One at a time on this folder.
 
 If something you pushed breaks the live page, this restores it:

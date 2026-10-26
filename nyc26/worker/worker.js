@@ -19,7 +19,7 @@
  * saved — the browser repeats none of it.
  */
 
-const BUILD = '2026-10-25.2';
+const BUILD = '2026-10-26.1';
 
 // The deployed Worker answers the live site and nothing else. DEV_ORIGINS adds
 // local addresses during development; it is set in worker/.dev.vars, which git
@@ -88,6 +88,7 @@ export default {
       if (path === '/places' && request.method === 'GET') return await places(request, env, url, allowed);
       if (path === '/research' && request.method === 'GET') return await getResearch(request, env, allowed);
       if (path === '/research' && request.method === 'PUT') return await putResearch(request, env, allowed);
+      if (path === '/intake' && request.method === 'POST') return await intake(request, env, allowed);
       return reply({ error: 'Not found.' }, 404, allowed);
     } catch {
       return reply({ error: 'Something went wrong. Please try again.' }, 503, allowed);
@@ -558,6 +559,155 @@ async function putTrip(request, env, allowed) {
   return reply({ trip: checked.trip, revision: body.revision + 1 }, 200, allowed);
 }
 
+/* ---------------------------------------------------------------- intake */
+
+/**
+ * One place, added by an outside tool.
+ *
+ *   POST /intake
+ *   X-Intake-Key: <the INTAKE_KEY secret>
+ *   { "name": "Narkara", "section": "Food & Drink", "neighborhood": "Union Square",
+ *     "why": "Thai", "address": "5 E 17th St", "target": "map" }
+ *
+ * Deliberately append-only and write-only. It cannot read the trip, cannot
+ * change or remove anything that is already there, and never returns trip
+ * content. The worst a leaked key can do is add unwanted places, which Jonas can
+ * delete. That is why it uses its own secret rather than the PIN.
+ *
+ * target "map" puts it straight on the trip map, looking the name up for a pin
+ * and saving by name when nothing matches. target "research" (the default)
+ * parks it on the research page instead.
+ */
+async function intake(request, env, allowed) {
+  if (!env.INTAKE_KEY) {
+    return reply({ error: 'Intake is not configured.' }, 503, allowed);
+  }
+  const offered = request.headers.get('X-Intake-Key') || '';
+  if (!offered || offered.length > 200 || !constantTimeEqual(offered, env.INTAKE_KEY)) {
+    return reply({ error: 'Not authorised.' }, 401, allowed);
+  }
+
+  let body;
+  try {
+    body = JSON.parse(await request.text());
+  } catch {
+    return reply({ error: 'Send JSON.' }, 400, allowed);
+  }
+
+  const text = (value, max) =>
+    typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, max) : '';
+  const name = text(body.name, 200);
+  if (!name) return reply({ error: 'A name is required.' }, 400, allowed);
+
+  const section = SECTIONS.includes(body.section) ? body.section : 'Shopping';
+  const neighborhood = text(body.neighborhood, 600);
+  const why = text(body.why, 600);
+  const address = text(body.address, 600);
+  const source = text(body.source, 60) || 'An AI tool';
+  const target = body.target === 'map' ? 'map' : 'research';
+
+  if (target === 'research') {
+    const added = await appendResearch(env, {
+      id: 'find-' + crypto.randomUUID().slice(0, 12),
+      name,
+      section,
+      neighborhood,
+      why,
+      source,
+      address,
+      verdict: 'new',
+      onMap: false,
+    });
+    if (!added) return reply({ error: 'Already on the list.', duplicate: true }, 200, allowed);
+    return reply({ ok: true, added: 'research', name }, 200, allowed);
+  }
+
+  // Straight onto the map. A pin only if the lookup finds a real New York match.
+  let location = null;
+  try {
+    const found = await lookupPlaces([name, address].filter(Boolean).join(' ').slice(0, 160) || name);
+    const exact = found.find((r) => sameKey(r.name) === sameKey(name));
+    location = (exact ?? found[0] ?? null)?.location ?? null;
+  } catch {
+    location = null;
+  }
+
+  const category =
+    section === 'Food & Drink' ? 'Food' : section === 'Shopping' ? 'Shops' : 'Other';
+  const note = [why, neighborhood, address].filter(Boolean).join(' · ').slice(0, 4000);
+  const added = await appendPlace(env, { name, category, note, location });
+  if (!added) return reply({ error: 'Already on the map.', duplicate: true }, 200, allowed);
+  return reply({ ok: true, added: 'map', name, pinned: Boolean(location) }, 200, allowed);
+}
+
+/** Case- and punctuation-insensitive key, matching the browser's sameName(). */
+function sameKey(name) {
+  return String(name)
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/\b(the|a|an)\b/g, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+/**
+ * Append to a stored document under the usual compare-and-swap, retrying when
+ * something else saves first. Returns false when the name is already there.
+ */
+async function appendTo(env, id, fallback, add) {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    await env.DB.prepare(
+      'INSERT INTO trips (id, data, revision) VALUES (?, ?, 0) ON CONFLICT(id) DO NOTHING',
+    )
+      .bind(id, JSON.stringify(fallback()))
+      .run();
+
+    const row = await env.DB.prepare('SELECT data, revision FROM trips WHERE id = ?')
+      .bind(id)
+      .first();
+    if (!row) throw new Error('missing document');
+
+    const next = add(JSON.parse(row.data));
+    if (!next) return false; // duplicate
+
+    const result = await env.DB.prepare(
+      'UPDATE trips SET data = ?, revision = ? WHERE id = ? AND revision = ?',
+    )
+      .bind(JSON.stringify(next), row.revision + 1, id, row.revision)
+      .run();
+    if (result.meta.changes) return true;
+  }
+  throw new Error('could not append');
+}
+
+function appendResearch(env, find) {
+  return appendTo(env, RESEARCH_ID, initialResearch, (research) => {
+    if (research.candidates.some((c) => sameKey(c.name) === sameKey(find.name))) return null;
+    const next = { ...research, candidates: [...research.candidates, find] };
+    return validateResearch(next).error ? null : next;
+  });
+}
+
+function appendPlace(env, place) {
+  return appendTo(env, TRIP_ID, initialTrip, (trip) => {
+    if (trip.places.some((p) => sameKey(p.name) === sameKey(place.name))) return null;
+    const next = {
+      ...trip,
+      places: [
+        ...trip.places,
+        {
+          id: crypto.randomUUID(),
+          number: Math.max(0, ...trip.places.map((p) => p.number)) + 1,
+          name: place.name,
+          category: place.category,
+          note: place.note,
+          location: place.location,
+        },
+      ],
+    };
+    return validateTrip(next).error ? null : next;
+  });
+}
+
 /* ------------------------------------------------------------ place search */
 
 const NYC_CITIES = ['New York', 'New York City', 'Brooklyn', 'Queens', 'Bronx', 'The Bronx', 'Staten Island', 'Manhattan'];
@@ -574,13 +724,28 @@ async function places(request, env, url, allowed) {
     return reply({ error: 'Enter a place name (2–160 characters).' }, 400, allowed);
   }
 
+  try {
+    return reply({ results: await lookupPlaces(q) }, 200, allowed);
+  } catch {
+    return reply(
+      { error: 'Place search is unavailable right now. Try again, or add by name without a pin.' },
+      502,
+      allowed,
+    );
+  }
+}
+
+/**
+ * Ask Photon for New York matches. Throws if the upstream is unreachable, so
+ * callers can decide whether a missing pin matters. Results are cached briefly,
+ * because the same name gets looked up repeatedly while adding a place.
+ */
+async function lookupPlaces(q) {
   const key = q.toLowerCase();
   const cached = searchCache.get(key);
-  if (cached && Date.now() - cached.at < 300000) {
-    return reply({ results: cached.results }, 200, allowed);
-  }
+  if (cached && Date.now() - cached.at < 300000) return cached.results;
 
-  try {
+  {
     const search = new URL('https://photon.komoot.io/api/');
     search.search = new URLSearchParams({
       q,
@@ -632,12 +797,6 @@ async function places(request, env, url, allowed) {
 
     if (searchCache.size > 100) searchCache.clear();
     searchCache.set(key, { at: Date.now(), results });
-    return reply({ results }, 200, allowed);
-  } catch {
-    return reply(
-      { error: 'Place search is unavailable right now. Try again, or add by name without a pin.' },
-      502,
-      allowed,
-    );
+    return results;
   }
 }

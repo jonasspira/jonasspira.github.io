@@ -66,6 +66,21 @@ for things that cannot be done in Grand Rapids, in the three sections above, and
 says to skip anything with a West Michigan location, to confirm each place is
 currently open, and to give its neighborhood.
 
+## A tool adding places by itself
+
+A tool that can make HTTP requests does not need Jonas to paste anything. See
+the intake endpoint in `AGENTS.md`: one POST per place, with its own key, going
+either straight onto the map or into this list. It can only add; it cannot read
+or change the trip.
+
+Set or rotate the key with:
+
+```
+npx wrangler secret put INTAKE_KEY --config worker/wrangler.toml
+```
+
+Rotating it immediately stops any tool that has the old one.
+
 ## Rules
 
 - The research list is a separate document in the same database, under the id
