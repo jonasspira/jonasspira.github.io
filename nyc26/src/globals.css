@@ -34,3 +34,7 @@ section{margin-bottom:28px}.section-head{margin-bottom:10px}.night-head{padding-
 .gate h2{margin-bottom:16px}.gate .field{margin-bottom:14px}.gate .inline-error{margin:0 0 14px}
 .gate button{width:100%}.gate .hint{margin-top:14px}.gate-actions{margin-top:16px}
 .subtitle button.quiet{margin-right:-8px}
+
+.masthead-links{display:flex;align-items:center;gap:14px}
+.confirm-remove{font-size:12px;color:var(--dim);align-self:center}
+button.quiet.danger{color:#f0a998}

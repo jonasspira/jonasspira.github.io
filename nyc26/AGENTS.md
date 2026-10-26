@@ -48,6 +48,9 @@ else, unless `DEV_ORIGINS` is set locally.
   document in the same table, under the id `research`, with its own
   `validateResearch()`. Do not fold it into the trip document and do not remove
   it as out-of-scope. `RESEARCH.md` explains the paste formats.
+- **The trip page links to the research sub-page** from the masthead, and each
+  saved place can be removed with a two-tap confirm. Removing is the only
+  destructive action in the tool; keep the confirmation step.
 - **Keep the four sections**: the essentials, three evenings, places & thoughts,
   good to know. Do not redesign them, and do not add bookings, reservations,
   itinerary optimisation, recommendations, notifications or collaboration.
