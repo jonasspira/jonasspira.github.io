@@ -24,6 +24,7 @@ export type Place = {
   name: string;
   category: Category;
   note: string;
+  website: string;
   location: Location | null;
 };
 export type Thought = { id: string; text: string };
@@ -60,6 +61,7 @@ export type Find = {
   why: string;
   source: string;
   address: string;
+  website: string;
   verdict: Verdict;
   onMap: boolean;
 };

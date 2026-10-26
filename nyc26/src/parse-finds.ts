@@ -34,6 +34,31 @@ function matchSection(text: string): Section | null {
 const clean = (value: unknown, max = 600): string =>
   typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, max) : '';
 
+/**
+ * Pull a place's own website out of a line. Handles a Markdown link, a bare
+ * http(s) address, and a bare host like "narkaranyc.com". The Worker checks it
+ * again before storing, so this only has to find a candidate.
+ */
+function websiteIn(text: string): string {
+  const markdown = text.match(/\]\((https?:\/\/[^)\s]+)\)/i);
+  if (markdown) return markdown[1].slice(0, 300);
+  const full = text.match(/\bhttps?:\/\/[^\s)<>\]]+/i);
+  if (full) return full[0].replace(/[.,;:]+$/, '').slice(0, 300);
+  const host = text.match(/\b((?:[a-z0-9-]+\.)+(?:com|org|net|nyc|co|io|shop|store|cafe|restaurant))\b(\/[^\s)]*)?/i);
+  if (host) return 'https://' + (host[0]).replace(/[.,;:]+$/, '').slice(0, 290);
+  return '';
+}
+
+/** Remove a URL or Markdown link from prose, so the reason reads cleanly. */
+function withoutLinks(text: string): string {
+  return text
+    .replace(/\[([^\]]*)\]\((https?:\/\/[^)\s]+)\)/gi, '$1')
+    .replace(/\bhttps?:\/\/[^\s)<>\]]+/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([.,;:])/g, '$1')
+    .trim();
+}
+
 /** Strip Markdown emphasis, list bullets and leading numbering from a line. */
 function strip(line: string): string {
   return line
@@ -53,6 +78,7 @@ function make(partial: Partial<Find> & { name: string }, source: string): Find {
     neighborhood: clean(partial.neighborhood),
     why: clean(partial.why),
     address: clean(partial.address),
+    website: clean(partial.website, 300),
     source: clean(source, 600),
     verdict: 'new',
     onMap: false,
@@ -94,6 +120,7 @@ function fromJson(text: string, source: string): Find[] | null {
           neighborhood: clean(r.neighborhood ?? r.area ?? r.hood),
           why: clean(r.why ?? r.note ?? r.reason ?? r.description),
           address: clean(r.address),
+          website: clean(r.website ?? r.url ?? r.site ?? r.link, 300),
         },
         source,
       ),
@@ -124,8 +151,9 @@ function fromPipes(text: string, source: string): Find[] | null {
           name,
           section: section ?? DEFAULT_SECTION,
           neighborhood: rest[1] ?? '',
-          why: rest[2] ?? '',
+          why: withoutLinks(rest[2] ?? ''),
           address: rest[3] ?? '',
+          website: rest[4] ? websiteIn(rest[4]) || websiteIn(line) : websiteIn(line),
         },
         source,
       ),
@@ -163,8 +191,18 @@ function fromLoose(text: string, source: string): Find[] {
     const name = split ? split[1] : line;
     const why = split ? split[2] : '';
     const hood = why.match(/\(([^)]{2,40})\)\s*$/);
+    const reason = hood ? why.replace(/\s*\([^)]*\)\s*$/, '') : why;
     finds.push(
-      make({ name, section, why: hood ? why.replace(/\s*\([^)]*\)\s*$/, '') : why, neighborhood: hood ? hood[1] : '' }, source),
+      make(
+        {
+          name: withoutLinks(name),
+          section,
+          why: withoutLinks(reason),
+          neighborhood: hood ? hood[1] : '',
+          website: websiteIn(trimmed),
+        },
+        source,
+      ),
     );
   }
   return finds;

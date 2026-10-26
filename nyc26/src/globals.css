@@ -38,3 +38,5 @@ section{margin-bottom:28px}.section-head{margin-bottom:10px}.night-head{padding-
 .masthead-links{display:flex;align-items:center;gap:14px}
 .confirm-remove{font-size:12px;color:var(--dim);align-self:center}
 button.quiet.danger{color:#f0a998}
+.place-site{display:inline-block;font-size:11px;margin-top:4px}
+.map-source+.place-site{margin-left:12px}

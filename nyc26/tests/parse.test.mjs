@@ -125,3 +125,43 @@ test('the same place written differently collapses to one key', () => {
   assert.notEqual(sameName('Idlewild Books'), sameName('Idlewild Wines'));
   assert.notEqual(sameName("Pete's Tavern"), sameName("Pete's Candy Store"));
 });
+
+test('a website is picked out of whatever shape the answer is in', () => {
+  const pipes = parseFinds(
+    'Food & Drink | Narkara | Union Square | Thai | 5 E 17th St | https://www.narkaranyc.com/',
+    'Muse',
+  );
+  assert.equal(pipes[0].website, 'https://www.narkaranyc.com/');
+
+  const markdown = parseFinds(
+    '## Shopping\n- **Goods for the Study** — stationery ([goodsforthestudy.com](https://goodsforthestudy.com/))',
+    'Muse',
+  );
+  assert.equal(markdown[0].website, 'https://goodsforthestudy.com/');
+  assert.equal(markdown[0].name, 'Goods for the Study');
+  assert.ok(!markdown[0].why.includes('http'), 'the link should not be left in the reason');
+
+  const bare = parseFinds('Shopping | Toy Tokyo | East Village | Toys | 91 2nd Ave | toytokyo.com', 'Muse');
+  assert.equal(bare[0].website, 'https://toytokyo.com');
+
+  const json = parseFinds(
+    JSON.stringify([{ name: 'Katz', section: 'Food & Drink', url: 'https://katzsdelicatessen.com' }]),
+    'Muse',
+  );
+  assert.equal(json[0].website, 'https://katzsdelicatessen.com');
+
+  const inline = parseFinds('## Experiences\n- Tenement Museum — https://www.tenement.org tours', 'Muse');
+  assert.equal(inline[0].website, 'https://www.tenement.org');
+});
+
+test('no website is invented when the answer has none', () => {
+  const finds = parseFinds('Shopping | Fishs Eddy | Flatiron | Housewares | 889 Broadway', 'Muse');
+  assert.equal(finds[0].website, '');
+
+  const loose = parseFinds('## Shopping\n- Pearl River Mart — Asian department store', 'Muse');
+  assert.equal(loose[0].website, '');
+
+  // A street address must not be mistaken for a domain.
+  const addressy = parseFinds('Food & Drink | Joes Pizza | Union Square | Slices | 150 E 14th St', 'Muse');
+  assert.equal(addressy[0].website, '');
+});

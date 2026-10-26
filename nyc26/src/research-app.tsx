@@ -183,6 +183,7 @@ export default function ResearchApp({ onSignedOut }: { onSignedOut: (notice: str
             name: located ? located.name : find.name,
             category: category as 'Food' | 'Shops' | 'Other',
             note: [find.why, find.neighborhood].filter(Boolean).join(' · ').slice(0, 4000),
+            website: find.website,
             location: located ? located.location : null,
           },
         ],
@@ -325,6 +326,11 @@ export default function ResearchApp({ onSignedOut }: { onSignedOut: (notice: str
                         </span>
                         {find.why && <p className="place-note">{find.why}</p>}
                         {find.address && <p className="address">{find.address}</p>}
+                        {find.website && (
+                          <a className="place-site" href={find.website} target="_blank" rel="noreferrer">
+                            Website
+                          </a>
+                        )}
                         <div className="place-actions">
                           {(['keep', 'skip'] as Verdict[]).map((verdict) => (
                             <button

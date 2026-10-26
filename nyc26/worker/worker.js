@@ -19,7 +19,7 @@
  * saved — the browser repeats none of it.
  */
 
-const BUILD = '2026-10-26.2';
+const BUILD = '2026-10-26.3';
 
 // The deployed Worker answers the live site and nothing else. DEV_ORIGINS adds
 // local addresses during development; it is set in worker/.dev.vars, which git
@@ -230,6 +230,22 @@ async function session(request, env, allowed) {
 
 const isText = (value, max) => typeof value === 'string' && value.length <= max;
 
+/** A place's own website. Empty is fine; anything that is not http(s) is not. */
+function cleanWebsite(value) {
+  if (typeof value !== 'string' || !value.trim()) return '';
+  const raw = value.trim().slice(0, 300);
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return '';
+    if (url.username || url.password) return '';
+    return url.toString().slice(0, 300);
+  } catch {
+    // Tools often give a bare host like "narkaranyc.com".
+    if (/^[a-z0-9.-]+\.[a-z]{2,}(\/[^\s]*)?$/i.test(raw)) return 'https://' + raw;
+    return '';
+  }
+}
+
 function validLocation(value) {
   if (value === null) return true;
   if (!value || typeof value !== 'object') return false;
@@ -289,6 +305,9 @@ export function validateTrip(input) {
     }
     if (!CATEGORIES.includes(place.category)) return { error: 'That category is not one of the five.' };
     if (!isText(place.note, 4000)) return { error: 'Check the fields and try again.' };
+    if (place.website !== undefined && !isText(place.website, 300)) {
+      return { error: 'Check the fields and try again.' };
+    }
     if (!validLocation(place.location === undefined ? null : place.location)) {
       return { error: 'That location is outside New York, or its source is not one we trust.' };
     }
@@ -337,6 +356,7 @@ export function validateTrip(input) {
         name: x.name,
         category: x.category,
         note: x.note,
+        website: cleanWebsite(x.website),
         location: x.location === undefined ? null : x.location,
       })),
       thoughts: input.thoughts.map((t) => ({ id: t.id, text: t.text })),
@@ -367,6 +387,7 @@ export function initialTrip() {
       name: p.name,
       category: p.category,
       note: 'Disposable test data.',
+      website: '',
       location: {
         lat: p.lat,
         lon: p.lon,
@@ -403,6 +424,9 @@ export function validateResearch(input) {
     for (const key of ['neighborhood', 'why', 'source', 'address']) {
       if (!isText(c[key], 600)) return { error: 'Check the fields and try again.' };
     }
+    if (c.website !== undefined && !isText(c.website, 300)) {
+      return { error: 'Check the fields and try again.' };
+    }
     if (typeof c.onMap !== 'boolean') return { error: 'Check the fields and try again.' };
   }
   if (new Set(input.candidates.map((c) => c.id)).size !== input.candidates.length) {
@@ -420,6 +444,7 @@ export function validateResearch(input) {
         why: c.why,
         source: c.source,
         address: c.address,
+        website: cleanWebsite(c.website),
         verdict: c.verdict,
         onMap: c.onMap,
       })),
@@ -604,6 +629,7 @@ async function intake(request, env, allowed) {
   const why = text(body.why, 600);
   const address = text(body.address, 600);
   const source = text(body.source, 60) || 'An AI tool';
+  const website = cleanWebsite(body.website ?? body.url ?? body.site ?? '');
   const target = body.target === 'map' ? 'map' : 'research';
 
   if (target === 'research') {
@@ -615,6 +641,7 @@ async function intake(request, env, allowed) {
       why,
       source,
       address,
+      website,
       verdict: 'new',
       onMap: false,
     });
@@ -627,7 +654,7 @@ async function intake(request, env, allowed) {
   const category =
     section === 'Food & Drink' ? 'Food' : section === 'Shopping' ? 'Shops' : 'Other';
   const note = [why, neighborhood, address].filter(Boolean).join(' · ').slice(0, 4000);
-  const added = await appendPlace(env, { name, category, note, location });
+  const added = await appendPlace(env, { name, category, note, website, location });
   if (!added) return reply({ error: 'Already on the map.', duplicate: true }, 200, allowed);
   return reply({ ok: true, added: 'map', name, pinned: Boolean(location) }, 200, allowed);
 }
@@ -747,6 +774,7 @@ function appendPlace(env, place) {
           name: place.name,
           category: place.category,
           note: place.note,
+          website: place.website || '',
           location: place.location,
         },
       ],
