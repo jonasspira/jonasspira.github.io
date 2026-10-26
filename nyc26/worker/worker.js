@@ -19,7 +19,7 @@
  * saved — the browser repeats none of it.
  */
 
-const BUILD = '2026-10-26.3';
+const BUILD = '2026-10-26.4';
 
 // The deployed Worker answers the live site and nothing else. DEV_ORIGINS adds
 // local addresses during development; it is set in worker/.dev.vars, which git
@@ -645,8 +645,10 @@ async function intake(request, env, allowed) {
       verdict: 'new',
       onMap: false,
     });
-    if (!added) return reply({ error: 'Already on the list.', duplicate: true }, 200, allowed);
-    return reply({ ok: true, added: 'research', name }, 200, allowed);
+    if (added === 'unchanged') {
+      return reply({ ok: true, result: 'unchanged', name, note: 'Already on the list, nothing to fill in.' }, 200, allowed);
+    }
+    return reply({ ok: true, result: added, where: 'research', name }, 200, allowed);
   }
 
   const location = await resolvePin(name, address);
@@ -655,8 +657,10 @@ async function intake(request, env, allowed) {
     section === 'Food & Drink' ? 'Food' : section === 'Shopping' ? 'Shops' : 'Other';
   const note = [why, neighborhood, address].filter(Boolean).join(' · ').slice(0, 4000);
   const added = await appendPlace(env, { name, category, note, website, location });
-  if (!added) return reply({ error: 'Already on the map.', duplicate: true }, 200, allowed);
-  return reply({ ok: true, added: 'map', name, pinned: Boolean(location) }, 200, allowed);
+  if (added === 'unchanged') {
+    return reply({ ok: true, result: 'unchanged', name, note: 'Already on the map, nothing to fill in.' }, 200, allowed);
+  }
+  return reply({ ok: true, result: added, where: 'map', name, pinned: Boolean(location) }, 200, allowed);
 }
 
 /**
@@ -740,30 +744,73 @@ async function appendTo(env, id, fallback, add) {
       .first();
     if (!row) throw new Error('missing document');
 
-    const next = add(JSON.parse(row.data));
-    if (!next) return false; // duplicate
+    const outcome = add(JSON.parse(row.data));
+    if (!outcome) return 'unchanged';
 
     const result = await env.DB.prepare(
       'UPDATE trips SET data = ?, revision = ? WHERE id = ? AND revision = ?',
     )
-      .bind(JSON.stringify(next), row.revision + 1, id, row.revision)
+      .bind(JSON.stringify(outcome.next), row.revision + 1, id, row.revision)
       .run();
-    if (result.meta.changes) return true;
+    if (result.meta.changes) return outcome.how;
   }
   throw new Error('could not append');
 }
 
+/**
+ * Fill in fields that are empty, and never touch ones that already hold
+ * something. A tool re-sending a place it found earlier can therefore add the
+ * website it did not have the first time, without overwriting anything Jonas
+ * has since written himself.
+ */
+function fillBlanks(existing, incoming, keys) {
+  let changed = false;
+  const merged = { ...existing };
+  for (const key of keys) {
+    if (!existing[key] && incoming[key]) {
+      merged[key] = incoming[key];
+      changed = true;
+    }
+  }
+  return changed ? merged : null;
+}
+
 function appendResearch(env, find) {
   return appendTo(env, RESEARCH_ID, initialResearch, (research) => {
-    if (research.candidates.some((c) => sameKey(c.name) === sameKey(find.name))) return null;
+    const at = research.candidates.findIndex((c) => sameKey(c.name) === sameKey(find.name));
+    if (at >= 0) {
+      const merged = fillBlanks(research.candidates[at], find, [
+        'website',
+        'address',
+        'neighborhood',
+        'why',
+      ]);
+      if (!merged) return null;
+      const candidates = research.candidates.map((c, i) => (i === at ? merged : c));
+      const next = { ...research, candidates };
+      return validateResearch(next).error ? null : { next, how: 'updated' };
+    }
     const next = { ...research, candidates: [...research.candidates, find] };
-    return validateResearch(next).error ? null : next;
+    return validateResearch(next).error ? null : { next, how: 'added' };
   });
 }
 
 function appendPlace(env, place) {
   return appendTo(env, TRIP_ID, initialTrip, (trip) => {
-    if (trip.places.some((p) => sameKey(p.name) === sameKey(place.name))) return null;
+    const at = trip.places.findIndex((p) => sameKey(p.name) === sameKey(place.name));
+    if (at >= 0) {
+      const current = trip.places[at];
+      const merged = fillBlanks(current, place, ['website', 'note']);
+      // A place saved without a pin can gain one later.
+      const withPin =
+        !current.location && place.location
+          ? { ...(merged ?? current), location: place.location }
+          : merged;
+      if (!withPin) return null;
+      const places = trip.places.map((p, i) => (i === at ? withPin : p));
+      const next = { ...trip, places };
+      return validateTrip(next).error ? null : { next, how: 'updated' };
+    }
     const next = {
       ...trip,
       places: [
@@ -779,7 +826,7 @@ function appendPlace(env, place) {
         },
       ],
     };
-    return validateTrip(next).error ? null : next;
+    return validateTrip(next).error ? null : { next, how: 'added' };
   });
 }
 

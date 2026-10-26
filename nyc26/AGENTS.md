@@ -162,10 +162,15 @@ Content-Type: application/json
 - The Worker looks the name and address up itself and attaches a real pin when
   it finds a New York match. **Do not send coordinates; it ignores them.** If
   nothing matches, the place is saved by name with no pin, which is fine.
-- A name already on the map or the list is ignored, and the reply says
-  `"duplicate": true`. Adding the same place twice is harmless.
-- A success looks like `{"ok":true,"added":"map","name":"Narkara","pinned":true}`.
-  `pinned: false` means it went on without a pin.
+- Sending a place that is already there fills in only the fields that are still
+  empty — a website, an address, a neighborhood, a reason, or a pin on a place
+  saved without one. It never overwrites anything that already holds a value, so
+  Jonas's own edits are safe and re-sending a batch is harmless.
+- `website` (or `url`, `site`, `link`) is a place's own site. The Worker accepts
+  http(s) only and normalises a bare host like `toytokyo.com`.
+- The reply's `result` is `added`, `updated` or `unchanged`:
+  `{"ok":true,"result":"added","where":"map","name":"Narkara","pinned":true}`.
+  `pinned: false` means it went on without a pin, which is fine.
 
 This endpoint can only add. It cannot read the trip, cannot change or delete
 anything, and never returns trip content, which is why it has its own key rather
