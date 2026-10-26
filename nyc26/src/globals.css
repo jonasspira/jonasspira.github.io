@@ -40,3 +40,37 @@ section{margin-bottom:28px}.section-head{margin-bottom:10px}.night-head{padding-
 button.quiet.danger{color:#f0a998}
 .place-site{display:inline-block;font-size:11px;margin-top:4px}
 .map-source+.place-site{margin-left:12px}
+
+/* Quick-glance pass: less chrome, tighter rhythm, smaller secondary text.
+   Nothing here changes the palette, the pins or the tab behaviour. */
+section{margin-bottom:22px}
+.masthead{padding:20px 0 14px}
+.masthead h1{font-size:46px;letter-spacing:-2px;margin:8px 0 4px}
+.essentials{margin-bottom:22px}
+.flights,.hotel{padding:14px 16px}
+.flights{gap:10px}
+.detail h3,.hotel>h3{font-size:10px;margin-bottom:1px}
+.night-head{padding:12px 14px 8px}
+.night-head h3{font-size:18px;margin-top:2px}
+.night-content{padding:12px 14px}
+.night-cluster{font-weight:600;margin-bottom:6px}
+.awareness{font-size:12px;margin-top:10px;padding-top:8px;color:var(--dim)}
+.search-form{padding:14px 16px 10px}
+.add-place{padding:0 16px 12px}
+.hint{font-size:11px;margin-top:6px}
+.place{margin:0 16px;padding:13px 0 10px}
+.place-note{font-size:12px;margin-top:5px}
+.thoughts{padding:14px 16px}
+.thought{font-size:12px}
+.practical article{padding:13px 14px}
+.stay{margin-top:12px;padding-top:9px}
+
+@media(max-width:640px){
+  /* One flight per row. Two narrow columns broke times across lines
+     ("11:41 / AM – 1:30 PM"), which is the opposite of glanceable. */
+  .flights{grid-template-columns:1fr;gap:0}
+  .flights .detail{padding:9px 0;border-bottom:1px solid var(--line)}
+  .flights .detail:first-child{padding-top:0}
+  .flights .detail.confirmation{border-bottom:0;padding-bottom:0;display:flex;align-items:baseline;gap:10px}
+  .flights .detail.confirmation h3{margin-bottom:0}
+}
