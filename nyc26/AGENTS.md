@@ -103,6 +103,52 @@ has no effect until that is done.
 `SETUP.md` has the one-time account steps and how to check it is configured.
 `RESEARCH.md` covers the research sub-page and what to ask other tools for.
 
+## Driving this from a chat tool (Muse, Codex, Claude)
+
+Read this whole file first. Then, before anything else, work out which kind of
+change is being asked for, because they are completely different jobs.
+
+**Trip content** — a place, a note, an evening, a flight, a thought. This needs
+**no code and no repository work at all**. Jonas edits it in the page itself, or
+pastes research into `/nyc26/research/`. If you are asked to "add a restaurant to
+the map", the answer is to tell him to add it on the page, or to paste the find
+into the research page and press Add to map. Do not touch this folder for that.
+
+**Page or Worker changes** — layout, styling, a new field, a new rule. That is a
+code change, and these rules are not optional:
+
+1. Edit `src/`, never the built `index.html`, `research/index.html` or `assets/`.
+2. Run `npm run build`. It type-checks, builds and copies the result into this
+   folder. **Skipping it means the live site does not change**, because GitHub
+   Pages serves the built files, not `src/`.
+3. Run `npm test`. All checks must pass. The Worker ones skip without a local
+   Worker; that is fine.
+4. Commit `src/` and the built files together, in one commit.
+5. Push only when Jonas asks.
+6. A change to `worker/worker.js` does nothing until someone runs
+   `npx wrangler deploy --config worker/wrangler.toml`. Only Jonas is signed in
+   to Cloudflare, so tell him it needs deploying and do not claim it is live.
+
+Never do these:
+
+- Add a homepage card or a `README.md` row for nyc26. Both are public and would
+  advertise that the trip exists. The root `AGENTS.md` says the same.
+- Commit a secret. `worker/.dev.vars` holds the local PIN and is git-ignored;
+  keep it that way. The real PIN and signing key live only in Cloudflare.
+- Put trip content in this repository. It is public. Content belongs in D1.
+- Invent a coordinate, an address, an opening time or a flight detail. Unknowns
+  stay `TO BE FILLED IN`. Pins come only from the place search or NYC GeoSearch.
+- Work here at the same time as another tool. One at a time on this folder.
+
+If something you pushed breaks the live page, this restores it:
+
+```
+git revert --no-edit HEAD && git push
+```
+
+Then tell Jonas, because the live page is only fixed once Pages finishes
+rebuilding, which takes a minute or two.
+
 ## Several tools work on this
 
 Claude, Codex and Muse all edit this folder. Start from the latest `main`, use
